@@ -88,6 +88,11 @@ python main.py
 - `AI_INTEGRATIONS_GEMINI_API_KEY`: Gemini API 키 (자동 설정)
 
 ## 최근 변경사항
+- 2026-01-29: **자기주도 학습 시간 측정 기능 추가**
+  - 체크포인트 완료 토글: 학생이 직접 완료/미완료 상태 변경 가능
+  - 학습 시간 타이머: 시작/일시정지/재개/중단 버튼
+  - 실시간 경과 시간 표시 (HH:MM:SS 형식)
+  - Progress 모델에 paused_at, accumulated_seconds, is_paused 필드 추가
 - 2026-01-29: **로그인 기능 강화 및 테마 변경**
   - 아이디 저장: 쿠키 기반 이메일 저장 (1년 유지)
   - 자동 로그인: Flask-Login remember 기능 (30일)
