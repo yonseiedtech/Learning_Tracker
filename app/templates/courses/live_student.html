@@ -64,9 +64,12 @@
                                 {% if cp.description %}
                                 <p class="mb-2 text-muted small">{{ cp.description }}</p>
                                 {% endif %}
-                                {% if cp.estimated_minutes %}
-                                <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
-                                {% endif %}
+                                <div class="d-flex gap-3 mt-1">
+                                    {% if cp.estimated_minutes %}
+                                    <small class="text-primary"><i class="bi bi-hourglass me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                                    {% endif %}
+                                    <small class="text-success" id="actual-time-{{ cp.id }}"><i class="bi bi-stopwatch me-1"></i>실제 00:00</small>
+                                </div>
                                 
                                 <div class="understanding-buttons mt-3" id="understanding-{{ cp.id }}">
                                     <span class="small text-muted me-2">이해도:</span>
@@ -138,6 +141,10 @@
 .checkpoint-item-student.current {
     background: rgba(40, 167, 69, 0.1);
     border-color: rgba(40, 167, 69, 0.5);
+}
+.checkpoint-item-student.instructor-completed {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15));
+    border-color: #28a745;
 }
 .pulse-animation {
     animation: pulse 2s infinite;
@@ -242,6 +249,65 @@ socket.on('current_checkpoint_changed', function(data) {
 
 socket.on('new_chat_message', function(data) {
     appendChatMessage(data);
+});
+
+let studentTimers = {};
+
+socket.on('timer_sync', function(data) {
+    const { checkpoint_id, elapsed_seconds, is_running, action } = data;
+    
+    if (!studentTimers[checkpoint_id]) {
+        studentTimers[checkpoint_id] = { elapsedSeconds: 0, intervalId: null };
+    }
+    
+    const timer = studentTimers[checkpoint_id];
+    timer.elapsedSeconds = elapsed_seconds;
+    
+    if (timer.intervalId) {
+        clearInterval(timer.intervalId);
+        timer.intervalId = null;
+    }
+    
+    updateStudentTimerDisplay(checkpoint_id);
+    
+    if (is_running) {
+        timer.intervalId = setInterval(() => {
+            timer.elapsedSeconds++;
+            updateStudentTimerDisplay(checkpoint_id);
+        }, 1000);
+    }
+});
+
+function updateStudentTimerDisplay(cpId) {
+    const timer = studentTimers[cpId];
+    if (!timer) return;
+    const display = document.getElementById(`actual-time-${cpId}`);
+    if (display) {
+        const mins = Math.floor(timer.elapsedSeconds / 60);
+        const secs = timer.elapsedSeconds % 60;
+        display.innerHTML = `<i class="bi bi-stopwatch me-1"></i>실제 ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    }
+}
+
+socket.on('instructor_checkpoint_status', function(data) {
+    const { checkpoint_id, completed, elapsed_seconds } = data;
+    const cpEl = document.getElementById(`checkpoint-${checkpoint_id}`);
+    if (cpEl) {
+        if (completed) {
+            cpEl.classList.add('instructor-completed');
+            cpEl.classList.remove('current');
+            document.getElementById(`current-${checkpoint_id}`)?.classList.add('d-none');
+        } else {
+            cpEl.classList.remove('instructor-completed');
+        }
+    }
+    
+    const display = document.getElementById(`actual-time-${checkpoint_id}`);
+    if (display && elapsed_seconds) {
+        const mins = Math.floor(elapsed_seconds / 60);
+        const secs = elapsed_seconds % 60;
+        display.innerHTML = `<i class="bi bi-stopwatch me-1"></i>실제 ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    }
 });
 
 function appendChatMessage(data) {

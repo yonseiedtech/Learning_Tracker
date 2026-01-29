@@ -36,27 +36,48 @@
         <div class="glass-card p-4 mb-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="fw-bold mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>체크포인트 진행</h5>
-                <small class="text-muted">클릭하여 현재 진행 단계 설정</small>
+                <div class="d-flex gap-2 align-items-center">
+                    <small class="text-muted">클릭: 진행중 | 더블클릭: 완료</small>
+                </div>
             </div>
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
-                <div class="checkpoint-item-instructor p-3 mb-2 rounded-3" id="checkpoint-{{ cp.id }}" onclick="setCurrentCheckpoint({{ cp.id }})">
+                <div class="checkpoint-item-instructor p-3 mb-2 rounded-3" id="checkpoint-{{ cp.id }}" 
+                     onclick="setCurrentCheckpoint({{ cp.id }})" 
+                     ondblclick="toggleCheckpointComplete({{ cp.id }})">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             <div class="checkpoint-order me-3">
-                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6 px-3 py-2">{{ cp.order }}</span>
+                                <span class="badge checkpoint-number fs-6 px-3 py-2" id="cp-num-{{ cp.id }}">{{ cp.order }}</span>
                             </div>
                             <div>
                                 <strong>{{ cp.title }}</strong>
                                 {% if cp.description %}
                                 <p class="mb-0 small text-muted">{{ cp.description[:50] }}{{ '...' if cp.description|length > 50 else '' }}</p>
                                 {% endif %}
-                                {% if cp.estimated_minutes %}
-                                <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
-                                {% endif %}
+                                <div class="d-flex gap-3 mt-1">
+                                    {% if cp.estimated_minutes %}
+                                    <small class="text-primary"><i class="bi bi-hourglass me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                                    {% endif %}
+                                    <small class="text-success" id="actual-time-{{ cp.id }}"><i class="bi bi-stopwatch me-1"></i>실제 00:00</small>
+                                </div>
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-3">
+                            <div class="timer-controls btn-group btn-group-sm" id="timer-{{ cp.id }}">
+                                <button class="btn btn-outline-success btn-sm timer-start" onclick="event.stopPropagation(); startTimer({{ cp.id }})" title="시작">
+                                    <i class="bi bi-play-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm timer-pause d-none" onclick="event.stopPropagation(); pauseTimer({{ cp.id }})" title="일시중단">
+                                    <i class="bi bi-pause-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm timer-resume d-none" onclick="event.stopPropagation(); resumeTimer({{ cp.id }})" title="재개">
+                                    <i class="bi bi-play-circle"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm timer-stop d-none" onclick="event.stopPropagation(); stopTimer({{ cp.id }})" title="종료">
+                                    <i class="bi bi-stop-fill"></i>
+                                </button>
+                            </div>
                             <div class="understanding-stats d-flex gap-2">
                                 <span class="badge bg-success bg-opacity-10 text-success" id="understood-{{ cp.id }}">
                                     <i class="bi bi-emoji-smile me-1"></i><span>0</span>
@@ -70,8 +91,9 @@
                                     <i class="bi bi-people me-1"></i>0/{{ students|length }}
                                 </span>
                             </div>
-                            <div class="current-indicator d-none" id="current-{{ cp.id }}">
-                                <span class="badge bg-success pulse-animation"><i class="bi bi-play-circle-fill me-1"></i>진행중</span>
+                            <div class="status-indicators">
+                                <span class="badge bg-success pulse-animation d-none" id="current-{{ cp.id }}"><i class="bi bi-play-circle-fill me-1"></i>진행중</span>
+                                <span class="badge bg-primary d-none" id="complete-{{ cp.id }}"><i class="bi bi-check-circle-fill me-1"></i>완료</span>
                             </div>
                         </div>
                     </div>
@@ -194,6 +216,19 @@
     background: rgba(102, 126, 234, 0.15);
     border-color: var(--primary-color);
 }
+.checkpoint-item-instructor.completed {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15));
+    border-color: #28a745;
+}
+.checkpoint-item-instructor.completed .checkpoint-number {
+    background: linear-gradient(135deg, #28a745, #20c997) !important;
+    color: white !important;
+}
+.checkpoint-number {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+}
 .pulse-animation {
     animation: pulse 2s infinite;
 }
@@ -222,6 +257,10 @@
 .chat-message.instructor-msg {
     background: rgba(102, 126, 234, 0.1);
 }
+.timer-controls .btn {
+    padding: 2px 6px;
+    font-size: 12px;
+}
 </style>
 
 {% endblock %}
@@ -230,6 +269,7 @@
 <script>
 const courseId = {{ course.id }};
 const checkpoints = {{ checkpoints|map(attribute='id')|list|tojson }};
+const checkpointEstimates = {{ checkpoints|map(attribute='estimated_minutes')|list|tojson }};
 const studentIds = {{ students|map(attribute='id')|list|tojson }};
 const totalCheckpoints = {{ checkpoints|length }};
 const totalStudents = {{ students|length }};
@@ -242,6 +282,17 @@ studentIds.forEach(id => {
     checkpoints.forEach(cpId => {
         studentProgress[id][cpId] = false;
     });
+});
+
+let completedCheckpoints = new Set();
+let checkpointTimers = {};
+
+checkpoints.forEach(cpId => {
+    checkpointTimers[cpId] = {
+        elapsedSeconds: 0,
+        isRunning: false,
+        intervalId: null
+    };
 });
 
 function updateClock() {
@@ -257,6 +308,137 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+}
+
+function updateTimerDisplay(cpId) {
+    const timer = checkpointTimers[cpId];
+    const display = document.getElementById(`actual-time-${cpId}`);
+    if (display) {
+        display.innerHTML = `<i class="bi bi-stopwatch me-1"></i>실제 ${formatTime(timer.elapsedSeconds)}`;
+    }
+}
+
+function startTimer(cpId) {
+    const timer = checkpointTimers[cpId];
+    if (timer.isRunning) return;
+    
+    timer.isRunning = true;
+    timer.intervalId = setInterval(() => {
+        timer.elapsedSeconds++;
+        updateTimerDisplay(cpId);
+    }, 1000);
+    
+    const timerEl = document.getElementById(`timer-${cpId}`);
+    timerEl.querySelector('.timer-start').classList.add('d-none');
+    timerEl.querySelector('.timer-pause').classList.remove('d-none');
+    timerEl.querySelector('.timer-stop').classList.remove('d-none');
+    timerEl.querySelector('.timer-resume').classList.add('d-none');
+    
+    socket.emit('checkpoint_timer_action', { 
+        course_id: courseId, 
+        checkpoint_id: cpId, 
+        action: 'start',
+        elapsed_seconds: timer.elapsedSeconds
+    });
+}
+
+function pauseTimer(cpId) {
+    const timer = checkpointTimers[cpId];
+    if (!timer.isRunning) return;
+    
+    timer.isRunning = false;
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+    
+    const timerEl = document.getElementById(`timer-${cpId}`);
+    timerEl.querySelector('.timer-pause').classList.add('d-none');
+    timerEl.querySelector('.timer-resume').classList.remove('d-none');
+    
+    socket.emit('checkpoint_timer_action', { 
+        course_id: courseId, 
+        checkpoint_id: cpId, 
+        action: 'pause',
+        elapsed_seconds: timer.elapsedSeconds
+    });
+}
+
+function resumeTimer(cpId) {
+    const timer = checkpointTimers[cpId];
+    if (timer.isRunning) return;
+    
+    timer.isRunning = true;
+    timer.intervalId = setInterval(() => {
+        timer.elapsedSeconds++;
+        updateTimerDisplay(cpId);
+    }, 1000);
+    
+    const timerEl = document.getElementById(`timer-${cpId}`);
+    timerEl.querySelector('.timer-start').classList.add('d-none');
+    timerEl.querySelector('.timer-pause').classList.remove('d-none');
+    timerEl.querySelector('.timer-stop').classList.remove('d-none');
+    timerEl.querySelector('.timer-resume').classList.add('d-none');
+    
+    socket.emit('checkpoint_timer_action', { 
+        course_id: courseId, 
+        checkpoint_id: cpId, 
+        action: 'resume',
+        elapsed_seconds: timer.elapsedSeconds
+    });
+}
+
+function stopTimer(cpId) {
+    const timer = checkpointTimers[cpId];
+    timer.isRunning = false;
+    if (timer.intervalId) {
+        clearInterval(timer.intervalId);
+        timer.intervalId = null;
+    }
+    
+    const timerEl = document.getElementById(`timer-${cpId}`);
+    timerEl.querySelector('.timer-start').classList.remove('d-none');
+    timerEl.querySelector('.timer-pause').classList.add('d-none');
+    timerEl.querySelector('.timer-resume').classList.add('d-none');
+    timerEl.querySelector('.timer-stop').classList.add('d-none');
+    
+    socket.emit('checkpoint_timer_action', { 
+        course_id: courseId, 
+        checkpoint_id: cpId, 
+        action: 'stop',
+        elapsed_seconds: timer.elapsedSeconds
+    });
+}
+
+function toggleCheckpointComplete(cpId) {
+    const item = document.getElementById(`checkpoint-${cpId}`);
+    const completeIndicator = document.getElementById(`complete-${cpId}`);
+    const currentIndicator = document.getElementById(`current-${cpId}`);
+    
+    if (completedCheckpoints.has(cpId)) {
+        completedCheckpoints.delete(cpId);
+        item.classList.remove('completed');
+        completeIndicator.classList.add('d-none');
+    } else {
+        completedCheckpoints.add(cpId);
+        item.classList.add('completed');
+        item.classList.remove('current');
+        completeIndicator.classList.remove('d-none');
+        currentIndicator.classList.add('d-none');
+        
+        stopTimer(cpId);
+    }
+    
+    socket.emit('instructor_checkpoint_complete', { 
+        course_id: courseId, 
+        checkpoint_id: cpId, 
+        completed: completedCheckpoints.has(cpId),
+        elapsed_seconds: checkpointTimers[cpId].elapsedSeconds
+    });
+}
 
 if (currentCheckpointId) {
     document.getElementById(`checkpoint-${currentCheckpointId}`).classList.add('current');
@@ -309,10 +491,21 @@ socket.on('understanding_updated', function(data) {
     if (confusedEl) confusedEl.textContent = confused;
 });
 
+socket.on('timer_sync', function(data) {
+    const { checkpoint_id, elapsed_seconds, is_running } = data;
+    const timer = checkpointTimers[checkpoint_id];
+    timer.elapsedSeconds = elapsed_seconds;
+    updateTimerDisplay(checkpoint_id);
+});
+
 function setCurrentCheckpoint(checkpointId) {
+    if (completedCheckpoints.has(checkpointId)) return;
+    
     checkpoints.forEach(cpId => {
-        document.getElementById(`checkpoint-${cpId}`).classList.remove('current');
-        document.getElementById(`current-${cpId}`).classList.add('d-none');
+        if (!completedCheckpoints.has(cpId)) {
+            document.getElementById(`checkpoint-${cpId}`).classList.remove('current');
+            document.getElementById(`current-${cpId}`).classList.add('d-none');
+        }
     });
     
     document.getElementById(`checkpoint-${checkpointId}`).classList.add('current');

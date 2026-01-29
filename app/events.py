@@ -234,6 +234,49 @@ def handle_set_current_checkpoint(data):
         'checkpoint_id': checkpoint_id
     }, room=room)
 
+@socketio.on('checkpoint_timer_action')
+def handle_checkpoint_timer_action(data):
+    if not current_user.is_authenticated or not current_user.is_instructor():
+        return
+    
+    course_id = data.get('course_id')
+    checkpoint_id = data.get('checkpoint_id')
+    action = data.get('action')
+    elapsed_seconds = data.get('elapsed_seconds', 0)
+    
+    course = Course.query.get(course_id)
+    if not course or course.instructor_id != current_user.id:
+        return
+    
+    room = f'course_{course_id}'
+    emit('timer_sync', {
+        'checkpoint_id': checkpoint_id,
+        'elapsed_seconds': elapsed_seconds,
+        'action': action,
+        'is_running': action in ['start', 'resume']
+    }, room=room)
+
+@socketio.on('instructor_checkpoint_complete')
+def handle_instructor_checkpoint_complete(data):
+    if not current_user.is_authenticated or not current_user.is_instructor():
+        return
+    
+    course_id = data.get('course_id')
+    checkpoint_id = data.get('checkpoint_id')
+    completed = data.get('completed', False)
+    elapsed_seconds = data.get('elapsed_seconds', 0)
+    
+    course = Course.query.get(course_id)
+    if not course or course.instructor_id != current_user.id:
+        return
+    
+    room = f'course_{course_id}'
+    emit('instructor_checkpoint_status', {
+        'checkpoint_id': checkpoint_id,
+        'completed': completed,
+        'elapsed_seconds': elapsed_seconds
+    }, room=room)
+
 @socketio.on('submit_understanding')
 def handle_submit_understanding(data):
     if not current_user.is_authenticated or current_user.is_instructor():
