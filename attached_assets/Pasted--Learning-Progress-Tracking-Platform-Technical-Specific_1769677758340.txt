@@ -1,0 +1,190 @@
+# Learning Progress Tracking Platform - Technical Specification
+
+## System Overview
+Real-time learning progress monitoring system with dual operational modes: 
+live classroom tracking and self-paced learning analytics.
+
+## Architecture Requirements
+
+### Tech Stack
+- Backend: Python Flask + Flask-SocketIO
+- Database: SQLite (dev) / PostgreSQL (prod-ready migrations)
+- Real-time: Socket.IO for live updates
+- Auth: Flask-Login + bcrypt
+- Frontend: Vanilla JS + Chart.js + Bootstrap 5
+- State Management: Server-authoritative with client synchronization
+
+### Core Features
+
+**1. Authentication & Authorization**
+- Role-based access control (RBAC): instructor, student
+- Session management with secure cookies
+- Password hashing (bcrypt)
+- JWT optional for API extension
+
+**2. Course Management**
+- Instructors: CRUD courses, generate unique invite codes
+- Students: Enroll via invite code
+- Many-to-many relationship (users ↔ courses)
+
+**3. Checkpoint System**
+- Instructors: Design ordered checkpoint sequences per course
+- Configurable metadata: name, description, order, estimated_duration
+- Reorderable with drag-and-drop UI
+- Soft delete support
+
+**4. Live Mode (Classroom)**
+- Real-time dashboard: all students' progress on current checkpoint
+- WebSocket broadcasts on checkpoint completion
+- Instructor view: grid/list toggle, completion statistics
+- Student view: simple checkpoint marker with instant sync
+- Fallback: 3-second polling if WebSocket unavailable
+
+**5. Self-Paced Mode**
+- Individual progress tracking with timestamps (started_at, completed_at)
+- Automatic duration calculation per checkpoint
+- Historical data retention for analytics
+
+**6. Analytics & Reporting**
+
+Instructor Dashboard (Live Mode):
+- Aggregate completion rates per checkpoint
+- Real-time student status matrix
+- Lagging student alerts (< 70% class average)
+- Export to CSV
+
+Student Dashboard (Self-Paced Mode):
+- Personal progress percentage
+- Time spent per checkpoint (bar chart)
+- Slowest 3 checkpoints highlighted
+- Timeline visualization of learning pattern
+- Comparison with course average (optional)
+
+## Data Model
+```sql
+users (
+  id, username, email, password_hash, role ENUM('instructor','student'),
+  created_at, updated_at
+)
+
+courses (
+  id, title, description, instructor_id FK, invite_code UNIQUE,
+  created_at, updated_at
+)
+
+enrollments (
+  id, course_id FK, user_id FK, enrolled_at,
+  UNIQUE(course_id, user_id)
+)
+
+checkpoints (
+  id, course_id FK, title, description, order INT, estimated_minutes,
+  created_at, updated_at, deleted_at
+)
+
+progress (
+  id, user_id FK, checkpoint_id FK, mode ENUM('live','self_paced'),
+  started_at, completed_at, duration_seconds,
+  UNIQUE(user_id, checkpoint_id, mode)
+)
+
+active_sessions (
+  id, course_id FK, mode, started_at, ended_at
+)
+```
+
+## API Design (RESTful + WebSocket)
+
+### REST Endpoints
+POST   /auth/register
+POST   /auth/login
+POST   /auth/logout
+GET    /courses
+POST   /courses
+GET    /courses/:id
+PUT    /courses/:id
+DELETE /courses/:id
+POST   /courses/:id/enroll
+GET    /courses/:id/checkpoints
+POST   /courses/:id/checkpoints
+PUT    /checkpoints/:id
+DELETE /checkpoints/:id
+PATCH  /checkpoints/reorder
+POST   /progress/:checkpoint_id/start
+POST   /progress/:checkpoint_id/complete
+GET    /progress/student/:user_id
+GET    /progress/course/:course_id
+GET    /analytics/instructor/:course_id
+GET    /analytics/student/:course_id
+GET    /analytics/export/:course_id (CSV)
+
+### WebSocket Events
+// Client → Server
+join_course(course_id, mode)
+checkpoint_completed(checkpoint_id)
+leave_course(course_id)
+// Server → Client
+progress_update(user_id, checkpoint_id, status)
+student_joined(user_id)
+student_left(user_id)
+session_stats(completion_rates)
+
+## Implementation Priorities
+
+**Phase 1: Foundation** (MVP)
+- User auth + RBAC
+- Course CRUD
+- Basic enrollment
+
+**Phase 2: Core Tracking**
+- Checkpoint management UI
+- Progress recording (both modes)
+- Basic dashboard
+
+**Phase 3: Real-time**
+- Socket.IO integration
+- Live mode dashboard
+- Auto-refresh fallback
+
+**Phase 4: Analytics**
+- Time tracking logic
+- Chart.js visualizations
+- Report generation
+
+**Phase 5: Polish**
+- Export functionality
+- Mobile responsiveness
+- Performance optimization
+
+## Technical Constraints & Considerations
+
+- **Scalability**: Design for 50-100 concurrent users per course
+- **State Consistency**: Server as source of truth, optimistic UI updates
+- **Error Handling**: Graceful degradation for network issues
+- **Security**: Input validation, SQL injection prevention, CSRF tokens
+- **Testing**: Unit tests for business logic, integration tests for API
+- **Logging**: Structured logging for debugging (JSON format)
+- **Config**: Environment-based settings (.env file)
+
+## Deliverables
+
+1. Fully functional Flask application
+2. Database migrations (Flask-Migrate)
+3. README with setup instructions
+4. .env.example template
+5. Seed data script for demo
+6. API documentation (inline or separate)
+7. Docker configuration (optional)
+
+## Code Quality Standards
+
+- PEP 8 compliance
+- Type hints where applicable
+- Docstrings for public functions
+- Modular architecture (blueprints)
+- DRY principles
+- Comprehensive error handling
+- SQL injection prevention (parameterized queries)
+- XSS protection (template escaping)
+
+Generate production-ready code with emphasis on maintainability and extensibility.
