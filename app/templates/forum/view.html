@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - 게시판{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('forum.list_posts', course_id=course.id) }}">게시판</a></li>
+        <li class="breadcrumb-item active">게시글</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-lg">{{ post.user.username[0]|upper }}</div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <strong>{{ post.user.username }}</strong>
+                            {% if post.user.role == 'instructor' %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary">강사</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{{ post.created_at.strftime('%Y년 %m월 %d일 %H:%M') }}</small>
+                    </div>
+                </div>
+                {% if post.user_id == current_user.id or course.instructor_id == current_user.id %}
+                <form method="POST" action="{{ url_for('forum.delete_post', post_id=post.id) }}" onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                        <i class="bi bi-trash me-1"></i>삭제
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            
+            <h4 class="fw-bold mb-3">{{ post.title }}</h4>
+            <div class="post-content mb-0" style="white-space: pre-wrap;">{{ post.content }}</div>
+        </div>
+        
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-4">
+                <i class="bi bi-chat-dots me-2 text-primary"></i>댓글 
+                <span class="badge bg-primary bg-opacity-10 text-primary">{{ comments|length }}</span>
+            </h5>
+            
+            {% if comments %}
+            <div class="comments-list mb-4">
+                {% for comment in comments %}
+                <div class="comment-item p-3 mb-2 rounded-3" style="background: rgba(255,255,255,0.5);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="avatar-sm">{{ comment.user.username[0]|upper }}</div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong class="small">{{ comment.user.username }}</strong>
+                                    {% if comment.user.role == 'instructor' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
+                                    {% endif %}
+                                    <small class="text-muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                <p class="mb-0 small" style="white-space: pre-wrap;">{{ comment.content }}</p>
+                            </div>
+                        </div>
+                        {% if comment.user_id == current_user.id or course.instructor_id == current_user.id %}
+                        <form method="POST" action="{{ url_for('forum.delete_comment', comment_id=comment.id) }}" onsubmit="return confirm('댓글을 삭제하시겠습니까?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-4">아직 댓글이 없습니다. 첫 번째 댓글을 남겨보세요!</p>
+            {% endif %}
+            
+            <form method="POST" action="{{ url_for('forum.add_comment', post_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <textarea class="form-control" name="content" rows="3" placeholder="댓글을 입력하세요" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">
+                    <i class="bi bi-chat-dots me-1"></i>댓글 작성
+                </button>
+            </form>
+        </div>
+        
+        <div class="mt-4">
+            <a href="{{ url_for('forum.list_posts', course_id=course.id) }}" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="bi bi-arrow-left me-1"></i>목록으로
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.avatar-lg {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}

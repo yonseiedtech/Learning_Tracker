@@ -20,6 +20,9 @@
         <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success rounded-pill">
             <i class="bi bi-broadcast me-2"></i>라이브 참여
         </a>
+        <a href="{{ url_for('forum.list_posts', course_id=course.id) }}" class="btn btn-secondary rounded-pill">
+            <i class="bi bi-chat-square-text me-2"></i>게시판
+        </a>
         <a href="{{ url_for('analytics.student_dashboard', course_id=course.id) }}" class="btn btn-info text-white rounded-pill">
             <i class="bi bi-graph-up me-2"></i>내 진도
         </a>

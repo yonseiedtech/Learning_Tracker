@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}게시판 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">게시판</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-chat-square-text me-2 text-primary"></i>게시판</h2>
+        <p class="text-muted mb-0">{{ course.title }} - 질문과 토론</p>
+    </div>
+    <a href="{{ url_for('forum.create_post', course_id=course.id) }}" class="btn btn-primary rounded-pill px-4">
+        <i class="bi bi-plus-lg me-1"></i>새 글 작성
+    </a>
+</div>
+
+<div class="glass-card p-4">
+    {% if posts %}
+    <div class="list-group list-group-modern">
+        {% for post in posts %}
+        <a href="{{ url_for('forum.view_post', post_id=post.id) }}" class="list-group-item list-group-item-action p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="avatar-sm">{{ post.user.username[0]|upper }}</div>
+                        <strong>{{ post.user.username }}</strong>
+                        {% if post.user.role == 'instructor' %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
+                        {% endif %}
+                        <small class="text-muted">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                    <h6 class="mb-1">{{ post.title }}</h6>
+                    <p class="text-muted small mb-0">{{ post.content[:100] }}{{ '...' if post.content|length > 100 else '' }}</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 ms-3">
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                        <i class="bi bi-chat me-1"></i>{{ post.comments.count() }}
+                    </span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-chat-square-text display-1 text-muted mb-3"></i>
+        <h5 class="text-muted">아직 게시글이 없습니다</h5>
+        <p class="text-muted mb-4">첫 번째 게시글을 작성해보세요!</p>
+        <a href="{{ url_for('forum.create_post', course_id=course.id) }}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i>새 글 작성
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.list-group-item-action:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+</style>
+{% endblock %}

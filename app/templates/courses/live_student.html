@@ -11,62 +11,217 @@
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
         <h2 class="fw-bold mb-1"><i class="bi bi-broadcast text-success me-2"></i>라이브 세션</h2>
-        <p class="text-muted mb-0">{{ course.title }} - 체크포인트를 완료하면 자동으로 동기화됩니다</p>
+        <p class="text-muted mb-0">{{ course.title }}</p>
     </div>
-    <span class="badge connection-badge bg-success" id="connectionStatus">
-        <i class="bi bi-circle-fill me-1"></i>연결됨
-    </span>
+    <div class="d-flex gap-2 align-items-center">
+        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-clock text-primary"></i>
+            <span id="currentTime">--:--:--</span>
+        </div>
+        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-stopwatch text-success"></i>
+            <span id="sessionDuration">00:00:00</span>
+        </div>
+        <span class="badge connection-badge bg-success" id="connectionStatus">
+            <i class="bi bi-circle-fill me-1"></i>연결됨
+        </span>
+    </div>
 </div>
 
-<div class="row justify-content-center">
+<div class="row g-4">
     <div class="col-lg-8">
         <div class="glass-card p-4">
-            <h5 class="fw-bold mb-4"><i class="bi bi-flag me-2 text-primary"></i>체크포인트</h5>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>체크포인트</h5>
+                <div id="currentCheckpointLabel" class="d-none">
+                    <span class="badge bg-success pulse-animation"><i class="bi bi-play-circle-fill me-1"></i>현재 진행 중</span>
+                </div>
+            </div>
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
                 {% set p = progress.get(cp.id) %}
-                <div class="checkpoint-item d-flex justify-content-between align-items-center" id="checkpoint-{{ cp.id }}">
-                    <div class="d-flex align-items-center">
-                        <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
+                <div class="checkpoint-item-student p-3 mb-3 rounded-3" id="checkpoint-{{ cp.id }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-start flex-grow-1">
+                            <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
+                                {% if p and p.completed_at %}
+                                <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                                {% else %}
+                                <i class="bi bi-circle text-muted fs-2"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ cp.order }}</span>
+                                    <strong>{{ cp.title }}</strong>
+                                    <div class="current-badge d-none" id="current-{{ cp.id }}">
+                                        <span class="badge bg-success pulse-animation"><i class="bi bi-arrow-right-circle-fill me-1"></i>진행중</span>
+                                    </div>
+                                </div>
+                                {% if cp.description %}
+                                <p class="mb-2 text-muted small">{{ cp.description }}</p>
+                                {% endif %}
+                                {% if cp.estimated_minutes %}
+                                <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                                {% endif %}
+                                
+                                <div class="understanding-buttons mt-3" id="understanding-{{ cp.id }}">
+                                    <span class="small text-muted me-2">이해도:</span>
+                                    <button class="btn btn-sm btn-outline-success understanding-btn me-2" onclick="submitUnderstanding({{ cp.id }}, 'understood')" id="understood-btn-{{ cp.id }}">
+                                        <i class="bi bi-emoji-smile me-1"></i>잘 이해했어요
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning understanding-btn" onclick="submitUnderstanding({{ cp.id }}, 'confused')" id="confused-btn-{{ cp.id }}">
+                                        <i class="bi bi-emoji-frown me-1"></i>잘 모르겠어요
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="btn-{{ cp.id }}" class="ms-3">
                             {% if p and p.completed_at %}
-                            <i class="bi bi-check-circle-fill text-success fs-3"></i>
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-check me-1"></i>완료됨</span>
                             {% else %}
-                            <i class="bi bi-circle text-muted fs-3"></i>
+                            <button class="btn btn-success rounded-pill px-4" onclick="completeCheckpoint({{ cp.id }})">
+                                <i class="bi bi-check-lg me-1"></i>완료
+                            </button>
                             {% endif %}
                         </div>
-                        <div>
-                            <strong>{{ cp.order }}. {{ cp.title }}</strong>
-                            {% if cp.description %}
-                            <p class="mb-0 small text-muted">{{ cp.description }}</p>
-                            {% endif %}
-                            {% if cp.estimated_minutes %}
-                            <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div id="btn-{{ cp.id }}">
-                        {% if p and p.completed_at %}
-                        <span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-check me-1"></i>완료됨</span>
-                        {% else %}
-                        <button class="btn btn-success rounded-pill px-4" onclick="completeCheckpoint({{ cp.id }})">
-                            <i class="bi bi-check-lg me-1"></i>완료 표시
-                        </button>
-                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
     </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-chat-dots me-2 text-primary"></i>라이브 채팅</h5>
+            <div class="chat-container" id="chatMessages" style="height: 400px; overflow-y: auto;">
+                {% for msg in messages %}
+                <div class="chat-message mb-2 {% if msg.user.role == 'instructor' %}instructor-msg{% endif %}">
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="avatar-sm">{{ msg.user.username[0]|upper }}</div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <strong class="small">{{ msg.user.username }}</strong>
+                                {% if msg.user.role == 'instructor' %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
+                                {% endif %}
+                                <small class="text-muted">{{ msg.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                            <p class="mb-0 small">{{ msg.message }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요..." onkeypress="handleChatKeyPress(event)">
+                    <button class="btn btn-primary" onclick="sendChatMessage()">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.checkpoint-item-student {
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.5);
+    border: 2px solid transparent;
+}
+.checkpoint-item-student.current {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: rgba(40, 167, 69, 0.5);
+}
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.chat-message {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+}
+.chat-message.instructor-msg {
+    background: rgba(102, 126, 234, 0.1);
+}
+.understanding-btn.active {
+    font-weight: 600;
+}
+.understanding-btn.active.btn-outline-success {
+    background: var(--bs-success);
+    color: white;
+}
+.understanding-btn.active.btn-outline-warning {
+    background: var(--bs-warning);
+    color: white;
+}
+</style>
+
+{% endblock %}
 
 {% block scripts %}
 <script>
 const courseId = {{ course.id }};
 const csrfToken = '{{ csrf_token() }}';
+const sessionStartTime = new Date('{{ session.started_at.isoformat() }}');
+let currentCheckpointId = {{ session.current_checkpoint_id or 'null' }};
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('ko-KR');
+    
+    const elapsed = Math.floor((now - sessionStartTime) / 1000);
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const seconds = elapsed % 60;
+    document.getElementById('sessionDuration').textContent = 
+        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function updateCurrentCheckpoint(checkpointId) {
+    document.querySelectorAll('.checkpoint-item-student').forEach(el => el.classList.remove('current'));
+    document.querySelectorAll('.current-badge').forEach(el => el.classList.add('d-none'));
+    
+    if (checkpointId) {
+        const cpEl = document.getElementById(`checkpoint-${checkpointId}`);
+        const badgeEl = document.getElementById(`current-${checkpointId}`);
+        if (cpEl) cpEl.classList.add('current');
+        if (badgeEl) badgeEl.classList.remove('d-none');
+        
+        cpEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+if (currentCheckpointId) {
+    updateCurrentCheckpoint(currentCheckpointId);
+}
+
 const socket = io();
 
 socket.on('connect', function() {
@@ -79,6 +234,72 @@ socket.on('disconnect', function() {
     document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>연결 끊김';
     document.getElementById('connectionStatus').className = 'badge connection-badge bg-danger';
 });
+
+socket.on('current_checkpoint_changed', function(data) {
+    currentCheckpointId = data.checkpoint_id;
+    updateCurrentCheckpoint(data.checkpoint_id);
+});
+
+socket.on('new_chat_message', function(data) {
+    appendChatMessage(data);
+});
+
+function appendChatMessage(data) {
+    const container = document.getElementById('chatMessages');
+    const isInstructor = data.role === 'instructor';
+    const html = `
+        <div class="chat-message mb-2 ${isInstructor ? 'instructor-msg' : ''}">
+            <div class="d-flex align-items-start gap-2">
+                <div class="avatar-sm">${data.username[0].toUpperCase()}</div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <strong class="small">${data.username}</strong>
+                        ${isInstructor ? '<span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>' : ''}
+                        <small class="text-muted">${data.created_at}</small>
+                    </div>
+                    <p class="mb-0 small">${data.message}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (message) {
+        socket.emit('send_chat_message', { course_id: courseId, message: message });
+        input.value = '';
+    }
+}
+
+function handleChatKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendChatMessage();
+    }
+}
+
+function submitUnderstanding(checkpointId, status) {
+    socket.emit('submit_understanding', { 
+        course_id: courseId, 
+        checkpoint_id: checkpointId, 
+        status: status 
+    });
+    
+    const understoodBtn = document.getElementById(`understood-btn-${checkpointId}`);
+    const confusedBtn = document.getElementById(`confused-btn-${checkpointId}`);
+    
+    understoodBtn.classList.remove('active');
+    confusedBtn.classList.remove('active');
+    
+    if (status === 'understood') {
+        understoodBtn.classList.add('active');
+    } else {
+        confusedBtn.classList.add('active');
+    }
+}
 
 async function completeCheckpoint(checkpointId) {
     try {
@@ -95,7 +316,7 @@ async function completeCheckpoint(checkpointId) {
             const icon = document.getElementById(`icon-${checkpointId}`);
             const btn = document.getElementById(`btn-${checkpointId}`);
             
-            icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-3"></i>';
+            icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-2"></i>';
             btn.innerHTML = '<span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-check me-1"></i>완료됨</span>';
             
             socket.emit('checkpoint_completed', { checkpoint_id: checkpointId, mode: 'live' });
@@ -108,6 +329,7 @@ async function completeCheckpoint(checkpointId) {
 window.addEventListener('beforeunload', function() {
     socket.emit('leave_course', { course_id: courseId });
 });
+
+document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
 </script>
-{% endblock %}
 {% endblock %}

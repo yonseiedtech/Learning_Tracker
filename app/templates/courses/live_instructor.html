@@ -17,54 +17,92 @@
         <p class="text-muted mb-0">{{ course.title }} - 실시간 진도 추적</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
+        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-clock text-primary"></i>
+            <span id="currentTime">--:--:--</span>
+        </div>
+        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-stopwatch text-success"></i>
+            <span id="sessionDuration">00:00:00</span>
+        </div>
         <span class="badge connection-badge bg-success" id="connectionStatus">
             <i class="bi bi-circle-fill me-1"></i>연결됨
         </span>
-        <div class="btn-group">
-            <button class="btn btn-outline-primary active" id="gridViewBtn" onclick="setView('grid')">
-                <i class="bi bi-grid-3x3-gap"></i>
-            </button>
-            <button class="btn btn-outline-primary" id="listViewBtn" onclick="setView('list')">
-                <i class="bi bi-list"></i>
-            </button>
-        </div>
     </div>
 </div>
 
 <div class="row g-4">
-    <div class="col-lg-4">
+    <div class="col-lg-8">
         <div class="glass-card p-4 mb-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2 text-primary"></i>체크포인트별 진행률</h5>
-            <canvas id="progressChart" height="250"></canvas>
-        </div>
-        
-        <div class="glass-card p-4">
-            <h5 class="fw-bold mb-3"><i class="bi bi-flag me-2 text-primary"></i>체크포인트</h5>
-            <div class="list-group list-group-modern">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>체크포인트 진행</h5>
+                <small class="text-muted">클릭하여 현재 진행 단계 설정</small>
+            </div>
+            <div class="checkpoint-list">
                 {% for cp in checkpoints %}
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{{ cp.order }}. {{ cp.title[:20] }}{{ '...' if cp.title|length > 20 else '' }}</span>
-                    <span class="badge bg-primary bg-opacity-10 text-primary" id="cp-{{ cp.id }}-badge">0/{{ students|length }}</span>
+                <div class="checkpoint-item-instructor p-3 mb-2 rounded-3" id="checkpoint-{{ cp.id }}" onclick="setCurrentCheckpoint({{ cp.id }})">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="checkpoint-order me-3">
+                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6 px-3 py-2">{{ cp.order }}</span>
+                            </div>
+                            <div>
+                                <strong>{{ cp.title }}</strong>
+                                {% if cp.description %}
+                                <p class="mb-0 small text-muted">{{ cp.description[:50] }}{{ '...' if cp.description|length > 50 else '' }}</p>
+                                {% endif %}
+                                {% if cp.estimated_minutes %}
+                                <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="understanding-stats d-flex gap-2">
+                                <span class="badge bg-success bg-opacity-10 text-success" id="understood-{{ cp.id }}">
+                                    <i class="bi bi-emoji-smile me-1"></i><span>0</span>
+                                </span>
+                                <span class="badge bg-warning bg-opacity-10 text-warning" id="confused-{{ cp.id }}">
+                                    <i class="bi bi-emoji-frown me-1"></i><span>0</span>
+                                </span>
+                            </div>
+                            <div class="progress-badge">
+                                <span class="badge bg-primary bg-opacity-10 text-primary" id="cp-{{ cp.id }}-badge">
+                                    <i class="bi bi-people me-1"></i>0/{{ students|length }}
+                                </span>
+                            </div>
+                            <div class="current-indicator d-none" id="current-{{ cp.id }}">
+                                <span class="badge bg-success pulse-animation"><i class="bi bi-play-circle-fill me-1"></i>진행중</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-    </div>
-    
-    <div class="col-lg-8">
+        
         <div class="glass-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>학생 진도</h5>
-                <span class="badge bg-primary bg-opacity-10 text-primary" id="studentCount">{{ students|length }}명</span>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge bg-primary bg-opacity-10 text-primary" id="studentCount">{{ students|length }}명</span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary active" id="gridViewBtn" onclick="setView('grid')">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </button>
+                        <button class="btn btn-outline-primary" id="listViewBtn" onclick="setView('list')">
+                            <i class="bi bi-list"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div id="gridView" class="row g-3">
                 {% for student in students %}
-                <div class="col-md-4 col-lg-4">
+                <div class="col-6 col-md-4 col-lg-3">
                     <div class="student-card" id="student-{{ student.id }}">
                         <div class="avatar-lg mx-auto mb-2">{{ student.username[0]|upper }}</div>
-                        <h6 class="mb-2">{{ student.username }}</h6>
-                        <div class="progress progress-modern mb-2">
+                        <h6 class="mb-2 small">{{ student.username }}</h6>
+                        <div class="progress progress-modern mb-2" style="height: 6px;">
                             <div class="progress-bar bg-gradient-primary" style="width: 0%" id="student-{{ student.id }}-progress"></div>
                         </div>
                         <small class="text-muted" id="student-{{ student.id }}-text">0/{{ checkpoints|length }}</small>
@@ -75,7 +113,7 @@
             
             <div id="listView" class="d-none">
                 <div class="table-responsive">
-                    <table class="table table-modern">
+                    <table class="table table-modern table-sm">
                         <thead>
                             <tr>
                                 <th>학생</th>
@@ -101,7 +139,92 @@
             </div>
         </div>
     </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2 text-primary"></i>완료율</h5>
+            <canvas id="progressChart" height="200"></canvas>
+        </div>
+        
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-chat-dots me-2 text-primary"></i>라이브 채팅</h5>
+            <div class="chat-container" id="chatMessages" style="height: 300px; overflow-y: auto;">
+                {% for msg in messages %}
+                <div class="chat-message mb-2 {% if msg.user.role == 'instructor' %}instructor-msg{% endif %}">
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="avatar-sm">{{ msg.user.username[0]|upper }}</div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <strong class="small">{{ msg.user.username }}</strong>
+                                {% if msg.user.role == 'instructor' %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
+                                {% endif %}
+                                <small class="text-muted">{{ msg.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                            <p class="mb-0 small">{{ msg.message }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-3">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요..." onkeypress="handleChatKeyPress(event)">
+                    <button class="btn btn-primary" onclick="sendChatMessage()">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.checkpoint-item-instructor {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.5);
+    border: 2px solid transparent;
+}
+.checkpoint-item-instructor:hover {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+.checkpoint-item-instructor.current {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: var(--primary-color);
+}
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+.chat-message {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+}
+.chat-message.instructor-msg {
+    background: rgba(102, 126, 234, 0.1);
+}
+</style>
+
+{% endblock %}
 
 {% block scripts %}
 <script>
@@ -110,6 +233,8 @@ const checkpoints = {{ checkpoints|map(attribute='id')|list|tojson }};
 const studentIds = {{ students|map(attribute='id')|list|tojson }};
 const totalCheckpoints = {{ checkpoints|length }};
 const totalStudents = {{ students|length }};
+const sessionStartTime = new Date('{{ session.started_at.isoformat() }}');
+let currentCheckpointId = {{ session.current_checkpoint_id or 'null' }};
 
 let studentProgress = {};
 studentIds.forEach(id => {
@@ -118,6 +243,25 @@ studentIds.forEach(id => {
         studentProgress[id][cpId] = false;
     });
 });
+
+function updateClock() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('ko-KR');
+    
+    const elapsed = Math.floor((now - sessionStartTime) / 1000);
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const seconds = elapsed % 60;
+    document.getElementById('sessionDuration').textContent = 
+        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+if (currentCheckpointId) {
+    document.getElementById(`checkpoint-${currentCheckpointId}`).classList.add('current');
+    document.getElementById(`current-${currentCheckpointId}`).classList.remove('d-none');
+}
 
 const socket = io();
 
@@ -147,11 +291,73 @@ socket.on('session_stats', function(data) {
         const stats = completion_rates[cpId];
         const badge = document.getElementById(`cp-${cpId}-badge`);
         if (badge) {
-            badge.textContent = `${stats.completed}/${stats.total}`;
+            badge.innerHTML = `<i class="bi bi-people me-1"></i>${stats.completed}/${stats.total}`;
         }
     }
     updateChart(completion_rates);
 });
+
+socket.on('new_chat_message', function(data) {
+    appendChatMessage(data);
+});
+
+socket.on('understanding_updated', function(data) {
+    const { checkpoint_id, understood, confused } = data;
+    const understoodEl = document.querySelector(`#understood-${checkpoint_id} span`);
+    const confusedEl = document.querySelector(`#confused-${checkpoint_id} span`);
+    if (understoodEl) understoodEl.textContent = understood;
+    if (confusedEl) confusedEl.textContent = confused;
+});
+
+function setCurrentCheckpoint(checkpointId) {
+    checkpoints.forEach(cpId => {
+        document.getElementById(`checkpoint-${cpId}`).classList.remove('current');
+        document.getElementById(`current-${cpId}`).classList.add('d-none');
+    });
+    
+    document.getElementById(`checkpoint-${checkpointId}`).classList.add('current');
+    document.getElementById(`current-${checkpointId}`).classList.remove('d-none');
+    currentCheckpointId = checkpointId;
+    
+    socket.emit('set_current_checkpoint', { course_id: courseId, checkpoint_id: checkpointId });
+}
+
+function appendChatMessage(data) {
+    const container = document.getElementById('chatMessages');
+    const isInstructor = data.role === 'instructor';
+    const html = `
+        <div class="chat-message mb-2 ${isInstructor ? 'instructor-msg' : ''}">
+            <div class="d-flex align-items-start gap-2">
+                <div class="avatar-sm">${data.username[0].toUpperCase()}</div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <strong class="small">${data.username}</strong>
+                        ${isInstructor ? '<span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>' : ''}
+                        <small class="text-muted">${data.created_at}</small>
+                    </div>
+                    <p class="mb-0 small">${data.message}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (message) {
+        socket.emit('send_chat_message', { course_id: courseId, message: message });
+        input.value = '';
+    }
+}
+
+function handleChatKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendChatMessage();
+    }
+}
 
 function updateStudentDisplay(userId) {
     const completed = Object.values(studentProgress[userId]).filter(v => v).length;
@@ -161,15 +367,9 @@ function updateStudentDisplay(userId) {
     const text = document.getElementById(`student-${userId}-text`);
     const card = document.getElementById(`student-${userId}`);
     
-    if (progressBar) {
-        progressBar.style.width = `${percent}%`;
-    }
-    if (text) {
-        text.textContent = `${completed}/${totalCheckpoints}`;
-    }
-    if (card && percent === 100) {
-        card.classList.add('completed');
-    }
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (text) text.textContent = `${completed}/${totalCheckpoints}`;
+    if (card && percent === 100) card.classList.add('completed');
 }
 
 function updateCell(userId, checkpointId, completed) {
@@ -201,7 +401,7 @@ function updateChart(completionRates) {
     const data = [];
     
     checkpoints.forEach((cpId, index) => {
-        labels.push(`CP ${index + 1}`);
+        labels.push(`${index + 1}`);
         const stats = completionRates[cpId];
         data.push(stats ? (stats.completed / stats.total * 100).toFixed(1) : 0);
     });
@@ -226,12 +426,8 @@ function updateChart(completionRates) {
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 100 }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100 } }
             }
         });
     }
@@ -240,6 +436,7 @@ function updateChart(completionRates) {
 setInterval(function() {
     socket.emit('request_stats', { course_id: courseId, mode: 'live' });
 }, 3000);
+
+document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
 </script>
-{% endblock %}
 {% endblock %}
