@@ -1,85 +1,87 @@
 {% extends "base.html" %}
 
-{% block title %}{{ course.title }} - Learning Progress Tracker{% endblock %}
+{% block title %}{{ course.title }} - 학습 진도 트래커{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         <li class="breadcrumb-item active">{{ course.title }}</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
-        <h2>{{ course.title }}</h2>
-        <p class="text-muted">{{ course.description or 'No description provided' }}</p>
-        <small class="text-primary"><i class="bi bi-person me-1"></i>Instructor: {{ course.instructor.username }}</small>
+        <h2 class="fw-bold mb-2">{{ course.title }}</h2>
+        <p class="text-muted mb-1">{{ course.description or '설명이 없습니다' }}</p>
+        <small class="text-primary"><i class="bi bi-person me-1"></i>강사: {{ course.instructor.username }}</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success">
-            <i class="bi bi-broadcast me-1"></i>Join Live Session
+        <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success rounded-pill">
+            <i class="bi bi-broadcast me-2"></i>라이브 참여
         </a>
-        <a href="{{ url_for('analytics.student_dashboard', course_id=course.id) }}" class="btn btn-info">
-            <i class="bi bi-graph-up me-1"></i>My Progress
+        <a href="{{ url_for('analytics.student_dashboard', course_id=course.id) }}" class="btn btn-info text-white rounded-pill">
+            <i class="bi bi-graph-up me-2"></i>내 진도
         </a>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-flag me-2"></i>Course Checkpoints (Self-Paced Mode)</h5>
-    </div>
-    <div class="card-body">
-        {% if checkpoints %}
-        <div class="list-group">
-            {% for cp in checkpoints %}
-            {% set p = progress.get(cp.id) %}
-            <div class="list-group-item d-flex justify-content-between align-items-center checkpoint-item" data-id="{{ cp.id }}">
-                <div class="d-flex align-items-center flex-grow-1">
+<div class="glass-card p-4">
+    <h5 class="fw-bold mb-4"><i class="bi bi-flag me-2 text-primary"></i>체크포인트 (자기주도 학습)</h5>
+    {% if checkpoints %}
+    <div class="checkpoint-list">
+        {% for cp in checkpoints %}
+        {% set p = progress.get(cp.id) %}
+        <div class="checkpoint-item d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center flex-grow-1">
+                <div class="checkpoint-status me-3">
                     {% if p and p.completed_at %}
-                    <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+                    <i class="bi bi-check-circle-fill text-success fs-4"></i>
                     {% elif p and p.started_at %}
-                    <i class="bi bi-circle-half text-warning fs-4 me-3"></i>
+                    <i class="bi bi-circle-half text-warning fs-4"></i>
                     {% else %}
-                    <i class="bi bi-circle text-muted fs-4 me-3"></i>
+                    <i class="bi bi-circle text-muted fs-4"></i>
                     {% endif %}
-                    <div>
-                        <strong>{{ cp.order }}. {{ cp.title }}</strong>
-                        {% if cp.description %}
-                        <p class="mb-0 small text-muted">{{ cp.description }}</p>
-                        {% endif %}
+                </div>
+                <div>
+                    <strong>{{ cp.order }}. {{ cp.title }}</strong>
+                    {% if cp.description %}
+                    <p class="mb-0 small text-muted">{{ cp.description }}</p>
+                    {% endif %}
+                    <div class="d-flex gap-3 mt-1">
                         {% if cp.estimated_minutes %}
-                        <small class="text-primary"><i class="bi bi-clock me-1"></i>Est. {{ cp.estimated_minutes }} min</small>
+                        <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
                         {% endif %}
                         {% if p and p.duration_seconds %}
-                        <small class="text-success ms-2"><i class="bi bi-stopwatch me-1"></i>Took {{ (p.duration_seconds / 60)|round(1) }} min</small>
+                        <small class="text-success"><i class="bi bi-stopwatch me-1"></i>실제 {{ (p.duration_seconds / 60)|round(1) }}분</small>
                         {% endif %}
                     </div>
                 </div>
-                <div class="btn-group">
-                    {% if not p or not p.started_at %}
-                    <button class="btn btn-outline-primary btn-sm" onclick="startCheckpoint({{ cp.id }})">
-                        <i class="bi bi-play-fill me-1"></i>Start
-                    </button>
-                    {% elif not p.completed_at %}
-                    <button class="btn btn-success btn-sm" onclick="completeCheckpoint({{ cp.id }})">
-                        <i class="bi bi-check-lg me-1"></i>Complete
-                    </button>
-                    {% else %}
-                    <span class="badge bg-success"><i class="bi bi-check me-1"></i>Done</span>
-                    {% endif %}
-                </div>
             </div>
-            {% endfor %}
+            <div>
+                {% if not p or not p.started_at %}
+                <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="startCheckpoint({{ cp.id }})">
+                    <i class="bi bi-play-fill me-1"></i>시작
+                </button>
+                {% elif not p.completed_at %}
+                <button class="btn btn-success btn-sm rounded-pill" onclick="completeCheckpoint({{ cp.id }})">
+                    <i class="bi bi-check-lg me-1"></i>완료
+                </button>
+                {% else %}
+                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-check me-1"></i>완료됨</span>
+                {% endif %}
+            </div>
         </div>
-        {% else %}
-        <div class="text-center py-4">
-            <i class="bi bi-flag display-4 text-muted"></i>
-            <p class="text-muted mt-2">No checkpoints available yet.</p>
-        </div>
-        {% endif %}
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+            <i class="bi bi-flag"></i>
+        </div>
+        <p class="text-muted mb-0">아직 체크포인트가 없습니다</p>
+    </div>
+    {% endif %}
 </div>
 
 {% block scripts %}
@@ -100,7 +102,7 @@ async function startCheckpoint(checkpointId) {
             location.reload();
         }
     } catch (error) {
-        console.error('Error starting checkpoint:', error);
+        console.error('Error:', error);
     }
 }
 
@@ -118,7 +120,7 @@ async function completeCheckpoint(checkpointId) {
             location.reload();
         }
     } catch (error) {
-        console.error('Error completing checkpoint:', error);
+        console.error('Error:', error);
     }
 }
 </script>

@@ -1,131 +1,144 @@
 {% extends "base.html" %}
 
-{% block title %}{{ course.title }} - Learning Progress Tracker{% endblock %}
+{% block title %}{{ course.title }} - 학습 진도 트래커{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         <li class="breadcrumb-item active">{{ course.title }}</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
-        <h2>{{ course.title }}</h2>
-        <p class="text-muted">{{ course.description or 'No description provided' }}</p>
+        <h2 class="fw-bold mb-2">{{ course.title }}</h2>
+        <p class="text-muted mb-0">{{ course.description or '설명이 없습니다' }}</p>
     </div>
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success">
-            <i class="bi bi-broadcast me-1"></i>Start Live Session
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success rounded-pill">
+            <i class="bi bi-broadcast me-2"></i>라이브 시작
         </a>
-        <a href="{{ url_for('analytics.instructor_dashboard', course_id=course.id) }}" class="btn btn-info">
-            <i class="bi bi-graph-up me-1"></i>Analytics
+        <a href="{{ url_for('analytics.instructor_dashboard', course_id=course.id) }}" class="btn btn-info text-white rounded-pill">
+            <i class="bi bi-graph-up me-2"></i>분석
         </a>
-        <a href="{{ url_for('courses.edit', course_id=course.id) }}" class="btn btn-outline-primary">
-            <i class="bi bi-pencil me-1"></i>Edit
+        <a href="{{ url_for('courses.edit', course_id=course.id) }}" class="btn btn-outline-primary rounded-pill">
+            <i class="bi bi-pencil me-2"></i>수정
         </a>
     </div>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-4">
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-key me-2"></i>Invite Code</h5>
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-key me-2 text-primary"></i>초대 코드</h5>
+            <div class="invite-code-box text-center p-3">
+                <code class="fs-3 fw-bold text-primary" id="inviteCode" style="letter-spacing: 4px;">{{ course.invite_code }}</code>
             </div>
-            <div class="card-body">
-                <div class="input-group">
-                    <input type="text" class="form-control form-control-lg text-center" value="{{ course.invite_code }}" readonly id="inviteCode" style="letter-spacing: 3px;">
-                    <button class="btn btn-outline-secondary" onclick="copyInviteCode()">
-                        <i class="bi bi-clipboard"></i>
-                    </button>
-                </div>
-                <small class="text-muted d-block mt-2">Share this code with students to enroll</small>
-            </div>
+            <button class="btn btn-outline-primary w-100 mt-3 rounded-pill" onclick="copyInviteCode()">
+                <i class="bi bi-clipboard me-2"></i>코드 복사
+            </button>
+            <small class="text-muted d-block text-center mt-2">학생들에게 이 코드를 공유하세요</small>
         </div>
         
-        <div class="card shadow-sm mt-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Enrolled Students</h5>
-                <span class="badge bg-primary">{{ students|length }}</span>
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>수강생</h5>
+                <span class="badge bg-primary bg-opacity-10 text-primary">{{ students|length }}명</span>
             </div>
-            <div class="card-body">
-                {% if students %}
-                <ul class="list-group list-group-flush">
-                    {% for student in students %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-person me-2"></i>{{ student.username }}</span>
-                        <small class="text-muted">{{ student.email }}</small>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted mb-0">No students enrolled yet</p>
-                {% endif %}
+            {% if students %}
+            <div class="list-group list-group-modern">
+                {% for student in students %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm me-2 bg-light text-primary">{{ student.username[0]|upper }}</div>
+                        <span>{{ student.username }}</span>
+                    </div>
+                    <small class="text-muted">{{ student.email }}</small>
+                </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <p class="text-muted text-center mb-0 py-3">아직 수강생이 없습니다</p>
+            {% endif %}
         </div>
     </div>
     
     <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-flag me-2"></i>Checkpoints</h5>
-                <a href="{{ url_for('checkpoints.create', course_id=course.id) }}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-plus-lg me-1"></i>Add Checkpoint
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-flag me-2 text-primary"></i>체크포인트</h5>
+                <a href="{{ url_for('checkpoints.create', course_id=course.id) }}" class="btn btn-primary btn-sm rounded-pill">
+                    <i class="bi bi-plus-lg me-1"></i>추가
                 </a>
             </div>
-            <div class="card-body">
-                {% if checkpoints %}
-                <div class="list-group" id="checkpointList">
-                    {% for cp in checkpoints %}
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-id="{{ cp.id }}">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-grip-vertical text-muted me-3 drag-handle" style="cursor: grab;"></i>
-                            <div>
-                                <strong>{{ cp.order }}. {{ cp.title }}</strong>
-                                {% if cp.description %}
-                                <p class="mb-0 small text-muted">{{ cp.description[:100] }}{{ '...' if cp.description|length > 100 else '' }}</p>
-                                {% endif %}
-                                {% if cp.estimated_minutes %}
-                                <small class="text-primary"><i class="bi bi-clock me-1"></i>{{ cp.estimated_minutes }} min</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="btn-group btn-group-sm">
-                            <a href="{{ url_for('checkpoints.edit', checkpoint_id=cp.id) }}" class="btn btn-outline-primary">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <form method="POST" action="{{ url_for('checkpoints.delete', checkpoint_id=cp.id) }}" class="d-inline" onsubmit="return confirm('Delete this checkpoint?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+            {% if checkpoints %}
+            <div class="checkpoint-list">
+                {% for cp in checkpoints %}
+                <div class="checkpoint-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <div class="checkpoint-number me-3">{{ cp.order }}</div>
+                        <div>
+                            <strong>{{ cp.title }}</strong>
+                            {% if cp.description %}
+                            <p class="mb-0 small text-muted">{{ cp.description[:80] }}{{ '...' if cp.description|length > 80 else '' }}</p>
+                            {% endif %}
+                            {% if cp.estimated_minutes %}
+                            <small class="text-primary"><i class="bi bi-clock me-1"></i>{{ cp.estimated_minutes }}분</small>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('checkpoints.edit', checkpoint_id=cp.id) }}" class="btn btn-sm btn-outline-primary rounded-start-pill">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('checkpoints.delete', checkpoint_id=cp.id) }}" class="d-inline" onsubmit="return confirm('이 체크포인트를 삭제하시겠습니까?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-end-pill">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="bi bi-flag display-4 text-muted"></i>
-                    <p class="text-muted mt-2">No checkpoints yet. Add checkpoints to track student progress.</p>
-                    <a href="{{ url_for('checkpoints.create', course_id=course.id) }}" class="btn btn-primary">
-                        <i class="bi bi-plus-lg me-1"></i>Add First Checkpoint
-                    </a>
-                </div>
-                {% endif %}
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                    <i class="bi bi-flag"></i>
+                </div>
+                <h6 class="fw-bold mb-2">체크포인트가 없습니다</h6>
+                <p class="text-muted mb-3">학습 진도를 추적할 체크포인트를 추가하세요</p>
+                <a href="{{ url_for('checkpoints.create', course_id=course.id) }}" class="btn btn-primary rounded-pill">
+                    <i class="bi bi-plus-lg me-2"></i>첫 체크포인트 추가
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<style>
+.checkpoint-number {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+</style>
+
 <script>
 function copyInviteCode() {
-    const code = document.getElementById('inviteCode');
-    code.select();
-    document.execCommand('copy');
-    alert('Invite code copied!');
+    const code = document.getElementById('inviteCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        alert('초대 코드가 복사되었습니다!');
+    });
 }
 </script>
 {% endblock %}

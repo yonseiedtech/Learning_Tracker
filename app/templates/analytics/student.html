@@ -1,119 +1,100 @@
 {% extends "base.html" %}
 
-{% block title %}My Progress - {{ course.title }}{% endblock %}
+{% block title %}내 진도 - {{ course.title }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
-        <li class="breadcrumb-item active">My Progress</li>
+        <li class="breadcrumb-item active">내 진도</li>
     </ol>
 </nav>
 
-<h2 class="mb-4"><i class="bi bi-graph-up text-primary me-2"></i>My Progress: {{ course.title }}</h2>
+<div class="mb-4">
+    <h2 class="fw-bold mb-1"><i class="bi bi-graph-up text-primary me-2"></i>내 학습 진도</h2>
+    <p class="text-muted mb-0">{{ course.title }}</p>
+</div>
 
 <div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="card bg-primary text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ progress_percent }}%</h3>
-                <small>Overall Progress</small>
-            </div>
+        <div class="stat-card primary">
+            <h3 class="mb-0 fw-bold">{{ progress_percent }}%</h3>
+            <small>전체 진행률</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ completed_count }}/{{ total_checkpoints }}</h3>
-                <small>Checkpoints Done</small>
-            </div>
+        <div class="stat-card success">
+            <h3 class="mb-0 fw-bold">{{ completed_count }}/{{ total_checkpoints }}</h3>
+            <small>완료한 체크포인트</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ total_time_minutes }}</h3>
-                <small>Minutes Spent</small>
-            </div>
+        <div class="stat-card info">
+            <h3 class="mb-0 fw-bold">{{ total_time_minutes }}</h3>
+            <small>총 학습 시간 (분)</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-secondary text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ (course_avg_seconds / 60)|round(1) }}</h3>
-                <small>Course Avg (min/CP)</small>
-            </div>
+        <div class="stat-card warning">
+            <h3 class="mb-0 fw-bold">{{ (course_avg_seconds / 60)|round(1) }}</h3>
+            <small>강좌 평균 (분/CP)</small>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Time Spent per Checkpoint</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="timeChart" height="300"></canvas>
-            </div>
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-4"><i class="bi bi-bar-chart me-2 text-primary"></i>체크포인트별 소요 시간</h5>
+            <canvas id="timeChart" height="250"></canvas>
         </div>
         
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Learning Timeline</h5>
-            </div>
-            <div class="card-body">
-                <div class="timeline">
-                    {% for p in progress %}
-                    {% if p.completed %}
-                    <div class="timeline-item d-flex mb-3">
-                        <div class="timeline-marker bg-success rounded-circle me-3" style="width: 12px; height: 12px; margin-top: 5px;"></div>
-                        <div class="flex-grow-1">
-                            <strong>{{ p.title }}</strong>
-                            <p class="mb-0 small text-muted">
-                                Completed: {{ p.completed_at[:16] if p.completed_at else 'N/A' }}
-                                {% if p.duration_minutes > 0 %}
-                                | Duration: {{ p.duration_minutes }} min
-                                {% endif %}
-                            </p>
-                        </div>
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-4"><i class="bi bi-clock-history me-2 text-primary"></i>학습 타임라인</h5>
+            <div class="timeline">
+                {% for p in progress %}
+                {% if p.completed %}
+                <div class="timeline-item mb-3">
+                    <div class="timeline-marker"></div>
+                    <div class="glass-card p-3" style="background: rgba(56, 239, 125, 0.05);">
+                        <strong>{{ p.title }}</strong>
+                        <p class="mb-0 small text-muted">
+                            완료: {{ p.completed_at[:16] if p.completed_at else 'N/A' }}
+                            {% if p.duration_minutes > 0 %}
+                            | 소요 시간: {{ p.duration_minutes }}분
+                            {% endif %}
+                        </p>
                     </div>
-                    {% endif %}
-                    {% endfor %}
                 </div>
+                {% endif %}
+                {% endfor %}
             </div>
         </div>
     </div>
     
     <div class="col-lg-4">
         {% if slowest_checkpoints %}
-        <div class="card shadow-sm border-warning mb-4">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0"><i class="bi bi-hourglass me-2"></i>Slowest Checkpoints</h5>
-            </div>
-            <div class="card-body">
-                <p class="small text-muted">These took you the longest</p>
-                <ul class="list-group list-group-flush">
-                    {% for cp in slowest_checkpoints %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>{{ cp.title[:25] }}{{ '...' if cp.title|length > 25 else '' }}</span>
-                        <span class="badge bg-warning text-dark">{{ cp.duration_minutes }} min</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+        <div class="glass-card p-4 mb-4 border-warning">
+            <h5 class="fw-bold mb-3"><i class="bi bi-hourglass text-warning me-2"></i>가장 오래 걸린 항목</h5>
+            <p class="small text-muted mb-3">이 체크포인트에서 가장 많은 시간을 사용했습니다</p>
+            <div class="list-group list-group-modern">
+                {% for cp in slowest_checkpoints %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ cp.title[:20] }}{{ '...' if cp.title|length > 20 else '' }}</span>
+                    <span class="badge bg-warning text-dark">{{ cp.duration_minutes }}분</span>
+                </div>
+                {% endfor %}
             </div>
         </div>
         {% endif %}
         
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Checkpoint Status</h5>
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <ul class="list-group list-group-flush">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-list-check me-2 text-primary"></i>체크포인트 현황</h5>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <div class="list-group list-group-modern">
                     {% for p in progress %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
                             {% if p.completed %}
                             <i class="bi bi-check-circle-fill text-success me-2"></i>
@@ -122,14 +103,14 @@
                             {% else %}
                             <i class="bi bi-circle text-muted me-2"></i>
                             {% endif %}
-                            <span>{{ p.order }}. {{ p.title[:20] }}{{ '...' if p.title|length > 20 else '' }}</span>
+                            <span>{{ p.order }}. {{ p.title[:18] }}{{ '...' if p.title|length > 18 else '' }}</span>
                         </div>
                         {% if p.duration_minutes > 0 %}
-                        <small class="text-muted">{{ p.duration_minutes }} min</small>
+                        <small class="text-muted">{{ p.duration_minutes }}분</small>
                         {% endif %}
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -143,29 +124,27 @@ const timeCtx = document.getElementById('timeChart').getContext('2d');
 new Chart(timeCtx, {
     type: 'bar',
     data: {
-        labels: progress.map(p => `${p.order}. ${p.title.substring(0, 15)}`),
+        labels: progress.map(p => `${p.order}. ${p.title.substring(0, 12)}...`),
         datasets: [{
-            label: 'Time Spent (min)',
+            label: '실제 소요 시간 (분)',
             data: progress.map(p => p.duration_minutes),
-            backgroundColor: progress.map(p => p.completed ? 'rgba(25, 135, 84, 0.7)' : 'rgba(108, 117, 125, 0.3)'),
-            borderColor: progress.map(p => p.completed ? 'rgba(25, 135, 84, 1)' : 'rgba(108, 117, 125, 1)'),
-            borderWidth: 1
+            backgroundColor: progress.map(p => p.completed ? 'rgba(17, 153, 142, 0.7)' : 'rgba(108, 117, 125, 0.3)'),
+            borderColor: progress.map(p => p.completed ? 'rgba(17, 153, 142, 1)' : 'rgba(108, 117, 125, 1)'),
+            borderWidth: 1,
+            borderRadius: 8
         }, {
-            label: 'Estimated (min)',
+            label: '예상 시간 (분)',
             data: progress.map(p => p.estimated_minutes),
             type: 'line',
             borderColor: 'rgba(220, 53, 69, 0.7)',
             backgroundColor: 'transparent',
-            borderDash: [5, 5]
+            borderDash: [5, 5],
+            pointRadius: 4
         }]
     },
     options: {
         responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
+        scales: { y: { beginAtZero: true } }
     }
 });
 </script>

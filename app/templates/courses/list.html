@@ -1,65 +1,76 @@
 {% extends "base.html" %}
 
-{% block title %}My Courses - Learning Progress Tracker{% endblock %}
+{% block title %}내 강좌 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-journal-bookmark text-primary me-2"></i>My Courses</h2>
+    <div>
+        <h2 class="fw-bold mb-1">내 강좌</h2>
+        <p class="text-muted mb-0">{% if current_user.is_instructor() %}생성한 강좌를 관리하세요{% else %}수강 중인 강좌 목록입니다{% endif %}</p>
+    </div>
     {% if current_user.is_instructor() %}
-    <a href="{{ url_for('courses.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Create Course
+    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
+        <i class="bi bi-plus-lg me-2"></i>강좌 만들기
     </a>
     {% else %}
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Enroll
+    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
+        <i class="bi bi-plus-lg me-2"></i>수강 신청
     </a>
     {% endif %}
 </div>
 
 {% if courses %}
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Course</th>
-                <th>Description</th>
-                {% if current_user.is_instructor() %}
-                <th>Students</th>
-                <th>Invite Code</th>
-                {% else %}
-                <th>Instructor</th>
-                {% endif %}
-                <th>Checkpoints</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for course in courses %}
-            <tr>
-                <td><strong>{{ course.title }}</strong></td>
-                <td class="text-muted">{{ course.description[:50] if course.description else '-' }}{{ '...' if course.description and course.description|length > 50 else '' }}</td>
-                {% if current_user.is_instructor() %}
-                <td><span class="badge bg-primary">{{ course.enrollments.count() }}</span></td>
-                <td><code>{{ course.invite_code }}</code></td>
-                {% else %}
-                <td>{{ course.instructor.username }}</td>
-                {% endif %}
-                <td><span class="badge bg-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}</span></td>
-                <td>
-                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="glass-card">
+    <div class="table-responsive">
+        <table class="table table-modern mb-0">
+            <thead>
+                <tr>
+                    <th>강좌명</th>
+                    <th>설명</th>
+                    {% if current_user.is_instructor() %}
+                    <th>수강생</th>
+                    <th>초대 코드</th>
+                    {% else %}
+                    <th>강사</th>
+                    {% endif %}
+                    <th>체크포인트</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                <tr>
+                    <td><strong>{{ course.title }}</strong></td>
+                    <td class="text-muted">{{ course.description[:50] if course.description else '-' }}{{ '...' if course.description and course.description|length > 50 else '' }}</td>
+                    {% if current_user.is_instructor() %}
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollments.count() }}명</span></td>
+                    <td><code class="text-primary">{{ course.invite_code }}</code></td>
+                    {% else %}
+                    <td>{{ course.instructor.username }}</td>
+                    {% endif %}
+                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}개</span></td>
+                    <td>
+                        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">보기</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% else %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i>
+<div class="glass-card text-center py-5">
+    <div class="empty-icon mb-4">
+        <i class="bi bi-journal-x"></i>
+    </div>
     {% if current_user.is_instructor() %}
-    You haven't created any courses yet. <a href="{{ url_for('courses.create') }}">Create your first course</a>!
+    <h5 class="fw-bold mb-2">아직 생성한 강좌가 없습니다</h5>
+    <p class="text-muted mb-4">첫 번째 강좌를 만들어보세요!</p>
+    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">강좌 만들기</a>
     {% else %}
-    You're not enrolled in any courses. <a href="{{ url_for('courses.enroll') }}">Enroll with an invite code</a>!
+    <h5 class="fw-bold mb-2">수강 중인 강좌가 없습니다</h5>
+    <p class="text-muted mb-4">초대 코드로 강좌에 등록하세요!</p>
+    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">수강 신청</a>
     {% endif %}
 </div>
 {% endif %}

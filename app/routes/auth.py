@@ -29,7 +29,7 @@ def register():
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('Registration successful! Please log in.', 'success')
+        flash('회원가입이 완료되었습니다! 로그인해주세요.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', form=form)
@@ -46,11 +46,11 @@ def login():
             login_user(user)
             next_page = request.args.get('next')
             if next_page and is_safe_url(next_page):
-                flash('Login successful!', 'success')
+                flash('로그인되었습니다!', 'success')
                 return redirect(next_page)
-            flash('Login successful!', 'success')
+            flash('로그인되었습니다!', 'success')
             return redirect(url_for('main.dashboard'))
-        flash('Invalid email or password.', 'danger')
+        flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'danger')
     
     return render_template('auth/login.html', form=form)
 
@@ -58,5 +58,5 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out.', 'info')
+    flash('로그아웃되었습니다.', 'info')
     return redirect(url_for('auth.login'))

@@ -12,7 +12,7 @@ bp = Blueprint('checkpoints', __name__, url_prefix='/checkpoints')
 def create(course_id):
     course = Course.query.get_or_404(course_id)
     if course.instructor_id != current_user.id:
-        flash('Permission denied.', 'danger')
+        flash('권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     form = CheckpointForm()
@@ -27,7 +27,7 @@ def create(course_id):
         )
         db.session.add(checkpoint)
         db.session.commit()
-        flash('Checkpoint created successfully!', 'success')
+        flash('체크포인트가 추가되었습니다!', 'success')
         return redirect(url_for('courses.view', course_id=course_id))
     
     return render_template('checkpoints/create.html', form=form, course=course)
@@ -38,7 +38,7 @@ def edit(checkpoint_id):
     checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
     course = checkpoint.course
     if course.instructor_id != current_user.id:
-        flash('Permission denied.', 'danger')
+        flash('권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     form = CheckpointForm(obj=checkpoint)
@@ -47,7 +47,7 @@ def edit(checkpoint_id):
         checkpoint.description = form.description.data
         checkpoint.estimated_minutes = form.estimated_minutes.data
         db.session.commit()
-        flash('Checkpoint updated successfully!', 'success')
+        flash('체크포인트가 수정되었습니다!', 'success')
         return redirect(url_for('courses.view', course_id=course.id))
     
     return render_template('checkpoints/edit.html', form=form, checkpoint=checkpoint, course=course)
@@ -58,12 +58,12 @@ def delete(checkpoint_id):
     checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
     course = checkpoint.course
     if course.instructor_id != current_user.id:
-        flash('Permission denied.', 'danger')
+        flash('권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     checkpoint.deleted_at = datetime.utcnow()
     db.session.commit()
-    flash('Checkpoint deleted successfully!', 'success')
+    flash('체크포인트가 삭제되었습니다!', 'success')
     return redirect(url_for('courses.view', course_id=course.id))
 
 @bp.route('/reorder', methods=['POST'])
@@ -71,7 +71,7 @@ def delete(checkpoint_id):
 def reorder():
     data = request.get_json()
     if not data or 'checkpoints' not in data:
-        return jsonify({'error': 'Invalid data'}), 400
+        return jsonify({'error': '잘못된 데이터입니다'}), 400
     
     for item in data['checkpoints']:
         checkpoint = Checkpoint.query.get(item['id'])

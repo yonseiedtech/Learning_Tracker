@@ -1,117 +1,98 @@
 {% extends "base.html" %}
 
-{% block title %}Analytics - {{ course.title }}{% endblock %}
+{% block title %}분석 - {{ course.title }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
-        <li class="breadcrumb-item active">Analytics</li>
+        <li class="breadcrumb-item active">분석</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-graph-up text-primary me-2"></i>Course Analytics: {{ course.title }}</h2>
-    <a href="{{ url_for('analytics.export_csv', course_id=course.id) }}" class="btn btn-outline-primary">
-        <i class="bi bi-download me-1"></i>Export CSV
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-graph-up text-primary me-2"></i>강좌 분석</h2>
+        <p class="text-muted mb-0">{{ course.title }}</p>
+    </div>
+    <a href="{{ url_for('analytics.export_csv', course_id=course.id) }}" class="btn btn-outline-primary rounded-pill">
+        <i class="bi bi-download me-2"></i>CSV 내보내기
     </a>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="card bg-primary text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ students|length }}</h3>
-                <small>Total Students</small>
-            </div>
+        <div class="stat-card primary">
+            <h3 class="mb-0 fw-bold">{{ students|length }}</h3>
+            <small>총 수강생</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ stats|length }}</h3>
-                <small>Checkpoints</small>
-            </div>
+        <div class="stat-card success">
+            <h3 class="mb-0 fw-bold">{{ stats|length }}</h3>
+            <small>체크포인트</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info text-white shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ avg_progress }}%</h3>
-                <small>Avg. Progress</small>
-            </div>
+        <div class="stat-card info">
+            <h3 class="mb-0 fw-bold">{{ avg_progress }}%</h3>
+            <small>평균 진행률</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-warning text-dark shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="mb-0">{{ lagging_students|length }}</h3>
-                <small>Lagging Students</small>
-            </div>
+        <div class="stat-card warning">
+            <h3 class="mb-0 fw-bold">{{ lagging_students|length }}</h3>
+            <small>지연 학생</small>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Checkpoint Completion Rates</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="completionChart" height="300"></canvas>
-            </div>
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-4"><i class="bi bi-bar-chart me-2 text-primary"></i>체크포인트별 완료율</h5>
+            <canvas id="completionChart" height="250"></canvas>
         </div>
         
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Average Duration per Checkpoint</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="durationChart" height="250"></canvas>
-            </div>
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-4"><i class="bi bi-clock-history me-2 text-primary"></i>평균 소요 시간</h5>
+            <canvas id="durationChart" height="200"></canvas>
         </div>
     </div>
     
     <div class="col-lg-4">
         {% if lagging_students %}
-        <div class="card shadow-sm border-warning mb-4">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Lagging Students</h5>
-            </div>
-            <div class="card-body">
-                <p class="small text-muted">Students below 70% of class average</p>
-                <ul class="list-group list-group-flush">
-                    {% for student in lagging_students %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>{{ student.username }}</span>
-                        <span class="badge bg-warning text-dark">{{ student.progress_percent }}%</span>
-                    </li>
-                    {% endfor %}
-                </ul>
+        <div class="glass-card p-4 mb-4 border-warning">
+            <h5 class="fw-bold mb-3"><i class="bi bi-exclamation-triangle text-warning me-2"></i>지연 학생 알림</h5>
+            <p class="small text-muted mb-3">평균 대비 70% 미만 진행 중인 학생</p>
+            <div class="list-group list-group-modern">
+                {% for student in lagging_students %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ student.username }}</span>
+                    <span class="badge bg-warning text-dark">{{ student.progress_percent }}%</span>
+                </div>
+                {% endfor %}
             </div>
         </div>
         {% endif %}
         
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Student Progress</h5>
-            </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <ul class="list-group list-group-flush">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-people me-2 text-primary"></i>학생별 진도</h5>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <div class="list-group list-group-modern">
                     {% for student in students|sort(attribute='progress_percent', reverse=true) %}
-                    <li class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span>{{ student.username }}</span>
-                            <small>{{ student.completed_checkpoints }}/{{ student.total_checkpoints }}</small>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-medium">{{ student.username }}</span>
+                            <small class="text-muted">{{ student.completed_checkpoints }}/{{ student.total_checkpoints }}</small>
                         </div>
-                        <div class="progress" style="height: 6px;">
+                        <div class="progress progress-modern">
                             <div class="progress-bar {% if student.progress_percent >= 70 %}bg-success{% elif student.progress_percent >= 40 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ student.progress_percent }}%"></div>
                         </div>
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -125,23 +106,20 @@ const completionCtx = document.getElementById('completionChart').getContext('2d'
 new Chart(completionCtx, {
     type: 'bar',
     data: {
-        labels: stats.map(s => s.title.substring(0, 20)),
+        labels: stats.map(s => s.title.substring(0, 15) + (s.title.length > 15 ? '...' : '')),
         datasets: [{
-            label: 'Completion Rate (%)',
+            label: '완료율 (%)',
             data: stats.map(s => s.completion_rate),
-            backgroundColor: 'rgba(13, 110, 253, 0.7)',
-            borderColor: 'rgba(13, 110, 253, 1)',
-            borderWidth: 1
+            backgroundColor: 'rgba(102, 126, 234, 0.7)',
+            borderColor: 'rgba(102, 126, 234, 1)',
+            borderWidth: 1,
+            borderRadius: 8
         }]
     },
     options: {
         responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true,
-                max: 100
-            }
-        }
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 100 } }
     }
 });
 
@@ -149,28 +127,26 @@ const durationCtx = document.getElementById('durationChart').getContext('2d');
 new Chart(durationCtx, {
     type: 'bar',
     data: {
-        labels: stats.map(s => s.title.substring(0, 20)),
+        labels: stats.map(s => s.title.substring(0, 15) + (s.title.length > 15 ? '...' : '')),
         datasets: [{
-            label: 'Avg Duration (min)',
+            label: '실제 소요 시간 (분)',
             data: stats.map(s => (s.avg_duration_seconds / 60).toFixed(1)),
-            backgroundColor: 'rgba(25, 135, 84, 0.7)',
-            borderColor: 'rgba(25, 135, 84, 1)',
-            borderWidth: 1
+            backgroundColor: 'rgba(17, 153, 142, 0.7)',
+            borderColor: 'rgba(17, 153, 142, 1)',
+            borderWidth: 1,
+            borderRadius: 8
         }, {
-            label: 'Estimated (min)',
+            label: '예상 시간 (분)',
             data: stats.map(s => s.estimated_minutes),
             backgroundColor: 'rgba(108, 117, 125, 0.3)',
             borderColor: 'rgba(108, 117, 125, 1)',
-            borderWidth: 1
+            borderWidth: 1,
+            borderRadius: 8
         }]
     },
     options: {
         responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
+        scales: { y: { beginAtZero: true } }
     }
 });
 </script>

@@ -1,67 +1,429 @@
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --tertiary-gradient: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --shadow-soft: 0 8px 32px rgba(31, 38, 135, 0.1);
+    --shadow-hover: 0 16px 48px rgba(31, 38, 135, 0.15);
+    --border-radius: 16px;
+    --border-radius-lg: 24px;
+    --border-radius-sm: 12px;
+}
+
+* {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background-attachment: fixed;
 }
 
 main {
     flex: 1;
 }
 
-.card {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+.glass-nav {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.75rem 0;
 }
 
-.card:hover {
+.glass-card {
+    background: var(--glass-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+}
+
+.glass-dropdown {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-soft);
+}
+
+.glass-alert {
+    background: var(--glass-bg);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-soft);
+}
+
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.avatar-lg {
+    width: 48px;
+    height: 48px;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.hero-section {
+    padding: 2rem 0;
+}
+
+.min-vh-75 {
+    min-height: 75vh;
+}
+
+.gradient-text {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.badge-gradient {
+    background: var(--primary-gradient);
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+}
+
+.hero-visual {
+    position: relative;
+    height: 400px;
+}
+
+.floating-card {
+    position: absolute;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+    animation: float 3s ease-in-out infinite;
+}
+
+.floating-card i {
+    font-size: 1.25rem;
+}
+
+.floating-card.card-1 {
+    top: 10%;
+    right: 10%;
+    animation-delay: 0s;
+}
+
+.floating-card.card-2 {
+    top: 50%;
+    right: 5%;
+    animation-delay: 0.5s;
+}
+
+.floating-card.card-3 {
+    bottom: 15%;
+    right: 20%;
+    animation-delay: 1s;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.hero-main-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    padding: 1.5rem;
+}
+
+.progress-modern {
+    height: 8px;
+    border-radius: 10px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.bg-gradient-primary {
+    background: var(--primary-gradient);
+}
+
+.feature-card {
+    padding: 2rem;
+    text-align: center;
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 2rem;
+    color: white;
+}
+
+.feature-icon-secondary {
+    background: var(--secondary-gradient);
+}
+
+.feature-icon-tertiary {
+    background: var(--tertiary-gradient);
+}
+
+.auth-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 2rem;
+    color: white;
+}
+
+.auth-icon-register {
+    background: var(--secondary-gradient);
+}
+
+.input-group-modern {
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    background: #f8f9fa;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.input-group-modern:focus-within {
+    border-color: #667eea;
+    background: white;
+}
+
+.input-group-modern .input-group-text {
+    background: transparent;
+    border: none;
+    color: #6c757d;
+}
+
+.input-group-modern .form-control {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.input-group-modern .form-control:focus {
+    box-shadow: none;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
     transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+}
+
+.course-card {
+    overflow: hidden;
+}
+
+.course-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--primary-gradient);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.course-icon-student {
+    background: var(--secondary-gradient);
+}
+
+.invite-code-box {
+    background: #f8f9fa;
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 1rem;
+    text-align: center;
+}
+
+.empty-state {
+    padding: 3rem;
+}
+
+.empty-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #e0e5ec 0%, #c3cfe2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 2.5rem;
+    color: #6c757d;
+}
+
+.footer-modern {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+.checkpoint-item {
+    background: white;
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 0.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.checkpoint-item:hover {
+    border-color: #667eea;
+    box-shadow: var(--shadow-soft);
+}
+
+.stat-card {
+    padding: 1.5rem;
+    text-align: center;
+    border-radius: var(--border-radius);
+    color: white;
+}
+
+.stat-card.primary {
+    background: var(--primary-gradient);
+}
+
+.stat-card.success {
+    background: var(--secondary-gradient);
+}
+
+.stat-card.info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card.warning {
+    background: var(--tertiary-gradient);
+}
+
+.role-select {
+    display: flex;
+    gap: 1rem;
+}
+
+.role-option {
+    flex: 1;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.role-option:hover {
+    background: #e9ecef;
+}
+
+.role-option .form-check-input:checked ~ .form-check-label {
+    color: #667eea;
+    font-weight: 600;
 }
 
 .student-card {
+    background: white;
+    border-radius: var(--border-radius-sm);
+    padding: 1rem;
+    text-align: center;
     border: 2px solid transparent;
     transition: all 0.3s ease;
 }
 
 .student-card.completed {
-    border-color: #198754;
-    background-color: rgba(25, 135, 84, 0.1);
+    border-color: #38ef7d;
+    background: rgba(56, 239, 125, 0.05);
 }
 
-.checkpoint-item {
-    transition: background-color 0.2s ease;
+.connection-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 500;
 }
 
-.checkpoint-item:hover {
-    background-color: rgba(13, 110, 253, 0.05);
+@media (max-width: 768px) {
+    .hero-visual {
+        display: none;
+    }
+    
+    .display-3 {
+        font-size: 2rem;
+    }
+    
+    .floating-card {
+        display: none;
+    }
 }
 
-.checkpoint-live {
-    transition: all 0.3s ease;
+.table-modern {
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
-.checkpoint-live.just-completed {
-    animation: pulse 0.5s ease;
+.table-modern thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    border: none;
+    padding: 1rem;
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-
-.drag-handle {
-    cursor: grab;
-}
-
-.drag-handle:active {
-    cursor: grabbing;
-}
-
-.timeline-marker {
-    flex-shrink: 0;
+.table-modern tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
 }
 
 .progress {
     border-radius: 10px;
+    overflow: hidden;
+    height: 8px;
 }
 
 .progress-bar {
@@ -69,43 +431,54 @@ main {
     transition: width 0.5s ease;
 }
 
-.badge {
-    font-weight: 500;
-}
-
-.list-group-item {
-    transition: background-color 0.2s ease;
-}
-
-@media (max-width: 768px) {
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .display-4 {
-        font-size: 2rem;
-    }
-}
-
-.alert {
-    border-radius: 8px;
-}
-
-.form-control:focus, .form-select:focus {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-}
-
-.table th {
-    font-weight: 600;
-    background-color: rgba(0, 0, 0, 0.02);
-}
-
-.navbar-brand {
-    font-weight: 600;
-}
-
 .breadcrumb {
     background: transparent;
     padding: 0;
     margin-bottom: 0;
+}
+
+.breadcrumb-item a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.list-group-modern .list-group-item {
+    border: none;
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 0.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    transition: all 0.2s ease;
+}
+
+.list-group-modern .list-group-item:hover {
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 20px;
+    bottom: -20px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #38ef7d;
 }

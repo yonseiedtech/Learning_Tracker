@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Live Session - {{ course.title }}{% endblock %}
+{% block title %}라이브 세션 - {{ course.title }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
-        <li class="breadcrumb-item active">Live Session</li>
+        <li class="breadcrumb-item active">라이브 세션</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h2><i class="bi bi-broadcast text-success me-2"></i>Live Session: {{ course.title }}</h2>
-        <p class="text-muted mb-0">Real-time progress tracking</p>
+        <h2 class="fw-bold mb-1"><i class="bi bi-broadcast text-success me-2"></i>라이브 세션</h2>
+        <p class="text-muted mb-0">{{ course.title }} - 실시간 진도 추적</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
-        <span class="badge bg-success fs-6" id="connectionStatus">
-            <i class="bi bi-circle-fill me-1"></i>Connected
+        <span class="badge connection-badge bg-success" id="connectionStatus">
+            <i class="bi bi-circle-fill me-1"></i>연결됨
         </span>
         <div class="btn-group">
             <button class="btn btn-outline-primary active" id="gridViewBtn" onclick="setView('grid')">
@@ -33,24 +33,18 @@
 
 <div class="row g-4">
     <div class="col-lg-4">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Checkpoint Progress</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="progressChart" height="300"></canvas>
-            </div>
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart me-2 text-primary"></i>체크포인트별 진행률</h5>
+            <canvas id="progressChart" height="250"></canvas>
         </div>
         
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-flag me-2"></i>Checkpoints</h5>
-            </div>
-            <div class="list-group list-group-flush">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-flag me-2 text-primary"></i>체크포인트</h5>
+            <div class="list-group list-group-modern">
                 {% for cp in checkpoints %}
-                <div class="list-group-item d-flex justify-content-between align-items-center checkpoint-stat" data-id="{{ cp.id }}">
-                    <span>{{ cp.order }}. {{ cp.title }}</span>
-                    <span class="badge bg-primary completion-badge" id="cp-{{ cp.id }}-badge">0/{{ students|length }}</span>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ cp.order }}. {{ cp.title[:20] }}{{ '...' if cp.title|length > 20 else '' }}</span>
+                    <span class="badge bg-primary bg-opacity-10 text-primary" id="cp-{{ cp.id }}-badge">0/{{ students|length }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -58,34 +52,33 @@
     </div>
     
     <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Student Progress</h5>
-                <span class="badge bg-primary" id="studentCount">{{ students|length }} students</span>
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>학생 진도</h5>
+                <span class="badge bg-primary bg-opacity-10 text-primary" id="studentCount">{{ students|length }}명</span>
             </div>
-            <div class="card-body">
-                <div id="gridView" class="row g-3">
-                    {% for student in students %}
-                    <div class="col-md-4">
-                        <div class="card student-card" id="student-{{ student.id }}">
-                            <div class="card-body text-center">
-                                <i class="bi bi-person-circle display-6 text-muted"></i>
-                                <h6 class="mt-2 mb-1">{{ student.username }}</h6>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar" role="progressbar" style="width: 0%" id="student-{{ student.id }}-progress"></div>
-                                </div>
-                                <small class="text-muted" id="student-{{ student.id }}-text">0/{{ checkpoints|length }}</small>
-                            </div>
+            
+            <div id="gridView" class="row g-3">
+                {% for student in students %}
+                <div class="col-md-4 col-lg-4">
+                    <div class="student-card" id="student-{{ student.id }}">
+                        <div class="avatar-lg mx-auto mb-2">{{ student.username[0]|upper }}</div>
+                        <h6 class="mb-2">{{ student.username }}</h6>
+                        <div class="progress progress-modern mb-2">
+                            <div class="progress-bar bg-gradient-primary" style="width: 0%" id="student-{{ student.id }}-progress"></div>
                         </div>
+                        <small class="text-muted" id="student-{{ student.id }}-text">0/{{ checkpoints|length }}</small>
                     </div>
-                    {% endfor %}
                 </div>
-                
-                <div id="listView" class="d-none">
-                    <table class="table table-hover">
+                {% endfor %}
+            </div>
+            
+            <div id="listView" class="d-none">
+                <div class="table-responsive">
+                    <table class="table table-modern">
                         <thead>
                             <tr>
-                                <th>Student</th>
+                                <th>학생</th>
                                 {% for cp in checkpoints %}
                                 <th class="text-center" title="{{ cp.title }}">{{ cp.order }}</th>
                                 {% endfor %}
@@ -129,14 +122,14 @@ studentIds.forEach(id => {
 const socket = io();
 
 socket.on('connect', function() {
-    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>Connected';
-    document.getElementById('connectionStatus').className = 'badge bg-success fs-6';
+    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>연결됨';
+    document.getElementById('connectionStatus').className = 'badge connection-badge bg-success';
     socket.emit('join_course', { course_id: courseId, mode: 'live' });
 });
 
 socket.on('disconnect', function() {
-    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>Disconnected';
-    document.getElementById('connectionStatus').className = 'badge bg-danger fs-6';
+    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>연결 끊김';
+    document.getElementById('connectionStatus').className = 'badge connection-badge bg-danger';
 });
 
 socket.on('progress_update', function(data) {
@@ -160,23 +153,22 @@ socket.on('session_stats', function(data) {
     updateChart(completion_rates);
 });
 
-socket.on('student_joined', function(data) {
-    console.log('Student joined:', data.username);
-});
-
 function updateStudentDisplay(userId) {
     const completed = Object.values(studentProgress[userId]).filter(v => v).length;
     const percent = (completed / totalCheckpoints) * 100;
     
     const progressBar = document.getElementById(`student-${userId}-progress`);
     const text = document.getElementById(`student-${userId}-text`);
+    const card = document.getElementById(`student-${userId}`);
     
     if (progressBar) {
         progressBar.style.width = `${percent}%`;
-        progressBar.className = `progress-bar ${percent === 100 ? 'bg-success' : ''}`;
     }
     if (text) {
         text.textContent = `${completed}/${totalCheckpoints}`;
+    }
+    if (card && percent === 100) {
+        card.classList.add('completed');
     }
 }
 
@@ -224,20 +216,21 @@ function updateChart(completionRates) {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Completion %',
+                    label: '완료율 %',
                     data: data,
-                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
-                    borderColor: 'rgba(13, 110, 253, 1)',
-                    borderWidth: 1
+                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1,
+                    borderRadius: 8
                 }]
             },
             options: {
                 responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100
-                    }
+                    y: { beginAtZero: true, max: 100 }
                 }
             }
         });
