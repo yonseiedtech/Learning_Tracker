@@ -9,6 +9,11 @@
 - **실시간 채팅**: 메시지 편집/삭제, @멘션, 전체 호출 기능
 - **라이브 게시판**: 세션 중 공지사항 등록 및 상단 고정
 - **전체 진행율 표시**: 강사/학생 화면에서 수업 진행율 확인
+- **AI 체크포인트 생성**: Gemini AI 기반 자동 체크포인트 생성
+  - PPT/PDF 분석으로 체크포인트 생성
+  - 영상 분석 및 전사문 추출
+  - 음성 파일 전사 및 체크포인트 생성
+  - 전사문 편집 및 재생성 기능
 
 ## 언어 및 디자인
 - **언어**: 한국어 (전체 UI, 메시지, 라벨)
@@ -73,11 +78,17 @@ python main.py
 - Bootstrap 5 + Chart.js (프론트엔드)
 - Eventlet (비동기 지원)
 - Noto Sans KR (폰트)
+- Google Gemini AI (Replit AI Integrations 사용)
 
 ## 환경 변수
 - `DATABASE_URL`: PostgreSQL 연결 문자열
 - `SESSION_SECRET`: Flask 세션 시크릿 키
+- `AI_INTEGRATIONS_GEMINI_BASE_URL`: Gemini API URL (자동 설정)
+- `AI_INTEGRATIONS_GEMINI_API_KEY`: Gemini API 키 (자동 설정)
 
 ## 최근 변경사항
+- 2026-01-29: AI 체크포인트 생성 기능 추가 (PPT, 영상, 음성 분석)
+- 2026-01-29: 학생 체크포인트 완료 토글 기능 추가
+- 2026-01-29: 라이브 세션 게시판 및 예약 기능 추가
 - 2026-01-29: 전체 UI 한국어 번역 완료
 - 2026-01-29: 최신 웹디자인 트렌드 적용 (글래스모피즘, 그라디언트, 모던 타이포그래피)
