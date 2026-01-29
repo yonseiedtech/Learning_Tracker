@@ -128,8 +128,13 @@
                 {% endfor %}
             </div>
             <div class="mt-3">
+                <div class="mentions-dropdown d-none" id="mentionsDropdown">
+                    {% for e in enrollments %}
+                    <div class="mention-item" onclick="insertMention('{{ e.user.username }}')">@{{ e.user.username }}</div>
+                    {% endfor %}
+                </div>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요..." onkeypress="handleChatKeyPress(event)">
+                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요... (@로 언급)" onkeypress="handleChatKeyPress(event)" oninput="handleChatInput(event)">
                     <button class="btn btn-primary" onclick="sendChatMessage()">
                         <i class="bi bi-send"></i>
                     </button>
@@ -203,6 +208,27 @@
 .chat-message.deleted {
     opacity: 0.5;
     text-decoration: line-through;
+}
+.mentions-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+.mention-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.mention-item:hover {
+    background: rgba(102, 126, 234, 0.1);
 }
 </style>
 
@@ -361,9 +387,62 @@ function formatMentions(text) {
     return text.replace(/@(\w+)/g, '<span class="mention-highlight">@$1</span>');
 }
 
+function insertMention(username) {
+    const input = document.getElementById('chatInput');
+    const cursorPos = input.selectionStart;
+    const textBefore = input.value.substring(0, cursorPos);
+    const textAfter = input.value.substring(cursorPos);
+    const lastAtIndex = textBefore.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+        input.value = textBefore.substring(0, lastAtIndex) + `@${username} ` + textAfter;
+    } else {
+        input.value = `@${username} ` + input.value;
+    }
+    
+    document.getElementById('mentionsDropdown').classList.add('d-none');
+    input.focus();
+}
+
+function handleChatInput(event) {
+    const input = event.target;
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1 && lastAtIndex === textBeforeCursor.length - 1) {
+        document.getElementById('mentionsDropdown').classList.remove('d-none');
+    } else if (lastAtIndex !== -1) {
+        const searchTerm = textBeforeCursor.substring(lastAtIndex + 1).toLowerCase();
+        const dropdown = document.getElementById('mentionsDropdown');
+        const items = dropdown.querySelectorAll('.mention-item');
+        let hasVisible = false;
+        
+        items.forEach(item => {
+            const username = item.textContent.substring(1).toLowerCase();
+            if (username.includes(searchTerm)) {
+                item.style.display = 'block';
+                hasVisible = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        if (hasVisible && searchTerm.length > 0) {
+            dropdown.classList.remove('d-none');
+        } else {
+            dropdown.classList.add('d-none');
+        }
+    } else {
+        document.getElementById('mentionsDropdown').classList.add('d-none');
+    }
+}
+
 function appendChatMessage(data) {
     const container = document.getElementById('chatMessages');
     const isInstructor = data.role === 'instructor';
+    const formattedMessage = formatMentions(data.message);
     const html = `
         <div class="chat-message mb-2 ${isInstructor ? 'instructor-msg' : ''}">
             <div class="d-flex align-items-start gap-2">
@@ -374,7 +453,7 @@ function appendChatMessage(data) {
                         ${isInstructor ? '<span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>' : ''}
                         <small class="text-muted">${data.created_at}</small>
                     </div>
-                    <p class="mb-0 small">${data.message}</p>
+                    <p class="mb-0 small">${formattedMessage}</p>
                 </div>
             </div>
         </div>

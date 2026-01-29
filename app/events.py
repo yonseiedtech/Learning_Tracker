@@ -227,7 +227,11 @@ def handle_edit_chat_message(data):
     if not chat_msg:
         return
     
-    course = Course.query.get(course_id)
+    if chat_msg.course_id != course_id:
+        emit('error', {'message': 'Invalid course'})
+        return
+    
+    course = Course.query.get(chat_msg.course_id)
     if not course or not user_has_course_access(current_user, course):
         return
     
@@ -238,7 +242,7 @@ def handle_edit_chat_message(data):
     chat_msg.message = new_message
     db.session.commit()
     
-    room = f'course_{course_id}'
+    room = f'course_{chat_msg.course_id}'
     emit('chat_message_edited', {
         'message_id': message_id,
         'new_message': new_message
@@ -259,7 +263,11 @@ def handle_delete_chat_message(data):
     if not chat_msg:
         return
     
-    course = Course.query.get(course_id)
+    if chat_msg.course_id != course_id:
+        emit('error', {'message': 'Invalid course'})
+        return
+    
+    course = Course.query.get(chat_msg.course_id)
     if not course or not user_has_course_access(current_user, course):
         return
     
@@ -270,7 +278,7 @@ def handle_delete_chat_message(data):
     db.session.delete(chat_msg)
     db.session.commit()
     
-    room = f'course_{course_id}'
+    room = f'course_{chat_msg.course_id}'
     emit('chat_message_deleted', {
         'message_id': message_id
     }, room=room)

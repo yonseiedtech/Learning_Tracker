@@ -142,7 +142,8 @@ def live_mode(course_id):
             flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         progress_records = {p.checkpoint_id: p for p in Progress.query.filter_by(user_id=current_user.id, mode='live').all()}
-        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages)
+        enrollments = Enrollment.query.filter_by(course_id=course_id).all()
+        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages, enrollments=enrollments)
 
 @bp.route('/<int:course_id>/regenerate-code', methods=['POST'])
 @login_required
