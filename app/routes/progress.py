@@ -91,6 +91,45 @@ def complete(checkpoint_id):
         'duration_seconds': progress.duration_seconds
     })
 
+@bp.route('/<int:checkpoint_id>/uncomplete', methods=['POST'])
+@login_required
+def uncomplete(checkpoint_id):
+    checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
+    course = checkpoint.course
+    
+    if not current_user.is_enrolled(course) and course.instructor_id != current_user.id:
+        return jsonify({'error': 'Not enrolled in this course'}), 403
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'self_paced')
+    
+    progress = Progress.query.filter_by(
+        user_id=current_user.id,
+        checkpoint_id=checkpoint_id,
+        mode=mode
+    ).first()
+    
+    if progress and progress.completed_at:
+        progress.completed_at = None
+        progress.duration_seconds = None
+        db.session.commit()
+        
+        if mode == 'live':
+            socketio.emit('progress_update', {
+                'user_id': current_user.id,
+                'username': current_user.username,
+                'checkpoint_id': checkpoint_id,
+                'status': 'uncompleted'
+            }, room=f'course_{course.id}')
+        
+        return jsonify({
+            'success': True,
+            'checkpoint_id': checkpoint_id,
+            'status': 'uncompleted'
+        })
+    
+    return jsonify({'success': False, 'error': 'Progress not found or not completed'}), 400
+
 @bp.route('/student/<int:user_id>')
 @login_required
 def student_progress(user_id):
