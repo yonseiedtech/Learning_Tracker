@@ -50,7 +50,7 @@
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
                 {% set p = progress.get(cp.id) %}
-                <div class="checkpoint-item-student p-3 mb-3 rounded-3" id="checkpoint-{{ cp.id }}">
+                <div class="checkpoint-item-student p-3 mb-3 rounded-3 {% if p and p.completed_at %}student-completed{% endif %}" id="checkpoint-{{ cp.id }}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="d-flex align-items-start flex-grow-1">
                             <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
@@ -89,16 +89,16 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="btn-{{ cp.id }}" class="ms-3">
-                            {% if p and p.completed_at %}
-                            <button class="btn btn-outline-success rounded-pill px-4" onclick="uncompleteCheckpoint({{ cp.id }})" title="취소하려면 클릭">
-                                <i class="bi bi-check-lg me-1"></i>완료됨
-                            </button>
-                            {% else %}
-                            <button class="btn btn-success rounded-pill px-4" onclick="completeCheckpoint({{ cp.id }})">
-                                <i class="bi bi-check-lg me-1"></i>완료
-                            </button>
-                            {% endif %}
+                        <div id="btn-{{ cp.id }}" class="ms-3 d-flex align-items-center">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input checkpoint-toggle" type="checkbox" role="switch" 
+                                       id="toggle-{{ cp.id }}" 
+                                       {% if p and p.completed_at %}checked{% endif %}
+                                       onchange="toggleCheckpoint({{ cp.id }}, this.checked)">
+                                <label class="form-check-label small fw-bold" for="toggle-{{ cp.id }}" id="toggle-label-{{ cp.id }}">
+                                    {% if p and p.completed_at %}완료{% else %}미완료{% endif %}
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -185,6 +185,22 @@
 }
 .checkpoint-item-student.instructor-completed {
     background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(32, 201, 151, 0.15));
+    border-color: #28a745;
+}
+.checkpoint-item-student.student-completed {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.12), rgba(32, 201, 151, 0.12));
+    border-color: rgba(40, 167, 69, 0.6);
+}
+.checkpoint-item-student.student-completed .badge.bg-primary {
+    background: linear-gradient(135deg, #28a745, #20c997) !important;
+}
+.form-check-input.checkpoint-toggle {
+    width: 3rem;
+    height: 1.5rem;
+    cursor: pointer;
+}
+.form-check-input.checkpoint-toggle:checked {
+    background-color: #28a745;
     border-color: #28a745;
 }
 .pulse-animation {
@@ -526,9 +542,15 @@ function submitUnderstanding(checkpointId, status) {
     }
 }
 
-async function completeCheckpoint(checkpointId) {
+async function toggleCheckpoint(checkpointId, isChecked) {
+    const endpoint = isChecked ? 'complete' : 'uncomplete';
+    const toggle = document.getElementById(`toggle-${checkpointId}`);
+    const label = document.getElementById(`toggle-label-${checkpointId}`);
+    const icon = document.getElementById(`icon-${checkpointId}`);
+    const checkpointItem = document.getElementById(`checkpoint-${checkpointId}`);
+    
     try {
-        const response = await fetch(`/progress/${checkpointId}/complete`, {
+        const response = await fetch(`/progress/${checkpointId}/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -538,41 +560,23 @@ async function completeCheckpoint(checkpointId) {
         });
         
         if (response.ok) {
-            const icon = document.getElementById(`icon-${checkpointId}`);
-            const btn = document.getElementById(`btn-${checkpointId}`);
-            
-            icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-2"></i>';
-            btn.innerHTML = `<button class="btn btn-outline-success rounded-pill px-4" onclick="uncompleteCheckpoint(${checkpointId})" title="취소하려면 클릭"><i class="bi bi-check-lg me-1"></i>완료됨</button>`;
-            
-            socket.emit('checkpoint_completed', { checkpoint_id: checkpointId, mode: 'live' });
+            if (isChecked) {
+                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-2"></i>';
+                label.textContent = '완료';
+                checkpointItem.classList.add('student-completed');
+                socket.emit('checkpoint_completed', { checkpoint_id: checkpointId, mode: 'live' });
+            } else {
+                icon.innerHTML = '<i class="bi bi-circle text-muted fs-2"></i>';
+                label.textContent = '미완료';
+                checkpointItem.classList.remove('student-completed');
+                socket.emit('checkpoint_uncompleted', { checkpoint_id: checkpointId, mode: 'live' });
+            }
+        } else {
+            toggle.checked = !isChecked;
         }
     } catch (error) {
         console.error('Error:', error);
-    }
-}
-
-async function uncompleteCheckpoint(checkpointId) {
-    try {
-        const response = await fetch(`/progress/${checkpointId}/uncomplete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({ mode: 'live' })
-        });
-        
-        if (response.ok) {
-            const icon = document.getElementById(`icon-${checkpointId}`);
-            const btn = document.getElementById(`btn-${checkpointId}`);
-            
-            icon.innerHTML = '<i class="bi bi-circle text-muted fs-2"></i>';
-            btn.innerHTML = `<button class="btn btn-success rounded-pill px-4" onclick="completeCheckpoint(${checkpointId})"><i class="bi bi-check-lg me-1"></i>완료</button>`;
-            
-            socket.emit('checkpoint_uncompleted', { checkpoint_id: checkpointId, mode: 'live' });
-        }
-    } catch (error) {
-        console.error('Error:', error);
+        toggle.checked = !isChecked;
     }
 }
 
