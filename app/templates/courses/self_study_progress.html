@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}자습 모드 진도 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">자습 모드 진도</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold"><i class="bi bi-book me-2 text-primary"></i>자습 모드 학습자 진도</h2>
+    <span class="badge bg-primary bg-opacity-10 text-primary fs-6">{{ students|length }}명의 학습자</span>
+</div>
+
+{% if students and checkpoints %}
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="min-width: 180px;">학습자</th>
+                    {% for cp in checkpoints %}
+                    <th class="text-center" style="min-width: 120px;">
+                        <div class="d-flex flex-column align-items-center">
+                            <span class="badge bg-primary bg-opacity-10 text-primary mb-1">{{ cp.order }}</span>
+                            <small class="text-truncate" style="max-width: 100px;" title="{{ cp.title }}">{{ cp.title }}</small>
+                        </div>
+                    </th>
+                    {% endfor %}
+                    <th class="text-center">총 학습시간</th>
+                    <th class="text-center">완료율</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-2">{{ student.username[0]|upper }}</div>
+                            <div>
+                                <strong>{{ student.username }}</strong>
+                                <br><small class="text-muted">{{ student.email }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    {% set ns = namespace(total_time=0, completed=0) %}
+                    {% for cp in checkpoints %}
+                    {% set p = progress_data.get(student.id, {}).get(cp.id) %}
+                    <td class="text-center">
+                        {% if p %}
+                            {% if p.completed_at %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-lg me-1"></i>완료
+                            </span>
+                            {% if p.duration_seconds %}
+                            <br><small class="text-muted">{{ (p.duration_seconds / 60)|round(1) }}분</small>
+                            {% set ns.total_time = ns.total_time + (p.duration_seconds or 0) %}
+                            {% endif %}
+                            {% set ns.completed = ns.completed + 1 %}
+                            {% elif p.is_paused %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-pause-fill me-1"></i>일시정지
+                            </span>
+                            {% if p.accumulated_seconds %}
+                            <br><small class="text-muted">{{ (p.accumulated_seconds / 60)|round(1) }}분</small>
+                            {% set ns.total_time = ns.total_time + (p.accumulated_seconds or 0) %}
+                            {% endif %}
+                            {% elif p.started_at %}
+                            <span class="badge bg-primary">
+                                <i class="bi bi-play-fill me-1"></i>진행중
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary bg-opacity-50">대기</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="badge bg-light text-muted">시작 전</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="text-center">
+                        <strong class="text-primary">
+                            {% set hours = (ns.total_time / 3600)|int %}
+                            {% set minutes = ((ns.total_time % 3600) / 60)|int %}
+                            {% if hours > 0 %}{{ hours }}시간 {% endif %}{{ minutes }}분
+                        </strong>
+                    </td>
+                    <td class="text-center">
+                        {% set rate = (ns.completed / checkpoints|length * 100) if checkpoints|length > 0 else 0 %}
+                        <div class="progress" style="height: 24px; min-width: 80px;">
+                            <div class="progress-bar {% if rate >= 100 %}bg-success{% elif rate >= 50 %}bg-primary{% else %}bg-secondary{% endif %}" 
+                                 role="progressbar" style="width: {{ rate }}%;">
+                                {{ rate|round(0)|int }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ ns.completed }}/{{ checkpoints|length }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-4 mt-3">
+    <div class="col-md-3">
+        <div class="glass-card p-4 text-center">
+            <i class="bi bi-people fs-1 text-primary mb-2"></i>
+            <h3 class="mb-1">{{ students|length }}</h3>
+            <small class="text-muted">총 학습자</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-4 text-center">
+            <i class="bi bi-flag fs-1 text-success mb-2"></i>
+            <h3 class="mb-1">{{ checkpoints|length }}</h3>
+            <small class="text-muted">체크포인트</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-4 text-center">
+            {% set all_completed = namespace(count=0) %}
+            {% for student in students %}
+                {% set student_complete = namespace(value=true) %}
+                {% for cp in checkpoints %}
+                    {% set p = progress_data.get(student.id, {}).get(cp.id) %}
+                    {% if not p or not p.completed_at %}{% set student_complete.value = false %}{% endif %}
+                {% endfor %}
+                {% if student_complete.value %}{% set all_completed.count = all_completed.count + 1 %}{% endif %}
+            {% endfor %}
+            <i class="bi bi-trophy fs-1 text-warning mb-2"></i>
+            <h3 class="mb-1">{{ all_completed.count }}</h3>
+            <small class="text-muted">전체 완료</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="glass-card p-4 text-center">
+            {% set total_study_time = namespace(value=0) %}
+            {% for student in students %}
+                {% for cp in checkpoints %}
+                    {% set p = progress_data.get(student.id, {}).get(cp.id) %}
+                    {% if p and p.duration_seconds %}
+                        {% set total_study_time.value = total_study_time.value + p.duration_seconds %}
+                    {% elif p and p.accumulated_seconds %}
+                        {% set total_study_time.value = total_study_time.value + p.accumulated_seconds %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            <i class="bi bi-clock-history fs-1 text-info mb-2"></i>
+            <h3 class="mb-1">
+                {% set total_hours = (total_study_time.value / 3600)|int %}
+                {% set total_mins = ((total_study_time.value % 3600) / 60)|int %}
+                {{ total_hours }}h {{ total_mins }}m
+            </h3>
+            <small class="text-muted">총 학습 시간</small>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="glass-card p-5 text-center">
+    <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+        <i class="bi bi-book"></i>
+    </div>
+    {% if not students %}
+    <h5 class="text-muted">아직 등록된 학습자가 없습니다</h5>
+    <p class="text-muted">초대 코드를 공유하여 학습자를 모집하세요.</p>
+    {% else %}
+    <h5 class="text-muted">아직 체크포인트가 없습니다</h5>
+    <p class="text-muted">체크포인트를 추가하여 학습 진도를 관리하세요.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--navy-primary), var(--navy-secondary));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}

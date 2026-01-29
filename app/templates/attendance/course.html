@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}출석 관리 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">출석 관리</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold"><i class="bi bi-calendar-check me-2 text-primary"></i>출석 관리</h2>
+    {% if is_instructor %}
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary rounded-pill" onclick="exportAttendance()">
+            <i class="bi bi-download me-2"></i>내보내기
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% if sessions %}
+<div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-list-check me-2"></i>세션별 출석 현황</h5>
+    
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>학생</th>
+                    {% for session in sessions %}
+                    <th class="text-center" style="min-width: 100px;">
+                        <small class="d-block text-muted">{{ session.started_at.strftime('%m/%d') }}</small>
+                        <span class="badge {% if not session.ended_at %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ loop.revindex }}차시
+                        </span>
+                    </th>
+                    {% endfor %}
+                    <th class="text-center">출석률</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-2">{{ student.username[0]|upper }}</div>
+                            <div>
+                                <strong>{{ student.username }}</strong>
+                                <br><small class="text-muted">{{ student.email }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    {% set ns = namespace(present=0, total=0) %}
+                    {% for session in sessions %}
+                    {% set att = attendance_data.get(session.id, {}).get(student.id) %}
+                    <td class="text-center">
+                        {% if is_instructor %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm dropdown-toggle attendance-btn 
+                                {% if att and att.status == 'present' %}btn-success
+                                {% elif att and att.status == 'late' %}btn-warning
+                                {% elif att and att.status == 'absent' %}btn-danger
+                                {% else %}btn-outline-secondary{% endif %}" 
+                                type="button" data-bs-toggle="dropdown">
+                                {% if att %}
+                                    {% if att.status == 'present' %}출석
+                                    {% elif att.status == 'late' %}지각
+                                    {% else %}결석{% endif %}
+                                {% else %}미확인{% endif %}
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="markAttendance({{ course.id }}, {{ session.id }}, {{ student.id }}, 'present')">
+                                    <i class="bi bi-check-circle text-success me-2"></i>출석</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="markAttendance({{ course.id }}, {{ session.id }}, {{ student.id }}, 'late')">
+                                    <i class="bi bi-clock text-warning me-2"></i>지각</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="markAttendance({{ course.id }}, {{ session.id }}, {{ student.id }}, 'absent')">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>결석</a></li>
+                            </ul>
+                        </div>
+                        {% else %}
+                            {% if att and att.status == 'present' %}
+                            <span class="badge bg-success">출석</span>
+                            {% elif att and att.status == 'late' %}
+                            <span class="badge bg-warning">지각</span>
+                            {% elif att and att.status == 'absent' %}
+                            <span class="badge bg-danger">결석</span>
+                            {% else %}
+                            <span class="badge bg-secondary">미확인</span>
+                            {% endif %}
+                        {% endif %}
+                        {% if att and att.status == 'present' %}{% set ns.present = ns.present + 1 %}{% endif %}
+                        {% set ns.total = ns.total + 1 %}
+                    </td>
+                    {% endfor %}
+                    <td class="text-center">
+                        {% set rate = (ns.present / ns.total * 100) if ns.total > 0 else 0 %}
+                        <div class="progress" style="height: 20px; min-width: 60px;">
+                            <div class="progress-bar {% if rate >= 80 %}bg-success{% elif rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" style="width: {{ rate }}%;">
+                                {{ rate|round(0)|int }}%
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="glass-card p-4 text-center">
+            <h3 class="text-success mb-1">{{ students|length }}</h3>
+            <small class="text-muted">총 학생 수</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card p-4 text-center">
+            <h3 class="text-primary mb-1">{{ sessions|length }}</h3>
+            <small class="text-muted">총 세션 수</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card p-4 text-center">
+            {% set total_present = namespace(count=0) %}
+            {% for session in sessions %}
+                {% for student in students %}
+                    {% set att = attendance_data.get(session.id, {}).get(student.id) %}
+                    {% if att and att.status == 'present' %}{% set total_present.count = total_present.count + 1 %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% set total_possible = sessions|length * students|length %}
+            {% set avg_rate = (total_present.count / total_possible * 100) if total_possible > 0 else 0 %}
+            <h3 class="{% if avg_rate >= 80 %}text-success{% elif avg_rate >= 60 %}text-warning{% else %}text-danger{% endif %} mb-1">
+                {{ avg_rate|round(1) }}%
+            </h3>
+            <small class="text-muted">평균 출석률</small>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="glass-card p-5 text-center">
+    <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+        <i class="bi bi-calendar-x"></i>
+    </div>
+    <h5 class="text-muted">아직 진행된 세션이 없습니다</h5>
+    <p class="text-muted">라이브 세션을 시작하면 출석 관리가 가능합니다.</p>
+</div>
+{% endif %}
+
+<style>
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--navy-primary), var(--navy-secondary));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.attendance-btn {
+    min-width: 60px;
+}
+</style>
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+
+async function markAttendance(courseId, sessionId, userId, status) {
+    try {
+        const response = await fetch('/attendance/mark', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                course_id: courseId,
+                session_id: sessionId,
+                user_id: userId,
+                status: status
+            })
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('출석 처리 중 오류가 발생했습니다.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('출석 처리 중 오류가 발생했습니다.');
+    }
+}
+
+function exportAttendance() {
+    alert('출석 데이터 내보내기 기능은 준비 중입니다.');
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}세션 설정 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">세션 설정</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold"><i class="bi bi-gear me-2 text-primary"></i>세션 설정</h2>
+</div>
+
+<form method="POST" action="{{ url_for('courses.settings', course_id=course.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="glass-card p-4">
+                <h5 class="fw-bold mb-4"><i class="bi bi-calendar-range me-2"></i>세션 기간 설정</h5>
+                
+                <div class="mb-3">
+                    <label for="start_date" class="form-label">시작 일시</label>
+                    <input type="datetime-local" class="form-control" id="start_date" name="start_date"
+                           value="{{ course.start_date.strftime('%Y-%m-%dT%H:%M') if course.start_date else '' }}">
+                    <div class="form-text">학생들이 이 세션에 접근할 수 있는 시작 시간입니다.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="end_date" class="form-label">종료 일시</label>
+                    <input type="datetime-local" class="form-control" id="end_date" name="end_date"
+                           value="{{ course.end_date.strftime('%Y-%m-%dT%H:%M') if course.end_date else '' }}">
+                    <div class="form-text">이 시간 이후에는 세션에 접근할 수 없습니다.</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="glass-card p-4">
+                <h5 class="fw-bold mb-4"><i class="bi bi-eye me-2"></i>공개 설정</h5>
+                
+                <div class="mb-4">
+                    <label class="form-label">공개 상태</label>
+                    <div class="visibility-options">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="visibility" id="vis_public" 
+                                   value="public" {% if course.visibility == 'public' or not course.visibility %}checked{% endif %}>
+                            <label class="form-check-label" for="vis_public">
+                                <i class="bi bi-globe text-success me-2"></i>
+                                <strong>공개</strong>
+                                <br><small class="text-muted">등록된 모든 학생이 접근 가능</small>
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="visibility" id="vis_private" 
+                                   value="private" {% if course.visibility == 'private' %}checked{% endif %}>
+                            <label class="form-check-label" for="vis_private">
+                                <i class="bi bi-lock text-danger me-2"></i>
+                                <strong>비공개</strong>
+                                <br><small class="text-muted">학생에게 숨김 (교수자만 접근 가능)</small>
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="visibility" id="vis_date" 
+                                   value="date_based" {% if course.visibility == 'date_based' %}checked{% endif %}>
+                            <label class="form-check-label" for="vis_date">
+                                <i class="bi bi-calendar-event text-primary me-2"></i>
+                                <strong>기간 기반 공개</strong>
+                                <br><small class="text-muted">위에서 설정한 기간 내에만 접근 가능</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="visibility" id="vis_prereq" 
+                                   value="prerequisite" {% if course.visibility == 'prerequisite' %}checked{% endif %}>
+                            <label class="form-check-label" for="vis_prereq">
+                                <i class="bi bi-diagram-3 text-warning me-2"></i>
+                                <strong>선행 세션 완료 시 공개</strong>
+                                <br><small class="text-muted">이전 세션을 모두 완료해야 접근 가능</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3" id="prerequisiteSection" style="display: {% if course.visibility == 'prerequisite' %}block{% else %}none{% endif %};">
+                    <label for="prerequisite_course_id" class="form-label">선행 세션 선택</label>
+                    <select class="form-select" id="prerequisite_course_id" name="prerequisite_course_id">
+                        <option value="0">선행 세션 없음</option>
+                        {% for other in other_courses %}
+                        <option value="{{ other.id }}" {% if course.prerequisite_course_id == other.id %}selected{% endif %}>
+                            {% if other.week_number %}{{ other.week_number }}주차 - {% endif %}{{ other.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">학생이 이 세션에 접근하기 전에 완료해야 하는 세션입니다.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-between mt-4">
+        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left me-2"></i>취소
+        </a>
+        <button type="submit" class="btn btn-primary rounded-pill">
+            <i class="bi bi-check-lg me-2"></i>설정 저장
+        </button>
+    </div>
+</form>
+
+<style>
+.visibility-options .form-check {
+    padding: 1rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+.visibility-options .form-check:hover {
+    background: rgba(13, 27, 62, 0.03);
+}
+.visibility-options .form-check-input:checked ~ .form-check-label {
+    color: var(--navy-primary);
+}
+.visibility-options .form-check:has(.form-check-input:checked) {
+    border-color: var(--navy-primary);
+    background: rgba(13, 27, 62, 0.05);
+}
+</style>
+
+{% block scripts %}
+<script>
+document.querySelectorAll('input[name="visibility"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const prereqSection = document.getElementById('prerequisiteSection');
+        prereqSection.style.display = this.value === 'prerequisite' ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

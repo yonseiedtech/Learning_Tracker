@@ -55,9 +55,40 @@ def view(course_id):
         if not current_user.is_enrolled(course):
             flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
+        
+        if not course.is_accessible_by(current_user):
+            if course.visibility == 'private':
+                flash('이 세션은 현재 비공개 상태입니다.', 'warning')
+            elif course.visibility == 'date_based':
+                if course.start_date and datetime.utcnow() < course.start_date:
+                    flash(f'이 세션은 {course.start_date.strftime("%Y-%m-%d %H:%M")}에 공개됩니다.', 'info')
+                elif course.end_date and datetime.utcnow() > course.end_date:
+                    flash('이 세션의 공개 기간이 종료되었습니다.', 'warning')
+            elif course.visibility == 'prerequisite':
+                prereq = Course.query.get(course.prerequisite_course_id)
+                if prereq:
+                    flash(f'이 세션에 접근하려면 먼저 "{prereq.title}" 세션을 완료해야 합니다.', 'info')
+            return redirect(url_for('main.dashboard'))
+        
         checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).order_by(Checkpoint.order).all()
-        progress_records = {p.checkpoint_id: p for p in Progress.query.filter_by(user_id=current_user.id).all()}
-        return render_template('courses/view_student.html', course=course, checkpoints=checkpoints, progress=progress_records)
+        
+        live_progress = {p.checkpoint_id: p for p in Progress.query.filter_by(
+            user_id=current_user.id, mode='live'
+        ).all()}
+        self_progress = {p.checkpoint_id: p for p in Progress.query.filter_by(
+            user_id=current_user.id, mode='self_paced'
+        ).all()}
+        
+        active_session = ActiveSession.query.filter_by(
+            course_id=course.id, ended_at=None
+        ).first()
+        
+        return render_template('courses/view_student.html', 
+                             course=course, 
+                             checkpoints=checkpoints, 
+                             live_progress=live_progress,
+                             self_progress=self_progress,
+                             active_session=active_session)
 
 @bp.route('/<int:course_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -205,9 +236,21 @@ def live_mode(course_id):
         if not current_user.is_enrolled(course):
             flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
+        
+        if not course.is_accessible_by(current_user):
+            flash('이 세션에 접근할 수 없습니다.', 'warning')
+            return redirect(url_for('main.dashboard'))
+        
+        from app.models import Attendance
+        attendance_checked = Attendance.query.filter_by(
+            course_id=course_id,
+            user_id=current_user.id,
+            session_id=session.id
+        ).first() is not None if session else False
+        
         progress_records = {p.checkpoint_id: p for p in Progress.query.filter_by(user_id=current_user.id, mode='live').all()}
         enrollments = Enrollment.query.filter_by(course_id=course_id).all()
-        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages, enrollments=enrollments)
+        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages, enrollments=enrollments, attendance_checked=attendance_checked)
 
 @bp.route('/<int:course_id>/regenerate-code', methods=['POST'])
 @login_required
@@ -219,6 +262,76 @@ def regenerate_code(course_id):
     course.invite_code = Course.generate_invite_code()
     db.session.commit()
     return jsonify({'invite_code': course.invite_code})
+
+@bp.route('/<int:course_id>/settings', methods=['GET', 'POST'])
+@login_required
+def settings(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        flash('설정 권한이 없습니다.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    if request.method == 'POST':
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        visibility = request.form.get('visibility', 'public')
+        prerequisite_id = request.form.get('prerequisite_course_id')
+        
+        if start_date_str:
+            course.start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M')
+        else:
+            course.start_date = None
+        
+        if end_date_str:
+            course.end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
+        else:
+            course.end_date = None
+        
+        course.visibility = visibility
+        
+        if prerequisite_id and prerequisite_id != '0':
+            course.prerequisite_course_id = int(prerequisite_id)
+        else:
+            course.prerequisite_course_id = None
+        
+        db.session.commit()
+        flash('세션 설정이 저장되었습니다.', 'success')
+        return redirect(url_for('courses.view', course_id=course_id))
+    
+    other_courses = Course.query.filter(
+        Course.instructor_id == current_user.id,
+        Course.id != course_id
+    ).all()
+    
+    return render_template('courses/settings.html', course=course, other_courses=other_courses)
+
+@bp.route('/<int:course_id>/self-study-progress')
+@login_required
+def self_study_progress(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    students = course.get_enrolled_students()
+    checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).order_by(Checkpoint.order).all()
+    
+    progress_data = {}
+    for student in students:
+        progress_data[student.id] = {}
+        for cp in checkpoints:
+            p = Progress.query.filter_by(
+                user_id=student.id,
+                checkpoint_id=cp.id,
+                mode='self_paced'
+            ).first()
+            progress_data[student.id][cp.id] = p
+    
+    return render_template('courses/self_study_progress.html', 
+                         course=course, 
+                         students=students, 
+                         checkpoints=checkpoints,
+                         progress_data=progress_data)
 
 @bp.route('/<int:course_id>/session-post', methods=['POST'])
 @login_required

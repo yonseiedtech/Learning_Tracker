@@ -29,106 +29,202 @@
     </div>
 </div>
 
-<div class="glass-card p-4">
-    <h5 class="fw-bold mb-4"><i class="bi bi-flag me-2 text-primary"></i>체크포인트 (자기주도 학습)</h5>
-    {% if checkpoints %}
-    <div class="checkpoint-list">
-        {% for cp in checkpoints %}
-        {% set p = progress.get(cp.id) %}
-        <div class="checkpoint-item-selfpaced p-3 mb-3 rounded-3 {% if p and p.completed_at %}completed{% elif p and p.started_at %}in-progress{% endif %}" 
-             id="checkpoint-{{ cp.id }}"
-             data-checkpoint-id="{{ cp.id }}"
-             data-started="{{ 'true' if p and p.started_at else 'false' }}"
-             data-paused="{{ 'true' if p and p.is_paused else 'false' }}"
-             data-completed="{{ 'true' if p and p.completed_at else 'false' }}"
-             data-elapsed="{{ p.get_elapsed_seconds() if p else 0 }}"
-             data-started-at="{{ p.started_at.isoformat() if p and p.started_at and not p.is_paused else '' }}">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="d-flex align-items-start flex-grow-1">
-                    <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
-                        {% if p and p.completed_at %}
-                        <i class="bi bi-check-circle-fill text-success fs-2"></i>
-                        {% elif p and p.started_at %}
-                        <i class="bi bi-circle-half text-primary fs-2"></i>
-                        {% else %}
-                        <i class="bi bi-circle text-muted fs-2"></i>
-                        {% endif %}
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge bg-primary bg-opacity-10 text-primary">{{ cp.order }}</span>
-                            <strong>{{ cp.title }}</strong>
-                        </div>
-                        {% if cp.description %}
-                        <p class="mb-2 text-muted small">{{ cp.description }}</p>
-                        {% endif %}
-                        <div class="d-flex gap-3 mt-1 align-items-center flex-wrap">
-                            {% if cp.estimated_minutes %}
-                            <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
-                            {% endif %}
-                            <small class="text-success timer-display" id="timer-{{ cp.id }}">
-                                <i class="bi bi-stopwatch me-1"></i>
-                                <span class="timer-value">00:00:00</span>
-                            </small>
-                        </div>
-                        
-                        <div class="timer-controls mt-3" id="controls-{{ cp.id }}">
-                            {% if not p or not p.started_at %}
-                            <button class="btn btn-sm btn-primary rounded-pill me-2" onclick="startTimer({{ cp.id }})">
-                                <i class="bi bi-play-fill me-1"></i>시작
-                            </button>
-                            {% elif p and not p.completed_at %}
-                                {% if p.is_paused %}
-                                <button class="btn btn-sm btn-success rounded-pill me-2" onclick="resumeTimer({{ cp.id }})">
-                                    <i class="bi bi-play-fill me-1"></i>재개
-                                </button>
-                                {% else %}
-                                <button class="btn btn-sm btn-warning rounded-pill me-2" onclick="pauseTimer({{ cp.id }})">
-                                    <i class="bi bi-pause-fill me-1"></i>일시정지
-                                </button>
-                                {% endif %}
-                            <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="stopTimer({{ cp.id }})">
-                                <i class="bi bi-stop-fill me-1"></i>중단
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="ms-3 d-flex flex-column align-items-end gap-2">
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input checkpoint-toggle" type="checkbox" role="switch" 
-                               id="toggle-{{ cp.id }}" 
-                               {% if p and p.completed_at %}checked{% endif %}
-                               onchange="toggleCheckpoint({{ cp.id }}, this.checked)">
-                        <label class="form-check-label small fw-bold" for="toggle-{{ cp.id }}" id="toggle-label-{{ cp.id }}">
-                            {% if p and p.completed_at %}완료{% else %}미완료{% endif %}
-                        </label>
-                    </div>
-                    {% if p and p.duration_seconds %}
-                    <small class="text-muted"><i class="bi bi-clock-history me-1"></i>총 {{ (p.duration_seconds / 60)|round(1) }}분</small>
-                    {% endif %}
-                </div>
+<ul class="nav nav-tabs mb-4" id="modeTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="selfpaced-tab" data-bs-toggle="tab" data-bs-target="#selfpaced" type="button" role="tab">
+            <i class="bi bi-book me-2"></i>자습 모드
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="livesync-tab" data-bs-toggle="tab" data-bs-target="#livesync" type="button" role="tab">
+            <i class="bi bi-broadcast me-2"></i>라이브 세션 동기화
+            {% if active_session %}
+            <span class="badge bg-success ms-1">진행중</span>
+            {% endif %}
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="modeTabContent">
+    <div class="tab-pane fade show active" id="selfpaced" role="tabpanel">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-book me-2 text-primary"></i>자습 모드 체크포인트</h5>
+                <small class="text-muted">직접 학습 시간을 측정하고 체크포인트를 완료하세요</small>
             </div>
+            {% if checkpoints %}
+            <div class="checkpoint-list">
+                {% for cp in checkpoints %}
+                {% set p = self_progress.get(cp.id) %}
+                <div class="checkpoint-item-selfpaced p-3 mb-3 rounded-3 {% if p and p.completed_at %}completed{% elif p and p.started_at %}in-progress{% endif %}" 
+                     id="checkpoint-{{ cp.id }}"
+                     data-checkpoint-id="{{ cp.id }}"
+                     data-started="{{ 'true' if p and p.started_at else 'false' }}"
+                     data-paused="{{ 'true' if p and p.is_paused else 'false' }}"
+                     data-completed="{{ 'true' if p and p.completed_at else 'false' }}"
+                     data-elapsed="{{ p.get_elapsed_seconds() if p else 0 }}"
+                     data-started-at="{{ p.started_at.isoformat() if p and p.started_at and not p.is_paused else '' }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-start flex-grow-1">
+                            <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
+                                {% if p and p.completed_at %}
+                                <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                                {% elif p and p.started_at %}
+                                <i class="bi bi-circle-half text-primary fs-2"></i>
+                                {% else %}
+                                <i class="bi bi-circle text-muted fs-2"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ cp.order }}</span>
+                                    <strong>{{ cp.title }}</strong>
+                                </div>
+                                {% if cp.description %}
+                                <p class="mb-2 text-muted small">{{ cp.description }}</p>
+                                {% endif %}
+                                <div class="d-flex gap-3 mt-1 align-items-center flex-wrap">
+                                    {% if cp.estimated_minutes %}
+                                    <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                                    {% endif %}
+                                    <small class="text-success timer-display" id="timer-{{ cp.id }}">
+                                        <i class="bi bi-stopwatch me-1"></i>
+                                        <span class="timer-value">00:00:00</span>
+                                    </small>
+                                </div>
+                                
+                                <div class="timer-controls mt-3" id="controls-{{ cp.id }}">
+                                    {% if not p or (not p.started_at and not p.completed_at) %}
+                                    <button class="btn btn-sm btn-primary rounded-pill me-2" onclick="startTimer({{ cp.id }})">
+                                        <i class="bi bi-play-fill me-1"></i>시작
+                                    </button>
+                                    {% elif p and not p.completed_at %}
+                                        {% if p.is_paused %}
+                                        <button class="btn btn-sm btn-success rounded-pill me-2" onclick="resumeTimer({{ cp.id }})">
+                                            <i class="bi bi-play-fill me-1"></i>재개
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-warning rounded-pill me-2" onclick="pauseTimer({{ cp.id }})">
+                                            <i class="bi bi-pause-fill me-1"></i>일시정지
+                                        </button>
+                                        {% endif %}
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill me-2" onclick="stopTimer({{ cp.id }})">
+                                        <i class="bi bi-stop-fill me-1"></i>중단
+                                    </button>
+                                    {% endif %}
+                                    {% if p and (p.started_at or p.completed_at or p.accumulated_seconds) %}
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="resetTimer({{ cp.id }})">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>초기화
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ms-3 d-flex flex-column align-items-end gap-2">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input checkpoint-toggle" type="checkbox" role="switch" 
+                                       id="toggle-{{ cp.id }}" 
+                                       {% if p and p.completed_at %}checked{% endif %}
+                                       onchange="toggleCheckpoint({{ cp.id }}, this.checked)">
+                                <label class="form-check-label small fw-bold" for="toggle-{{ cp.id }}" id="toggle-label-{{ cp.id }}">
+                                    {% if p and p.completed_at %}완료{% else %}미완료{% endif %}
+                                </label>
+                            </div>
+                            {% if p and p.duration_seconds %}
+                            <small class="text-muted"><i class="bi bi-clock-history me-1"></i>총 {{ (p.duration_seconds / 60)|round(1) }}분</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                    <i class="bi bi-flag"></i>
+                </div>
+                <p class="text-muted mb-0">아직 체크포인트가 없습니다</p>
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div class="text-center py-5">
-        <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
-            <i class="bi bi-flag"></i>
+    
+    <div class="tab-pane fade" id="livesync" role="tabpanel">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-broadcast me-2 text-success"></i>라이브 세션 동기화</h5>
+                {% if active_session %}
+                <span class="badge bg-success"><i class="bi bi-circle-fill me-1 pulse-animation"></i>세션 진행중</span>
+                {% else %}
+                <span class="badge bg-secondary">진행중인 세션 없음</span>
+                {% endif %}
+            </div>
+            <p class="text-muted mb-4">
+                <i class="bi bi-info-circle me-1"></i>
+                라이브 세션 동기화 데이터는 교수자의 라이브 세션에서 체크된 진도를 반영합니다. 
+                이 데이터는 읽기 전용이며 자습 모드와 별도로 관리됩니다.
+            </p>
+            {% if checkpoints %}
+            <div class="checkpoint-list">
+                {% for cp in checkpoints %}
+                {% set lp = live_progress.get(cp.id) %}
+                <div class="checkpoint-item-live p-3 mb-3 rounded-3 {% if lp and lp.completed_at %}completed{% elif lp and lp.started_at %}in-progress{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center flex-grow-1">
+                            <div class="checkpoint-status me-3">
+                                {% if lp and lp.completed_at %}
+                                <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                                {% elif lp and lp.started_at %}
+                                <i class="bi bi-circle-half text-primary fs-2"></i>
+                                {% else %}
+                                <i class="bi bi-circle text-muted fs-2"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-success bg-opacity-10 text-success">{{ cp.order }}</span>
+                                    <strong>{{ cp.title }}</strong>
+                                </div>
+                                {% if cp.description %}
+                                <p class="mb-0 text-muted small">{{ cp.description }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            {% if lp and lp.completed_at %}
+                            <span class="badge bg-success">완료</span>
+                            {% if lp.duration_seconds %}
+                            <br><small class="text-muted">{{ (lp.duration_seconds / 60)|round(1) }}분</small>
+                            {% endif %}
+                            {% elif lp and lp.started_at %}
+                            <span class="badge bg-primary">진행중</span>
+                            {% else %}
+                            <span class="badge bg-secondary">대기</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="empty-icon mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                    <i class="bi bi-broadcast"></i>
+                </div>
+                <p class="text-muted mb-0">아직 체크포인트가 없습니다</p>
+            </div>
+            {% endif %}
         </div>
-        <p class="text-muted mb-0">아직 체크포인트가 없습니다</p>
     </div>
-    {% endif %}
 </div>
 
 <style>
-.checkpoint-item-selfpaced {
+.checkpoint-item-selfpaced, .checkpoint-item-live {
     transition: all 0.3s ease;
     background: rgba(255,255,255,0.5);
     border: 2px solid transparent;
 }
-.checkpoint-item-selfpaced:hover {
+.checkpoint-item-selfpaced:hover, .checkpoint-item-live:hover {
     background: rgba(13, 27, 62, 0.05);
     border-color: rgba(13, 27, 62, 0.2);
 }
@@ -136,7 +232,11 @@
     background: rgba(13, 27, 62, 0.08);
     border-color: rgba(13, 27, 62, 0.4);
 }
-.checkpoint-item-selfpaced.completed {
+.checkpoint-item-live.in-progress {
+    background: rgba(40, 167, 69, 0.08);
+    border-color: rgba(40, 167, 69, 0.3);
+}
+.checkpoint-item-selfpaced.completed, .checkpoint-item-live.completed {
     background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.1));
     border-color: rgba(40, 167, 69, 0.5);
 }
@@ -160,22 +260,45 @@
 .timer-display.paused {
     color: #ffc107 !important;
 }
+.pulse-animation {
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.nav-tabs .nav-link {
+    color: var(--navy-primary);
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+.nav-tabs .nav-link.active {
+    color: var(--navy-primary);
+    background: transparent;
+    border-bottom: 2px solid var(--navy-primary);
+    font-weight: 600;
+}
+.nav-tabs .nav-link:hover {
+    border-bottom: 2px solid rgba(13, 27, 62, 0.3);
+}
 </style>
 
-{% block scripts %}
 <script>
+(function() {
 const csrfToken = '{{ csrf_token() }}';
 const timers = {};
 
-function formatTime(seconds) {
+function formatTime(totalSeconds) {
+    const seconds = Math.floor(totalSeconds);
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function updateTimerDisplay(checkpointId, seconds, isRunning = false, isPaused = false) {
     const timerEl = document.getElementById(`timer-${checkpointId}`);
+    if (!timerEl) return;
     const valueEl = timerEl.querySelector('.timer-value');
     valueEl.textContent = formatTime(seconds);
     
@@ -197,11 +320,11 @@ function initializeTimers() {
         
         if (started && !paused && !completed && startedAt) {
             const startTime = new Date(startedAt).getTime();
+            const baseElapsed = elapsed;
             timers[id] = setInterval(() => {
                 const now = Date.now();
                 const currentSession = Math.floor((now - startTime) / 1000);
-                const total = elapsed + currentSession;
-                updateTimerDisplay(id, total, true, false);
+                updateTimerDisplay(id, baseElapsed + currentSession, true, false);
             }, 1000);
         }
     });
@@ -287,12 +410,34 @@ async function stopTimer(checkpointId) {
     }
 }
 
+async function resetTimer(checkpointId) {
+    if (!confirm('학습 시간을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+        return;
+    }
+    try {
+        const response = await fetch(`/progress/${checkpointId}/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ mode: 'self_paced' })
+        });
+        if (response.ok) {
+            if (timers[checkpointId]) {
+                clearInterval(timers[checkpointId]);
+                delete timers[checkpointId];
+            }
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
 async function toggleCheckpoint(checkpointId, isChecked) {
     const endpoint = isChecked ? 'complete' : 'uncomplete';
-    const icon = document.getElementById(`icon-${checkpointId}`);
-    const label = document.getElementById(`toggle-label-${checkpointId}`);
     const toggle = document.getElementById(`toggle-${checkpointId}`);
-    const checkpointItem = document.getElementById(`checkpoint-${checkpointId}`);
     
     try {
         const response = await fetch(`/progress/${checkpointId}/${endpoint}`, {
@@ -309,17 +454,6 @@ async function toggleCheckpoint(checkpointId, isChecked) {
                 clearInterval(timers[checkpointId]);
                 delete timers[checkpointId];
             }
-            
-            if (isChecked) {
-                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-2"></i>';
-                label.textContent = '완료';
-                checkpointItem.classList.remove('in-progress');
-                checkpointItem.classList.add('completed');
-            } else {
-                icon.innerHTML = '<i class="bi bi-circle text-muted fs-2"></i>';
-                label.textContent = '미완료';
-                checkpointItem.classList.remove('completed', 'in-progress');
-            }
             location.reload();
         } else {
             toggle.checked = !isChecked;
@@ -335,6 +469,13 @@ document.addEventListener('DOMContentLoaded', initializeTimers);
 window.addEventListener('beforeunload', function() {
     Object.keys(timers).forEach(id => clearInterval(timers[id]));
 });
+
+window.startTimer = startTimer;
+window.pauseTimer = pauseTimer;
+window.resumeTimer = resumeTimer;
+window.stopTimer = stopTimer;
+window.resetTimer = resetTimer;
+window.toggleCheckpoint = toggleCheckpoint;
+})();
 </script>
-{% endblock %}
 {% endblock %}

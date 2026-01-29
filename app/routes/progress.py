@@ -274,6 +274,41 @@ def student_progress(user_id):
         'duration_seconds': p.duration_seconds
     } for p in progress_records])
 
+@bp.route('/<int:checkpoint_id>/reset', methods=['POST'])
+@login_required
+def reset(checkpoint_id):
+    checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
+    course = checkpoint.course
+    
+    if not current_user.is_enrolled(course) and course.instructor_id != current_user.id:
+        return jsonify({'error': 'Not enrolled in this course'}), 403
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'self_paced')
+    
+    progress = Progress.query.filter_by(
+        user_id=current_user.id,
+        checkpoint_id=checkpoint_id,
+        mode=mode
+    ).first()
+    
+    if progress:
+        progress.started_at = None
+        progress.completed_at = None
+        progress.paused_at = None
+        progress.accumulated_seconds = 0
+        progress.duration_seconds = None
+        progress.is_paused = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'checkpoint_id': checkpoint_id,
+            'status': 'reset'
+        })
+    
+    return jsonify({'success': True, 'checkpoint_id': checkpoint_id, 'status': 'no_progress'})
+
 @bp.route('/course/<int:course_id>')
 @login_required
 def course_progress(course_id):
@@ -287,19 +322,41 @@ def course_progress(course_id):
     checkpoints = Checkpoint.query.filter_by(course_id=course_id, deleted_at=None).order_by(Checkpoint.order).all()
     students = course.get_enrolled_students()
     
+    data = request.args
+    mode = data.get('mode', 'all')
+    
     result = []
     for student in students:
         student_progress = {}
         for cp in checkpoints:
-            progress = Progress.query.filter_by(user_id=student.id, checkpoint_id=cp.id).first()
-            student_progress[cp.id] = {
-                'started': progress.started_at is not None if progress else False,
-                'completed': progress.completed_at is not None if progress else False,
-                'duration_seconds': progress.duration_seconds if progress else None
-            }
+            if mode == 'all':
+                live_progress = Progress.query.filter_by(user_id=student.id, checkpoint_id=cp.id, mode='live').first()
+                self_progress = Progress.query.filter_by(user_id=student.id, checkpoint_id=cp.id, mode='self_paced').first()
+                student_progress[cp.id] = {
+                    'live': {
+                        'started': live_progress.started_at is not None if live_progress else False,
+                        'completed': live_progress.completed_at is not None if live_progress else False,
+                        'duration_seconds': live_progress.duration_seconds if live_progress else None
+                    },
+                    'self_paced': {
+                        'started': self_progress.started_at is not None if self_progress else False,
+                        'completed': self_progress.completed_at is not None if self_progress else False,
+                        'duration_seconds': self_progress.duration_seconds if self_progress else None,
+                        'is_paused': self_progress.is_paused if self_progress else False,
+                        'elapsed_seconds': self_progress.get_elapsed_seconds() if self_progress else 0
+                    }
+                }
+            else:
+                progress = Progress.query.filter_by(user_id=student.id, checkpoint_id=cp.id, mode=mode).first()
+                student_progress[cp.id] = {
+                    'started': progress.started_at is not None if progress else False,
+                    'completed': progress.completed_at is not None if progress else False,
+                    'duration_seconds': progress.duration_seconds if progress else None
+                }
         result.append({
             'user_id': student.id,
             'username': student.username,
+            'email': student.email,
             'progress': student_progress
         })
     

@@ -19,11 +19,20 @@
         <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success rounded-pill">
             <i class="bi bi-broadcast me-2"></i>라이브 시작
         </a>
+        <a href="{{ url_for('courses.self_study_progress', course_id=course.id) }}" class="btn btn-primary rounded-pill">
+            <i class="bi bi-book me-2"></i>자습 진도
+        </a>
+        <a href="{{ url_for('attendance.course_attendance', course_id=course.id) }}" class="btn btn-warning rounded-pill">
+            <i class="bi bi-calendar-check me-2"></i>출석
+        </a>
         <a href="{{ url_for('forum.list_posts', course_id=course.id) }}" class="btn btn-secondary rounded-pill">
             <i class="bi bi-chat-square-text me-2"></i>게시판
         </a>
         <a href="{{ url_for('analytics.instructor_dashboard', course_id=course.id) }}" class="btn btn-info text-white rounded-pill">
             <i class="bi bi-graph-up me-2"></i>분석
+        </a>
+        <a href="{{ url_for('courses.settings', course_id=course.id) }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-gear me-2"></i>설정
         </a>
         <a href="{{ url_for('courses.edit', course_id=course.id) }}" class="btn btn-outline-primary rounded-pill">
             <i class="bi bi-pencil me-2"></i>수정

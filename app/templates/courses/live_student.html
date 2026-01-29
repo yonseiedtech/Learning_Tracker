@@ -17,6 +17,15 @@
         <p class="text-muted mb-0">{{ course.title }}</p>
     </div>
     <div class="d-flex gap-2 align-items-center">
+        {% if attendance_checked %}
+        <button class="btn btn-outline-success rounded-pill" id="attendanceBtn" disabled>
+            <i class="bi bi-check-circle-fill me-1"></i>출석 완료
+        </button>
+        {% else %}
+        <button class="btn btn-success rounded-pill" id="attendanceBtn" onclick="checkAttendance()">
+            <i class="bi bi-check2-circle me-1"></i>출석 체크
+        </button>
+        {% endif %}
         <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
             <i class="bi bi-clock text-primary"></i>
             <span id="currentTime">--:--:--</span>
@@ -577,6 +586,43 @@ async function toggleCheckpoint(checkpointId, isChecked) {
     } catch (error) {
         console.error('Error:', error);
         toggle.checked = !isChecked;
+    }
+}
+
+async function checkAttendance() {
+    const btn = document.getElementById('attendanceBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>처리 중...';
+    
+    try {
+        const response = await fetch('/attendance/self-check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ 
+                course_id: courseId, 
+                session_id: {{ session.id }}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>출석 완료';
+            btn.disabled = true;
+        } else {
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>출석 체크';
+            btn.disabled = false;
+            alert(data.error || '출석 체크에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>출석 체크';
+        btn.disabled = false;
     }
 }
 

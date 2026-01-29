@@ -76,6 +76,13 @@ class Course(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    start_date = db.Column(db.DateTime, nullable=True)
+    end_date = db.Column(db.DateTime, nullable=True)
+    visibility = db.Column(db.String(20), default='public')
+    prerequisite_course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True)
+    
+    prerequisite = db.relationship('Course', remote_side=[id], backref='dependent_courses')
+    
     enrollments = db.relationship('Enrollment', backref='course', lazy='dynamic', cascade='all, delete-orphan')
     checkpoints = db.relationship('Checkpoint', backref='course', lazy='dynamic', cascade='all, delete-orphan')
     active_sessions = db.relationship('ActiveSession', backref='course', lazy='dynamic', cascade='all, delete-orphan')
@@ -93,6 +100,37 @@ class Course(db.Model):
             Enrollment.course_id == self.id,
             User.role == 'student'
         ).all()
+    
+    def is_accessible_by(self, user):
+        if self.instructor_id == user.id:
+            return True
+        if not user.is_enrolled(self):
+            return False
+        if self.visibility == 'public':
+            return True
+        if self.visibility == 'private':
+            return False
+        if self.visibility == 'date_based':
+            now = datetime.utcnow()
+            if self.start_date and now < self.start_date:
+                return False
+            if self.end_date and now > self.end_date:
+                return False
+            return True
+        if self.visibility == 'prerequisite':
+            if not self.prerequisite_course_id:
+                return True
+            prereq_completed = Progress.query.join(Checkpoint).filter(
+                Progress.user_id == user.id,
+                Progress.completed_at.isnot(None),
+                Checkpoint.course_id == self.prerequisite_course_id
+            ).count()
+            total_checkpoints = Checkpoint.query.filter_by(
+                course_id=self.prerequisite_course_id,
+                deleted_at=None
+            ).count()
+            return prereq_completed >= total_checkpoints and total_checkpoints > 0
+        return True
 
 class Enrollment(db.Model):
     __tablename__ = 'enrollments'
@@ -257,3 +295,22 @@ class LiveSessionComment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='live_session_comments')
+
+class Attendance(db.Model):
+    __tablename__ = 'attendance'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey('active_sessions.id'), nullable=True)
+    status = db.Column(db.String(20), default='present')
+    checked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    checked_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    
+    course = db.relationship('Course', backref='attendance_records')
+    user = db.relationship('User', foreign_keys=[user_id], backref='attendance_records')
+    session = db.relationship('ActiveSession', backref='attendance_records')
+    checked_by = db.relationship('User', foreign_keys=[checked_by_id])
+    
+    __table_args__ = (db.UniqueConstraint('course_id', 'user_id', 'session_id', name='unique_attendance'),)
