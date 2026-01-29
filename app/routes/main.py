@@ -1,11 +1,17 @@
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, jsonify, request
 from flask_login import login_required, current_user
 from app.models import Course, Enrollment
 
 bp = Blueprint('main', __name__)
 
+@bp.route('/health')
+def health():
+    return jsonify({'status': 'ok'}), 200
+
 @bp.route('/')
 def index():
+    if request.args.get('health') == '1':
+        return 'OK', 200
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     return render_template('index.html')
