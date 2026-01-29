@@ -21,10 +21,6 @@
             <i class="bi bi-clock text-primary"></i>
             <span id="currentTime">--:--:--</span>
         </div>
-        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
-            <i class="bi bi-stopwatch text-success"></i>
-            <span id="sessionDuration">00:00:00</span>
-        </div>
         <span class="badge connection-badge bg-success" id="connectionStatus">
             <i class="bi bi-circle-fill me-1"></i>연결됨
         </span>
@@ -34,12 +30,23 @@
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="glass-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>체크포인트</h5>
                 <div id="currentCheckpointLabel" class="d-none">
                     <span class="badge bg-success pulse-animation"><i class="bi bi-play-circle-fill me-1"></i>현재 진행 중</span>
                 </div>
             </div>
+            
+            <div class="overall-progress-container mb-4 p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>전체 수업 진행율</span>
+                    <span class="badge bg-primary fs-6" id="overallProgressPercent">0%</span>
+                </div>
+                <div class="progress progress-modern" style="height: 12px;">
+                    <div class="progress-bar bg-gradient-primary" role="progressbar" style="width: 0%" id="overallProgressBar"></div>
+                </div>
+            </div>
+            
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
                 {% set p = progress.get(cp.id) %}
@@ -186,6 +193,17 @@
     background: var(--bs-warning);
     color: white;
 }
+.mention-highlight {
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--primary-color);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.chat-message.deleted {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
 </style>
 
 {% endblock %}
@@ -200,13 +218,6 @@ let currentCheckpointId = {{ session.current_checkpoint_id or 'null' }};
 function updateClock() {
     const now = new Date();
     document.getElementById('currentTime').textContent = now.toLocaleTimeString('ko-KR');
-    
-    const elapsed = Math.floor((now - sessionStartTime) / 1000);
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const seconds = elapsed % 60;
-    document.getElementById('sessionDuration').textContent = 
-        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -289,6 +300,9 @@ function updateStudentTimerDisplay(cpId) {
     }
 }
 
+let completedByInstructor = new Set();
+const totalCheckpoints = {{ checkpoints|length }};
+
 socket.on('instructor_checkpoint_status', function(data) {
     const { checkpoint_id, completed, elapsed_seconds } = data;
     const cpEl = document.getElementById(`checkpoint-${checkpoint_id}`);
@@ -297,10 +311,14 @@ socket.on('instructor_checkpoint_status', function(data) {
             cpEl.classList.add('instructor-completed');
             cpEl.classList.remove('current');
             document.getElementById(`current-${checkpoint_id}`)?.classList.add('d-none');
+            completedByInstructor.add(checkpoint_id);
         } else {
             cpEl.classList.remove('instructor-completed');
+            completedByInstructor.delete(checkpoint_id);
         }
     }
+    
+    updateOverallProgress();
     
     const display = document.getElementById(`actual-time-${checkpoint_id}`);
     if (display && elapsed_seconds) {
@@ -309,6 +327,39 @@ socket.on('instructor_checkpoint_status', function(data) {
         display.innerHTML = `<i class="bi bi-stopwatch me-1"></i>실제 ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
     }
 });
+
+function updateOverallProgress() {
+    const completed = completedByInstructor.size;
+    const percent = totalCheckpoints > 0 ? Math.round((completed / totalCheckpoints) * 100) : 0;
+    
+    document.getElementById('overallProgressPercent').textContent = `${percent}%`;
+    document.getElementById('overallProgressBar').style.width = `${percent}%`;
+}
+
+socket.on('chat_message_edited', function(data) {
+    const msgEl = document.getElementById(`msg-${data.message_id}`);
+    if (msgEl) {
+        const contentEl = msgEl.querySelector('.msg-content');
+        if (contentEl) {
+            contentEl.innerHTML = formatMentions(data.new_message) + ' <small class="text-muted">(수정됨)</small>';
+        }
+    }
+});
+
+socket.on('chat_message_deleted', function(data) {
+    const msgEl = document.getElementById(`msg-${data.message_id}`);
+    if (msgEl) {
+        msgEl.classList.add('deleted');
+        const contentEl = msgEl.querySelector('.msg-content');
+        if (contentEl) {
+            contentEl.textContent = '삭제된 메시지입니다';
+        }
+    }
+});
+
+function formatMentions(text) {
+    return text.replace(/@(\w+)/g, '<span class="mention-highlight">@$1</span>');
+}
 
 function appendChatMessage(data) {
     const container = document.getElementById('chatMessages');

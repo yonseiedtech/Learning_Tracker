@@ -21,10 +21,6 @@
             <i class="bi bi-clock text-primary"></i>
             <span id="currentTime">--:--:--</span>
         </div>
-        <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
-            <i class="bi bi-stopwatch text-success"></i>
-            <span id="sessionDuration">00:00:00</span>
-        </div>
         <span class="badge connection-badge bg-success" id="connectionStatus">
             <i class="bi bi-circle-fill me-1"></i>연결됨
         </span>
@@ -34,12 +30,27 @@
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="glass-card p-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0"><i class="bi bi-flag-fill me-2 text-primary"></i>체크포인트 진행</h5>
                 <div class="d-flex gap-2 align-items-center">
                     <small class="text-muted">클릭: 진행중 | 더블클릭: 완료</small>
                 </div>
             </div>
+            
+            <div class="overall-progress-container mb-4 p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>전체 수업 진행율</span>
+                    <span class="badge bg-primary fs-6" id="overallProgressPercent">0%</span>
+                </div>
+                <div class="progress progress-modern" style="height: 12px;">
+                    <div class="progress-bar bg-gradient-primary" role="progressbar" style="width: 0%" id="overallProgressBar"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <small class="text-muted" id="completedCheckpointsText">완료: 0 / {{ checkpoints|length }}</small>
+                    <small class="text-muted" id="remainingCheckpointsText">남은 체크포인트: {{ checkpoints|length }}개</small>
+                </div>
+            </div>
+            
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
                 <div class="checkpoint-item-instructor p-3 mb-2 rounded-3" id="checkpoint-{{ cp.id }}" 
@@ -172,26 +183,41 @@
             <h5 class="fw-bold mb-3"><i class="bi bi-chat-dots me-2 text-primary"></i>라이브 채팅</h5>
             <div class="chat-container" id="chatMessages" style="height: 300px; overflow-y: auto;">
                 {% for msg in messages %}
-                <div class="chat-message mb-2 {% if msg.user.role == 'instructor' %}instructor-msg{% endif %}">
+                <div class="chat-message mb-2 {% if msg.user.role == 'instructor' %}instructor-msg{% endif %}" id="msg-{{ msg.id }}" data-user-id="{{ msg.user_id }}" data-msg-id="{{ msg.id }}">
                     <div class="d-flex align-items-start gap-2">
                         <div class="avatar-sm">{{ msg.user.username[0]|upper }}</div>
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center gap-2">
-                                <strong class="small">{{ msg.user.username }}</strong>
+                                <strong class="small chat-username" onclick="mentionUser('{{ msg.user.username }}')">{{ msg.user.username }}</strong>
                                 {% if msg.user.role == 'instructor' %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
                                 {% endif %}
                                 <small class="text-muted">{{ msg.created_at.strftime('%H:%M') }}</small>
+                                <div class="chat-actions ms-auto">
+                                    <button class="btn btn-link btn-sm p-0 text-muted" onclick="mentionUser('{{ msg.user.username }}')" title="언급"><i class="bi bi-at"></i></button>
+                                    {% if msg.user_id == current_user.id or current_user.is_instructor() %}
+                                    <button class="btn btn-link btn-sm p-0 text-muted" onclick="editMessage({{ msg.id }}, '{{ msg.message|e }}')" title="수정"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-link btn-sm p-0 text-danger" onclick="deleteMessage({{ msg.id }})" title="삭제"><i class="bi bi-trash"></i></button>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <p class="mb-0 small">{{ msg.message }}</p>
+                            <p class="mb-0 small msg-content">{{ msg.message }}</p>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             <div class="mt-3">
+                <div class="mentions-dropdown d-none" id="mentionsDropdown">
+                    {% for student in students %}
+                    <div class="mention-item" onclick="insertMention('{{ student.username }}')">@{{ student.username }}</div>
+                    {% endfor %}
+                </div>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요..." onkeypress="handleChatKeyPress(event)">
+                    <input type="text" class="form-control" id="chatInput" placeholder="메시지를 입력하세요... (@로 언급)" onkeypress="handleChatKeyPress(event)" oninput="handleChatInput(event)">
+                    <button class="btn btn-outline-secondary" onclick="callAllStudents()" title="전체 호출">
+                        <i class="bi bi-megaphone"></i>
+                    </button>
                     <button class="btn btn-primary" onclick="sendChatMessage()">
                         <i class="bi bi-send"></i>
                     </button>
@@ -261,6 +287,59 @@
     padding: 2px 6px;
     font-size: 12px;
 }
+.chat-username {
+    cursor: pointer;
+}
+.chat-username:hover {
+    text-decoration: underline;
+}
+.chat-actions {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.chat-message:hover .chat-actions {
+    opacity: 1;
+}
+.chat-actions .btn {
+    font-size: 10px;
+    margin-left: 4px;
+}
+.mentions-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    z-index: 100;
+}
+.mention-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.mention-item:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+.mention-highlight {
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--primary-color);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.system-message {
+    background: rgba(255, 193, 7, 0.1) !important;
+    border-left: 3px solid #ffc107;
+}
+.chat-message.deleted {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
 </style>
 
 {% endblock %}
@@ -298,13 +377,6 @@ checkpoints.forEach(cpId => {
 function updateClock() {
     const now = new Date();
     document.getElementById('currentTime').textContent = now.toLocaleTimeString('ko-KR');
-    
-    const elapsed = Math.floor((now - sessionStartTime) / 1000);
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const seconds = elapsed % 60;
-    document.getElementById('sessionDuration').textContent = 
-        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -432,12 +504,24 @@ function toggleCheckpointComplete(cpId) {
         stopTimer(cpId);
     }
     
+    updateOverallProgress();
+    
     socket.emit('instructor_checkpoint_complete', { 
         course_id: courseId, 
         checkpoint_id: cpId, 
         completed: completedCheckpoints.has(cpId),
         elapsed_seconds: checkpointTimers[cpId].elapsedSeconds
     });
+}
+
+function updateOverallProgress() {
+    const completed = completedCheckpoints.size;
+    const percent = totalCheckpoints > 0 ? Math.round((completed / totalCheckpoints) * 100) : 0;
+    
+    document.getElementById('overallProgressPercent').textContent = `${percent}%`;
+    document.getElementById('overallProgressBar').style.width = `${percent}%`;
+    document.getElementById('completedCheckpointsText').textContent = `완료: ${completed} / ${totalCheckpoints}`;
+    document.getElementById('remainingCheckpointsText').textContent = `남은 체크포인트: ${totalCheckpoints - completed}개`;
 }
 
 if (currentCheckpointId) {
@@ -518,17 +602,23 @@ function setCurrentCheckpoint(checkpointId) {
 function appendChatMessage(data) {
     const container = document.getElementById('chatMessages');
     const isInstructor = data.role === 'instructor';
+    const formattedMessage = formatMentions(data.message);
     const html = `
-        <div class="chat-message mb-2 ${isInstructor ? 'instructor-msg' : ''}">
+        <div class="chat-message mb-2 ${isInstructor ? 'instructor-msg' : ''}" id="msg-${data.id}" data-user-id="${data.user_id}" data-msg-id="${data.id}">
             <div class="d-flex align-items-start gap-2">
                 <div class="avatar-sm">${data.username[0].toUpperCase()}</div>
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-2">
-                        <strong class="small">${data.username}</strong>
+                        <strong class="small chat-username" onclick="mentionUser('${data.username}')">${data.username}</strong>
                         ${isInstructor ? '<span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>' : ''}
                         <small class="text-muted">${data.created_at}</small>
+                        <div class="chat-actions ms-auto">
+                            <button class="btn btn-link btn-sm p-0 text-muted" onclick="mentionUser('${data.username}')" title="언급"><i class="bi bi-at"></i></button>
+                            <button class="btn btn-link btn-sm p-0 text-muted" onclick="editMessage(${data.id}, '${data.message.replace(/'/g, "\\'")}')" title="수정"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-link btn-sm p-0 text-danger" onclick="deleteMessage(${data.id})" title="삭제"><i class="bi bi-trash"></i></button>
+                        </div>
                     </div>
-                    <p class="mb-0 small">${data.message}</p>
+                    <p class="mb-0 small msg-content">${formattedMessage}</p>
                 </div>
             </div>
         </div>
@@ -629,6 +719,122 @@ function updateChart(completionRates) {
 setInterval(function() {
     socket.emit('request_stats', { course_id: courseId, mode: 'live' });
 }, 3000);
+
+const studentUsernames = {{ students|map(attribute='username')|list|tojson }};
+let editingMessageId = null;
+
+function mentionUser(username) {
+    const input = document.getElementById('chatInput');
+    input.value = `@${username} ` + input.value;
+    input.focus();
+}
+
+function insertMention(username) {
+    const input = document.getElementById('chatInput');
+    const cursorPos = input.selectionStart;
+    const textBefore = input.value.substring(0, cursorPos);
+    const textAfter = input.value.substring(cursorPos);
+    const lastAtIndex = textBefore.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+        input.value = textBefore.substring(0, lastAtIndex) + `@${username} ` + textAfter;
+    } else {
+        input.value = `@${username} ` + input.value;
+    }
+    
+    document.getElementById('mentionsDropdown').classList.add('d-none');
+    input.focus();
+}
+
+function handleChatInput(event) {
+    const input = event.target;
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1 && lastAtIndex === textBeforeCursor.length - 1) {
+        document.getElementById('mentionsDropdown').classList.remove('d-none');
+    } else if (lastAtIndex !== -1) {
+        const searchTerm = textBeforeCursor.substring(lastAtIndex + 1).toLowerCase();
+        const dropdown = document.getElementById('mentionsDropdown');
+        const items = dropdown.querySelectorAll('.mention-item');
+        let hasVisible = false;
+        
+        items.forEach(item => {
+            const username = item.textContent.substring(1).toLowerCase();
+            if (username.includes(searchTerm)) {
+                item.style.display = 'block';
+                hasVisible = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        if (hasVisible && searchTerm.length > 0) {
+            dropdown.classList.remove('d-none');
+        } else {
+            dropdown.classList.add('d-none');
+        }
+    } else {
+        document.getElementById('mentionsDropdown').classList.add('d-none');
+    }
+}
+
+function editMessage(msgId, currentText) {
+    const newText = prompt('메시지 수정:', currentText);
+    if (newText && newText.trim() !== currentText) {
+        socket.emit('edit_chat_message', { 
+            course_id: courseId, 
+            message_id: msgId, 
+            new_message: newText.trim() 
+        });
+    }
+}
+
+function deleteMessage(msgId) {
+    if (confirm('이 메시지를 삭제하시겠습니까?')) {
+        socket.emit('delete_chat_message', { 
+            course_id: courseId, 
+            message_id: msgId 
+        });
+    }
+}
+
+function callAllStudents() {
+    const mentions = studentUsernames.map(u => `@${u}`).join(' ');
+    socket.emit('send_chat_message', { 
+        course_id: courseId, 
+        message: `📢 전체 호출: ${mentions} - 주목해 주세요!` 
+    });
+}
+
+socket.on('chat_message_edited', function(data) {
+    const msgEl = document.getElementById(`msg-${data.message_id}`);
+    if (msgEl) {
+        const contentEl = msgEl.querySelector('.msg-content');
+        if (contentEl) {
+            contentEl.innerHTML = formatMentions(data.new_message) + ' <small class="text-muted">(수정됨)</small>';
+        }
+    }
+});
+
+socket.on('chat_message_deleted', function(data) {
+    const msgEl = document.getElementById(`msg-${data.message_id}`);
+    if (msgEl) {
+        msgEl.classList.add('deleted');
+        const contentEl = msgEl.querySelector('.msg-content');
+        if (contentEl) {
+            contentEl.textContent = '삭제된 메시지입니다';
+        }
+        const actionsEl = msgEl.querySelector('.chat-actions');
+        if (actionsEl) actionsEl.remove();
+    }
+});
+
+function formatMentions(text) {
+    return text.replace(/@(\w+)/g, '<span class="mention-highlight">@$1</span>');
+}
 
 document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
 </script>

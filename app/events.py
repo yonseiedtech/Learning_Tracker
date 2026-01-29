@@ -211,6 +211,70 @@ def handle_send_chat_message(data):
         'created_at': chat_msg.created_at.strftime('%H:%M')
     }, room=room)
 
+@socketio.on('edit_chat_message')
+def handle_edit_chat_message(data):
+    if not current_user.is_authenticated:
+        return
+    
+    course_id = data.get('course_id')
+    message_id = data.get('message_id')
+    new_message = data.get('new_message', '').strip()
+    
+    if not message_id or not new_message:
+        return
+    
+    chat_msg = ChatMessage.query.get(message_id)
+    if not chat_msg:
+        return
+    
+    course = Course.query.get(course_id)
+    if not course or not user_has_course_access(current_user, course):
+        return
+    
+    if chat_msg.user_id != current_user.id and not (current_user.is_instructor() and course.instructor_id == current_user.id):
+        emit('error', {'message': 'Permission denied'})
+        return
+    
+    chat_msg.message = new_message
+    db.session.commit()
+    
+    room = f'course_{course_id}'
+    emit('chat_message_edited', {
+        'message_id': message_id,
+        'new_message': new_message
+    }, room=room)
+
+@socketio.on('delete_chat_message')
+def handle_delete_chat_message(data):
+    if not current_user.is_authenticated:
+        return
+    
+    course_id = data.get('course_id')
+    message_id = data.get('message_id')
+    
+    if not message_id:
+        return
+    
+    chat_msg = ChatMessage.query.get(message_id)
+    if not chat_msg:
+        return
+    
+    course = Course.query.get(course_id)
+    if not course or not user_has_course_access(current_user, course):
+        return
+    
+    if chat_msg.user_id != current_user.id and not (current_user.is_instructor() and course.instructor_id == current_user.id):
+        emit('error', {'message': 'Permission denied'})
+        return
+    
+    db.session.delete(chat_msg)
+    db.session.commit()
+    
+    room = f'course_{course_id}'
+    emit('chat_message_deleted', {
+        'message_id': message_id
+    }, room=room)
+
 @socketio.on('set_current_checkpoint')
 def handle_set_current_checkpoint(data):
     if not current_user.is_authenticated or not current_user.is_instructor():
