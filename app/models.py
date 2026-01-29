@@ -132,6 +132,9 @@ class Progress(db.Model):
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
     duration_seconds = db.Column(db.Integer)
+    paused_at = db.Column(db.DateTime, nullable=True)
+    accumulated_seconds = db.Column(db.Integer, default=0)
+    is_paused = db.Column(db.Boolean, default=False)
     
     __table_args__ = (db.UniqueConstraint('user_id', 'checkpoint_id', 'mode', name='unique_progress'),)
     
@@ -139,6 +142,21 @@ class Progress(db.Model):
         if self.started_at and self.completed_at:
             delta = self.completed_at - self.started_at
             self.duration_seconds = int(delta.total_seconds())
+    
+    def get_elapsed_seconds(self):
+        accumulated = self.accumulated_seconds or 0
+        
+        if self.completed_at:
+            return self.duration_seconds or accumulated
+        
+        if not self.started_at:
+            return accumulated
+        
+        if self.is_paused:
+            return accumulated
+        
+        current_session = (datetime.utcnow() - self.started_at).total_seconds()
+        return int(accumulated + current_session)
 
 class ActiveSession(db.Model):
     __tablename__ = 'active_sessions'

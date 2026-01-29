@@ -29,11 +29,26 @@ def start(checkpoint_id):
             user_id=current_user.id,
             checkpoint_id=checkpoint_id,
             mode=mode,
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
+            accumulated_seconds=0,
+            is_paused=False
         )
         db.session.add(progress)
     elif not progress.started_at:
         progress.started_at = datetime.utcnow()
+        if progress.completed_at:
+            progress.completed_at = None
+            progress.accumulated_seconds = 0
+            progress.duration_seconds = None
+        progress.is_paused = False
+    elif progress.is_paused:
+        pass
+    elif progress.completed_at:
+        progress.started_at = datetime.utcnow()
+        progress.completed_at = None
+        progress.accumulated_seconds = 0
+        progress.duration_seconds = None
+        progress.is_paused = False
     
     db.session.commit()
     
@@ -67,13 +82,22 @@ def complete(checkpoint_id):
             checkpoint_id=checkpoint_id,
             mode=mode,
             started_at=datetime.utcnow(),
-            completed_at=datetime.utcnow()
+            completed_at=datetime.utcnow(),
+            accumulated_seconds=0,
+            duration_seconds=0
         )
         db.session.add(progress)
     else:
+        if not progress.is_paused and progress.started_at:
+            current_session = (datetime.utcnow() - progress.started_at).total_seconds()
+            progress.accumulated_seconds = (progress.accumulated_seconds or 0) + int(current_session)
+        
         progress.completed_at = datetime.utcnow()
+        progress.duration_seconds = progress.accumulated_seconds if progress.accumulated_seconds else 0
+        progress.is_paused = False
+        progress.paused_at = None
+        progress.started_at = None
     
-    progress.calculate_duration()
     db.session.commit()
     
     if mode == 'live':
@@ -129,6 +153,111 @@ def uncomplete(checkpoint_id):
         })
     
     return jsonify({'success': False, 'error': 'Progress not found or not completed'}), 400
+
+@bp.route('/<int:checkpoint_id>/pause', methods=['POST'])
+@login_required
+def pause(checkpoint_id):
+    checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
+    course = checkpoint.course
+    
+    if not current_user.is_enrolled(course) and course.instructor_id != current_user.id:
+        return jsonify({'error': 'Not enrolled in this course'}), 403
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'self_paced')
+    
+    progress = Progress.query.filter_by(
+        user_id=current_user.id,
+        checkpoint_id=checkpoint_id,
+        mode=mode
+    ).first()
+    
+    if progress and progress.started_at and not progress.is_paused and not progress.completed_at:
+        current_session = (datetime.utcnow() - progress.started_at).total_seconds()
+        progress.accumulated_seconds = (progress.accumulated_seconds or 0) + int(current_session)
+        progress.paused_at = datetime.utcnow()
+        progress.is_paused = True
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'checkpoint_id': checkpoint_id,
+            'status': 'paused',
+            'elapsed_seconds': progress.accumulated_seconds
+        })
+    
+    return jsonify({'success': False, 'error': 'Cannot pause'}), 400
+
+@bp.route('/<int:checkpoint_id>/resume', methods=['POST'])
+@login_required
+def resume(checkpoint_id):
+    checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
+    course = checkpoint.course
+    
+    if not current_user.is_enrolled(course) and course.instructor_id != current_user.id:
+        return jsonify({'error': 'Not enrolled in this course'}), 403
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'self_paced')
+    
+    progress = Progress.query.filter_by(
+        user_id=current_user.id,
+        checkpoint_id=checkpoint_id,
+        mode=mode
+    ).first()
+    
+    if progress and progress.is_paused and not progress.completed_at:
+        progress.started_at = datetime.utcnow()
+        progress.paused_at = None
+        progress.is_paused = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'checkpoint_id': checkpoint_id,
+            'status': 'resumed',
+            'elapsed_seconds': progress.accumulated_seconds or 0
+        })
+    
+    return jsonify({'success': False, 'error': 'Cannot resume'}), 400
+
+@bp.route('/<int:checkpoint_id>/stop', methods=['POST'])
+@login_required
+def stop(checkpoint_id):
+    checkpoint = Checkpoint.query.get_or_404(checkpoint_id)
+    course = checkpoint.course
+    
+    if not current_user.is_enrolled(course) and course.instructor_id != current_user.id:
+        return jsonify({'error': 'Not enrolled in this course'}), 403
+    
+    data = request.get_json() or {}
+    mode = data.get('mode', 'self_paced')
+    
+    progress = Progress.query.filter_by(
+        user_id=current_user.id,
+        checkpoint_id=checkpoint_id,
+        mode=mode
+    ).first()
+    
+    if progress and progress.started_at and not progress.completed_at:
+        if not progress.is_paused:
+            current_session = (datetime.utcnow() - progress.started_at).total_seconds()
+            progress.accumulated_seconds = (progress.accumulated_seconds or 0) + int(current_session)
+        
+        progress.duration_seconds = progress.accumulated_seconds
+        progress.started_at = None
+        progress.paused_at = None
+        progress.is_paused = False
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'checkpoint_id': checkpoint_id,
+            'status': 'stopped',
+            'duration_seconds': progress.duration_seconds
+        })
+    
+    return jsonify({'success': False, 'error': 'Cannot stop'}), 400
 
 @bp.route('/student/<int:user_id>')
 @login_required

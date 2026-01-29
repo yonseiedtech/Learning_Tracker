@@ -35,44 +35,79 @@
     <div class="checkpoint-list">
         {% for cp in checkpoints %}
         {% set p = progress.get(cp.id) %}
-        <div class="checkpoint-item d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center flex-grow-1">
-                <div class="checkpoint-status me-3">
-                    {% if p and p.completed_at %}
-                    <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                    {% elif p and p.started_at %}
-                    <i class="bi bi-circle-half text-warning fs-4"></i>
-                    {% else %}
-                    <i class="bi bi-circle text-muted fs-4"></i>
-                    {% endif %}
-                </div>
-                <div>
-                    <strong>{{ cp.order }}. {{ cp.title }}</strong>
-                    {% if cp.description %}
-                    <p class="mb-0 small text-muted">{{ cp.description }}</p>
-                    {% endif %}
-                    <div class="d-flex gap-3 mt-1">
-                        {% if cp.estimated_minutes %}
-                        <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
-                        {% endif %}
-                        {% if p and p.duration_seconds %}
-                        <small class="text-success"><i class="bi bi-stopwatch me-1"></i>실제 {{ (p.duration_seconds / 60)|round(1) }}분</small>
+        <div class="checkpoint-item-selfpaced p-3 mb-3 rounded-3 {% if p and p.completed_at %}completed{% elif p and p.started_at %}in-progress{% endif %}" 
+             id="checkpoint-{{ cp.id }}"
+             data-checkpoint-id="{{ cp.id }}"
+             data-started="{{ 'true' if p and p.started_at else 'false' }}"
+             data-paused="{{ 'true' if p and p.is_paused else 'false' }}"
+             data-completed="{{ 'true' if p and p.completed_at else 'false' }}"
+             data-elapsed="{{ p.get_elapsed_seconds() if p else 0 }}"
+             data-started-at="{{ p.started_at.isoformat() if p and p.started_at and not p.is_paused else '' }}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex align-items-start flex-grow-1">
+                    <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">
+                        {% if p and p.completed_at %}
+                        <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                        {% elif p and p.started_at %}
+                        <i class="bi bi-circle-half text-primary fs-2"></i>
+                        {% else %}
+                        <i class="bi bi-circle text-muted fs-2"></i>
                         {% endif %}
                     </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-primary bg-opacity-10 text-primary">{{ cp.order }}</span>
+                            <strong>{{ cp.title }}</strong>
+                        </div>
+                        {% if cp.description %}
+                        <p class="mb-2 text-muted small">{{ cp.description }}</p>
+                        {% endif %}
+                        <div class="d-flex gap-3 mt-1 align-items-center flex-wrap">
+                            {% if cp.estimated_minutes %}
+                            <small class="text-primary"><i class="bi bi-clock me-1"></i>예상 {{ cp.estimated_minutes }}분</small>
+                            {% endif %}
+                            <small class="text-success timer-display" id="timer-{{ cp.id }}">
+                                <i class="bi bi-stopwatch me-1"></i>
+                                <span class="timer-value">00:00:00</span>
+                            </small>
+                        </div>
+                        
+                        <div class="timer-controls mt-3" id="controls-{{ cp.id }}">
+                            {% if not p or not p.started_at %}
+                            <button class="btn btn-sm btn-primary rounded-pill me-2" onclick="startTimer({{ cp.id }})">
+                                <i class="bi bi-play-fill me-1"></i>시작
+                            </button>
+                            {% elif p and not p.completed_at %}
+                                {% if p.is_paused %}
+                                <button class="btn btn-sm btn-success rounded-pill me-2" onclick="resumeTimer({{ cp.id }})">
+                                    <i class="bi bi-play-fill me-1"></i>재개
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-warning rounded-pill me-2" onclick="pauseTimer({{ cp.id }})">
+                                    <i class="bi bi-pause-fill me-1"></i>일시정지
+                                </button>
+                                {% endif %}
+                            <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="stopTimer({{ cp.id }})">
+                                <i class="bi bi-stop-fill me-1"></i>중단
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div>
-                {% if not p or not p.started_at %}
-                <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="startCheckpoint({{ cp.id }})">
-                    <i class="bi bi-play-fill me-1"></i>시작
-                </button>
-                {% elif not p.completed_at %}
-                <button class="btn btn-success btn-sm rounded-pill" onclick="completeCheckpoint({{ cp.id }})">
-                    <i class="bi bi-check-lg me-1"></i>완료
-                </button>
-                {% else %}
-                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2"><i class="bi bi-check me-1"></i>완료됨</span>
-                {% endif %}
+                <div class="ms-3 d-flex flex-column align-items-end gap-2">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input checkpoint-toggle" type="checkbox" role="switch" 
+                               id="toggle-{{ cp.id }}" 
+                               {% if p and p.completed_at %}checked{% endif %}
+                               onchange="toggleCheckpoint({{ cp.id }}, this.checked)">
+                        <label class="form-check-label small fw-bold" for="toggle-{{ cp.id }}" id="toggle-label-{{ cp.id }}">
+                            {% if p and p.completed_at %}완료{% else %}미완료{% endif %}
+                        </label>
+                    </div>
+                    {% if p and p.duration_seconds %}
+                    <small class="text-muted"><i class="bi bi-clock-history me-1"></i>총 {{ (p.duration_seconds / 60)|round(1) }}분</small>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -87,11 +122,92 @@
     {% endif %}
 </div>
 
+<style>
+.checkpoint-item-selfpaced {
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.5);
+    border: 2px solid transparent;
+}
+.checkpoint-item-selfpaced:hover {
+    background: rgba(13, 27, 62, 0.05);
+    border-color: rgba(13, 27, 62, 0.2);
+}
+.checkpoint-item-selfpaced.in-progress {
+    background: rgba(13, 27, 62, 0.08);
+    border-color: rgba(13, 27, 62, 0.4);
+}
+.checkpoint-item-selfpaced.completed {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(32, 201, 151, 0.1));
+    border-color: rgba(40, 167, 69, 0.5);
+}
+.form-check-input.checkpoint-toggle {
+    width: 3rem;
+    height: 1.5rem;
+    cursor: pointer;
+}
+.form-check-input.checkpoint-toggle:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+.timer-display {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.95rem;
+}
+.timer-display.running {
+    color: var(--navy-primary) !important;
+    font-weight: 600;
+}
+.timer-display.paused {
+    color: #ffc107 !important;
+}
+</style>
+
 {% block scripts %}
 <script>
 const csrfToken = '{{ csrf_token() }}';
+const timers = {};
 
-async function startCheckpoint(checkpointId) {
+function formatTime(seconds) {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function updateTimerDisplay(checkpointId, seconds, isRunning = false, isPaused = false) {
+    const timerEl = document.getElementById(`timer-${checkpointId}`);
+    const valueEl = timerEl.querySelector('.timer-value');
+    valueEl.textContent = formatTime(seconds);
+    
+    timerEl.classList.remove('running', 'paused');
+    if (isRunning) timerEl.classList.add('running');
+    if (isPaused) timerEl.classList.add('paused');
+}
+
+function initializeTimers() {
+    document.querySelectorAll('.checkpoint-item-selfpaced').forEach(el => {
+        const id = parseInt(el.dataset.checkpointId);
+        const started = el.dataset.started === 'true';
+        const paused = el.dataset.paused === 'true';
+        const completed = el.dataset.completed === 'true';
+        const elapsed = parseInt(el.dataset.elapsed) || 0;
+        const startedAt = el.dataset.startedAt;
+        
+        updateTimerDisplay(id, elapsed, started && !paused && !completed, paused);
+        
+        if (started && !paused && !completed && startedAt) {
+            const startTime = new Date(startedAt).getTime();
+            timers[id] = setInterval(() => {
+                const now = Date.now();
+                const currentSession = Math.floor((now - startTime) / 1000);
+                const total = elapsed + currentSession;
+                updateTimerDisplay(id, total, true, false);
+            }, 1000);
+        }
+    });
+}
+
+async function startTimer(checkpointId) {
     try {
         const response = await fetch(`/progress/${checkpointId}/start`, {
             method: 'POST',
@@ -109,9 +225,31 @@ async function startCheckpoint(checkpointId) {
     }
 }
 
-async function completeCheckpoint(checkpointId) {
+async function pauseTimer(checkpointId) {
     try {
-        const response = await fetch(`/progress/${checkpointId}/complete`, {
+        const response = await fetch(`/progress/${checkpointId}/pause`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ mode: 'self_paced' })
+        });
+        if (response.ok) {
+            if (timers[checkpointId]) {
+                clearInterval(timers[checkpointId]);
+                delete timers[checkpointId];
+            }
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function resumeTimer(checkpointId) {
+    try {
+        const response = await fetch(`/progress/${checkpointId}/resume`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -126,6 +264,77 @@ async function completeCheckpoint(checkpointId) {
         console.error('Error:', error);
     }
 }
+
+async function stopTimer(checkpointId) {
+    try {
+        const response = await fetch(`/progress/${checkpointId}/stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ mode: 'self_paced' })
+        });
+        if (response.ok) {
+            if (timers[checkpointId]) {
+                clearInterval(timers[checkpointId]);
+                delete timers[checkpointId];
+            }
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function toggleCheckpoint(checkpointId, isChecked) {
+    const endpoint = isChecked ? 'complete' : 'uncomplete';
+    const icon = document.getElementById(`icon-${checkpointId}`);
+    const label = document.getElementById(`toggle-label-${checkpointId}`);
+    const toggle = document.getElementById(`toggle-${checkpointId}`);
+    const checkpointItem = document.getElementById(`checkpoint-${checkpointId}`);
+    
+    try {
+        const response = await fetch(`/progress/${checkpointId}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ mode: 'self_paced' })
+        });
+        
+        if (response.ok) {
+            if (timers[checkpointId]) {
+                clearInterval(timers[checkpointId]);
+                delete timers[checkpointId];
+            }
+            
+            if (isChecked) {
+                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-2"></i>';
+                label.textContent = '완료';
+                checkpointItem.classList.remove('in-progress');
+                checkpointItem.classList.add('completed');
+            } else {
+                icon.innerHTML = '<i class="bi bi-circle text-muted fs-2"></i>';
+                label.textContent = '미완료';
+                checkpointItem.classList.remove('completed', 'in-progress');
+            }
+            location.reload();
+        } else {
+            toggle.checked = !isChecked;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toggle.checked = !isChecked;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initializeTimers);
+
+window.addEventListener('beforeunload', function() {
+    Object.keys(timers).forEach(id => clearInterval(timers[id]));
+});
 </script>
 {% endblock %}
 {% endblock %}
