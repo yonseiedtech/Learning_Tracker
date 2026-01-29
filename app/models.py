@@ -118,3 +118,55 @@ class ActiveSession(db.Model):
     mode = db.Column(db.String(20), nullable=False, default='live')
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime, nullable=True)
+    current_checkpoint_id = db.Column(db.Integer, db.ForeignKey('checkpoints.id'), nullable=True)
+
+class UnderstandingStatus(db.Model):
+    __tablename__ = 'understanding_status'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    checkpoint_id = db.Column(db.Integer, db.ForeignKey('checkpoints.id'), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey('active_sessions.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='understanding_records')
+    checkpoint = db.relationship('Checkpoint', backref='understanding_records')
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='chat_messages')
+    course = db.relationship('Course', backref='chat_messages')
+
+class ForumPost(db.Model):
+    __tablename__ = 'forum_posts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='forum_posts')
+    course = db.relationship('Course', backref='forum_posts')
+    comments = db.relationship('ForumComment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
+class ForumComment(db.Model):
+    __tablename__ = 'forum_comments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('forum_posts.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='forum_comments')

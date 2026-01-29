@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Enrollment, Checkpoint, Progress
+from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage
 from app.forms import CourseForm, EnrollForm
+from datetime import datetime
 
 bp = Blueprint('courses', __name__, url_prefix='/courses')
 
@@ -121,18 +122,27 @@ def live_mode(course_id):
     course = Course.query.get_or_404(course_id)
     checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).order_by(Checkpoint.order).all()
     
+    session = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
+    if not session:
+        session = ActiveSession(course_id=course.id, mode='live')
+        db.session.add(session)
+        db.session.commit()
+    
+    recent_messages = ChatMessage.query.filter_by(course_id=course.id).order_by(ChatMessage.created_at.desc()).limit(50).all()
+    recent_messages = list(reversed(recent_messages))
+    
     if current_user.is_instructor():
         if course.instructor_id != current_user.id:
             flash('접근 권한이 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         students = course.get_enrolled_students()
-        return render_template('courses/live_instructor.html', course=course, checkpoints=checkpoints, students=students)
+        return render_template('courses/live_instructor.html', course=course, checkpoints=checkpoints, students=students, session=session, messages=recent_messages)
     else:
         if not current_user.is_enrolled(course):
             flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         progress_records = {p.checkpoint_id: p for p in Progress.query.filter_by(user_id=current_user.id, mode='live').all()}
-        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records)
+        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages)
 
 @bp.route('/<int:course_id>/regenerate-code', methods=['POST'])
 @login_required
