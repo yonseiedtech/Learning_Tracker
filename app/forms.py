@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, SelectField, IntegerField, SubmitField
+from wtforms import StringField, PasswordField, TextAreaField, SelectField, IntegerField, SubmitField, DateTimeLocalField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, Optional
 from app.models import User
 
@@ -40,3 +40,23 @@ class CheckpointForm(FlaskForm):
     description = TextAreaField('설명', validators=[Optional()])
     estimated_minutes = IntegerField('예상 소요 시간 (분)', validators=[Optional()])
     submit = SubmitField('저장')
+
+class SubjectForm(FlaskForm):
+    title = StringField('과목명', validators=[DataRequired(message='과목명을 입력하세요'), Length(max=200)])
+    description = TextAreaField('설명', validators=[Optional()])
+    submit = SubmitField('저장')
+
+class SessionScheduleForm(FlaskForm):
+    session_type = SelectField('세션 유형', choices=[('immediate', '즉시 시작'), ('scheduled', '예약 시작')])
+    scheduled_at = StringField('예약 시간', validators=[Optional()])
+    submit = SubmitField('세션 시작')
+
+class LiveSessionPostForm(FlaskForm):
+    title = StringField('제목', validators=[DataRequired(message='제목을 입력하세요'), Length(max=200)])
+    content = TextAreaField('내용', validators=[DataRequired(message='내용을 입력하세요')])
+    pinned = BooleanField('상단 고정')
+    submit = SubmitField('등록')
+
+class LiveSessionCommentForm(FlaskForm):
+    content = TextAreaField('댓글', validators=[DataRequired(message='내용을 입력하세요')])
+    submit = SubmitField('댓글 작성')

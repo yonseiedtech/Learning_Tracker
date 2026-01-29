@@ -35,12 +35,42 @@ class User(db.Model, UserMixin):
     def is_enrolled(self, course):
         return Enrollment.query.filter_by(user_id=self.id, course_id=course.id).first() is not None
 
-class Course(db.Model):
-    __tablename__ = 'courses'
+class Subject(db.Model):
+    __tablename__ = 'subjects'
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    invite_code = db.Column(db.String(10), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    instructor = db.relationship('User', backref='subjects_taught')
+    courses = db.relationship('Course', backref='subject', lazy='dynamic', cascade='all, delete-orphan')
+    
+    @staticmethod
+    def generate_invite_code():
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(secrets.choice(chars) for _ in range(8))
+            if not Subject.query.filter_by(invite_code=code).first():
+                return code
+    
+    def get_enrolled_students(self):
+        return User.query.join(Enrollment).join(Course).filter(
+            Course.subject_id == self.id,
+            User.role == 'student'
+        ).distinct().all()
+
+class Course(db.Model):
+    __tablename__ = 'courses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    week_number = db.Column(db.Integer, nullable=True)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -116,9 +146,21 @@ class ActiveSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     mode = db.Column(db.String(20), nullable=False, default='live')
+    session_type = db.Column(db.String(20), nullable=False, default='immediate')
+    scheduled_at = db.Column(db.DateTime, nullable=True)
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime, nullable=True)
     current_checkpoint_id = db.Column(db.Integer, db.ForeignKey('checkpoints.id'), nullable=True)
+    
+    def is_scheduled(self):
+        return self.session_type == 'scheduled'
+    
+    def can_start(self):
+        if self.session_type == 'immediate':
+            return True
+        if self.scheduled_at:
+            return datetime.utcnow() >= self.scheduled_at
+        return False
 
 class UnderstandingStatus(db.Model):
     __tablename__ = 'understanding_status'
@@ -170,3 +212,30 @@ class ForumComment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref='forum_comments')
+
+class LiveSessionPost(db.Model):
+    __tablename__ = 'live_session_posts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('active_sessions.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    pinned = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='live_session_posts')
+    session = db.relationship('ActiveSession', backref='posts')
+    comments = db.relationship('LiveSessionComment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
+class LiveSessionComment(db.Model):
+    __tablename__ = 'live_session_comments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('live_session_posts.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='live_session_comments')

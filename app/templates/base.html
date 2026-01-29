@@ -28,11 +28,14 @@
                         <a class="nav-link" href="{{ url_for('main.dashboard') }}">대시보드</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('courses.list_courses') }}">내 강좌</a>
+                        <a class="nav-link" href="{{ url_for('subjects.list_subjects') }}">과목</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('courses.list_courses') }}">세션</a>
                     </li>
                     {% if current_user.is_instructor() %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('courses.create') }}">강좌 만들기</a>
+                        <a class="nav-link" href="{{ url_for('subjects.create') }}">과목 만들기</a>
                     </li>
                     {% else %}
                     <li class="nav-item">

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.title }} - 학습 진도 트래커{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('subjects.list_subjects') }}">과목 목록</a></li>
+            <li class="breadcrumb-item active">{{ subject.title }}</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="glass-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold mb-2"><i class="bi bi-book me-2 text-primary"></i>{{ subject.title }}</h2>
+            {% if subject.description %}
+            <p class="text-muted mb-0">{{ subject.description }}</p>
+            {% endif %}
+        </div>
+        {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>주차 추가
+            </a>
+            <a href="{{ url_for('subjects.edit', subject_id=subject.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>수정
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+<div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-share me-2 text-primary"></i>과목 초대 코드</h5>
+    <p class="text-muted small mb-3">학생들에게 이 코드를 공유하면 과목의 모든 세션에 자동으로 등록됩니다.</p>
+    <div class="d-flex align-items-center gap-3">
+        <code class="fs-4 px-3 py-2 bg-light rounded" id="inviteCode">{{ subject.invite_code }}</code>
+        <button class="btn btn-outline-primary btn-sm" onclick="copyInviteCode()">
+            <i class="bi bi-clipboard"></i>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="regenerateCode()">
+            <i class="bi bi-arrow-repeat"></i>
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<div class="glass-card p-4">
+    <h5 class="fw-bold mb-4"><i class="bi bi-calendar-week me-2 text-primary"></i>주차별 세션</h5>
+    
+    {% if courses %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>주차</th>
+                    <th>세션명</th>
+                    <th>체크포인트</th>
+                    <th>상태</th>
+                    <th>작업</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                <tr>
+                    <td>
+                        <span class="badge bg-primary bg-opacity-10 text-primary fs-6">
+                            {{ course.week_number or '-' }}주차
+                        </span>
+                    </td>
+                    <td>
+                        <strong>{{ course.title }}</strong>
+                        {% if course.description %}
+                        <br><small class="text-muted">{{ course.description[:50] }}{% if course.description|length > 50 %}...{% endif %}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ course.checkpoints.count() }}개</span>
+                    </td>
+                    <td>
+                        {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
+                        {% if active_session %}
+                        <span class="badge bg-success"><i class="bi bi-broadcast me-1"></i>진행 중</span>
+                        {% else %}
+                        <span class="badge bg-secondary">대기 중</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>보기
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4">
+        <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
+        <p class="text-muted">아직 등록된 세션이 없습니다.</p>
+        {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+        <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>첫 주차 추가하기
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function copyInviteCode() {
+    const code = document.getElementById('inviteCode').textContent;
+    navigator.clipboard.writeText(code);
+    alert('초대 코드가 복사되었습니다!');
+}
+
+function regenerateCode() {
+    if (confirm('새로운 초대 코드를 생성하시겠습니까? 기존 코드는 더 이상 사용할 수 없습니다.')) {
+        fetch('{{ url_for("subjects.regenerate_code", subject_id=subject.id) }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('inviteCode').textContent = data.invite_code;
+                alert('새 초대 코드가 생성되었습니다.');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

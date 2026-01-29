@@ -224,6 +224,61 @@
                 </div>
             </div>
         </div>
+        
+        <div class="glass-card p-4 mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-clipboard-plus me-2 text-primary"></i>라이브 게시판</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="togglePostForm()">
+                    <i class="bi bi-plus-lg me-1"></i>공지 작성
+                </button>
+            </div>
+            
+            <div class="d-none mb-3" id="postFormContainer">
+                <form action="{{ url_for('courses.create_session_post', course_id=course.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-2">
+                        <input type="text" class="form-control form-control-sm" name="title" placeholder="제목" required>
+                    </div>
+                    <div class="mb-2">
+                        <textarea class="form-control form-control-sm" name="content" rows="2" placeholder="내용을 입력하세요..." required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="pinned" id="pinnedCheck">
+                            <label class="form-check-label small" for="pinnedCheck">상단 고정</label>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="togglePostForm()">취소</button>
+                            <button type="submit" class="btn btn-sm btn-primary">등록</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="session-posts" id="sessionPosts" style="max-height: 250px; overflow-y: auto;">
+                {% if session.posts %}
+                {% for post in session.posts|sort(attribute='pinned', reverse=true) %}
+                <div class="session-post p-2 mb-2 rounded {% if post.pinned %}bg-warning bg-opacity-10 border-start border-warning border-3{% else %}bg-light{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="small">
+                                {% if post.pinned %}<i class="bi bi-pin-fill text-warning me-1"></i>{% endif %}
+                                {{ post.title }}
+                            </strong>
+                            <p class="mb-0 small text-muted">{{ post.content[:100] }}{% if post.content|length > 100 %}...{% endif %}</p>
+                        </div>
+                        <small class="text-muted">{{ post.created_at.strftime('%H:%M') }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-clipboard-x fs-4"></i>
+                    <p class="small mb-0">등록된 공지가 없습니다</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -837,5 +892,10 @@ function formatMentions(text) {
 }
 
 document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+function togglePostForm() {
+    const container = document.getElementById('postFormContainer');
+    container.classList.toggle('d-none');
+}
 </script>
 {% endblock %}

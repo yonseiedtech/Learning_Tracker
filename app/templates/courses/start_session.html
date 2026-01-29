@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}세션 시작 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('courses.list_courses') }}">세션 목록</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+            <li class="breadcrumb-item active">세션 시작</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <h3 class="fw-bold mb-4"><i class="bi bi-broadcast me-2 text-primary"></i>라이브 세션 시작</h3>
+            
+            <form method="POST" id="sessionForm">
+                {{ form.hidden_tag() }}
+                
+                <div class="mb-4">
+                    <label class="form-label fw-medium">세션 유형</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check session-type-card flex-grow-1 p-3 rounded-3 border" id="immediateCard">
+                            <input class="form-check-input" type="radio" name="session_type" id="immediate" value="immediate" checked onchange="toggleScheduleInput()">
+                            <label class="form-check-label w-100" for="immediate">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-play-circle-fill text-success fs-4"></i>
+                                    <div>
+                                        <strong>즉시 시작</strong>
+                                        <small class="d-block text-muted">바로 라이브 세션을 시작합니다</small>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="form-check session-type-card flex-grow-1 p-3 rounded-3 border" id="scheduledCard">
+                            <input class="form-check-input" type="radio" name="session_type" id="scheduled" value="scheduled" onchange="toggleScheduleInput()">
+                            <label class="form-check-label w-100" for="scheduled">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-calendar-event text-primary fs-4"></i>
+                                    <div>
+                                        <strong>예약 시작</strong>
+                                        <small class="d-block text-muted">특정 시간에 세션을 예약합니다</small>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4 d-none" id="scheduleInputContainer">
+                    <label class="form-label fw-medium" for="scheduled_at">
+                        <i class="bi bi-clock me-1"></i>예약 시간
+                    </label>
+                    <input type="datetime-local" class="form-control" name="scheduled_at" id="scheduled_at">
+                    <div class="form-text">세션이 시작될 날짜와 시간을 선택하세요.</div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1" id="submitBtn">
+                        <i class="bi bi-play-fill me-1"></i>세션 시작
+                    </button>
+                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-secondary">취소</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.session-type-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255,255,255,0.5);
+}
+.session-type-card:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+.session-type-card:has(input:checked) {
+    border-color: var(--primary-color) !important;
+    background: rgba(102, 126, 234, 0.1);
+}
+</style>
+
+<script>
+function toggleScheduleInput() {
+    const isScheduled = document.getElementById('scheduled').checked;
+    const container = document.getElementById('scheduleInputContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (isScheduled) {
+        container.classList.remove('d-none');
+        submitBtn.innerHTML = '<i class="bi bi-calendar-check me-1"></i>세션 예약';
+        
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 30);
+        const defaultTime = now.toISOString().slice(0, 16);
+        document.getElementById('scheduled_at').min = new Date().toISOString().slice(0, 16);
+        if (!document.getElementById('scheduled_at').value) {
+            document.getElementById('scheduled_at').value = defaultTime;
+        }
+    } else {
+        container.classList.add('d-none');
+        submitBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>세션 시작';
+    }
+}
+</script>
+{% endblock %}
