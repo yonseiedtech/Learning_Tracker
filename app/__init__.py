@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -26,7 +27,18 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     bcrypt.init_app(app)
     csrf.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
+    
+    allowed_origins = []
+    replit_domains = os.environ.get('REPLIT_DOMAINS', '')
+    if replit_domains:
+        for domain in replit_domains.split(','):
+            allowed_origins.append(f'https://{domain.strip()}')
+    
+    if not allowed_origins:
+        allowed_origins = []
+        app.logger.warning('REPLIT_DOMAINS not set - WebSocket CORS restricted to same origin only')
+    
+    socketio.init_app(app, cors_allowed_origins=allowed_origins if allowed_origins else None, async_mode='eventlet')
     
     from app.routes import auth, courses, checkpoints, progress, analytics, main
     app.register_blueprint(auth.bp)
