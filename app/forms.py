@@ -24,6 +24,8 @@ class RegistrationForm(FlaskForm):
 class LoginForm(FlaskForm):
     email = StringField('이메일', validators=[DataRequired(message='이메일을 입력하세요'), Email(message='올바른 이메일 형식을 입력하세요')])
     password = PasswordField('비밀번호', validators=[DataRequired(message='비밀번호를 입력하세요')])
+    remember_id = BooleanField('아이디 저장')
+    auto_login = BooleanField('자동 로그인')
     submit = SubmitField('로그인')
 
 class CourseForm(FlaskForm):

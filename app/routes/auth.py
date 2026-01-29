@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
+from datetime import timedelta
 from app import db
 from app.models import User
 from app.forms import RegistrationForm, LoginForm
@@ -40,16 +41,35 @@ def login():
         return redirect(url_for('main.dashboard'))
     
     form = LoginForm()
+    
+    # 저장된 이메일 쿠키에서 불러오기
+    saved_email = request.cookies.get('saved_email', '')
+    if request.method == 'GET' and saved_email:
+        form.email.data = saved_email
+        form.remember_id.data = True
+    
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and user.check_password(form.password.data):
-            login_user(user)
+            # 자동 로그인 옵션에 따라 remember 설정
+            remember = form.auto_login.data
+            login_user(user, remember=remember, duration=timedelta(days=30) if remember else None)
+            
             next_page = request.args.get('next')
             if next_page and is_safe_url(next_page):
                 flash('로그인되었습니다!', 'success')
-                return redirect(next_page)
-            flash('로그인되었습니다!', 'success')
-            return redirect(url_for('main.dashboard'))
+                response = make_response(redirect(next_page))
+            else:
+                flash('로그인되었습니다!', 'success')
+                response = make_response(redirect(url_for('main.dashboard')))
+            
+            # 아이디 저장 옵션 처리
+            if form.remember_id.data:
+                response.set_cookie('saved_email', str(form.email.data), max_age=60*60*24*365)  # 1년
+            else:
+                response.delete_cookie('saved_email')
+            
+            return response
         flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'danger')
     
     return render_template('auth/login.html', form=form)

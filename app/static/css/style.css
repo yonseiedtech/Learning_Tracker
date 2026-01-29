@@ -1,11 +1,15 @@
 :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-gradient: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
     --secondary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     --tertiary-gradient: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+    --navy-primary: #0d1b3e;
+    --navy-secondary: #1a3a5c;
+    --navy-light: #2a5a8c;
+    --navy-accent: #3d7ab8;
     --glass-bg: rgba(255, 255, 255, 0.95);
     --glass-border: rgba(255, 255, 255, 0.18);
-    --shadow-soft: 0 8px 32px rgba(31, 38, 135, 0.1);
-    --shadow-hover: 0 16px 48px rgba(31, 38, 135, 0.15);
+    --shadow-soft: 0 8px 32px rgba(13, 27, 62, 0.1);
+    --shadow-hover: 0 16px 48px rgba(13, 27, 62, 0.15);
     --border-radius: 16px;
     --border-radius-lg: 24px;
     --border-radius-sm: 12px;
@@ -28,7 +32,7 @@ main {
 }
 
 .glass-nav {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0.75rem 0;
@@ -227,7 +231,7 @@ main {
 }
 
 .input-group-modern:focus-within {
-    border-color: #667eea;
+    border-color: var(--navy-light);
     background: white;
 }
 
@@ -255,7 +259,7 @@ main {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 24px rgba(13, 27, 62, 0.4);
 }
 
 .course-card {
@@ -317,7 +321,7 @@ main {
 }
 
 .checkpoint-item:hover {
-    border-color: #667eea;
+    border-color: var(--navy-light);
     box-shadow: var(--shadow-soft);
 }
 
@@ -337,7 +341,7 @@ main {
 }
 
 .stat-card.info {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--navy-primary) 0%, var(--navy-secondary) 100%);
 }
 
 .stat-card.warning {
@@ -364,7 +368,7 @@ main {
 }
 
 .role-option .form-check-input:checked ~ .form-check-label {
-    color: #667eea;
+    color: var(--navy-light);
     font-weight: 600;
 }
 
@@ -438,7 +442,7 @@ main {
 }
 
 .breadcrumb-item a {
-    color: #667eea;
+    color: var(--navy-light);
     text-decoration: none;
 }
 
@@ -484,8 +488,8 @@ main {
 }
 
 :root {
-    --primary-color: #667eea;
-    --secondary-color: #764ba2;
+    --primary-color: #0d1b3e;
+    --secondary-color: #1a3a5c;
 }
 
 @media (max-width: 768px) {
@@ -608,7 +612,7 @@ main {
 }
 
 .session-reminder {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--navy-primary) 0%, var(--navy-secondary) 100%);
     color: white;
     border-radius: 12px;
     padding: 1rem;
@@ -622,7 +626,7 @@ main {
 }
 
 .focus-ring:focus {
-    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline: 3px solid rgba(13, 27, 62, 0.5);
     outline-offset: 2px;
 }
 
@@ -643,7 +647,7 @@ main {
 
 .btn:focus-visible,
 .form-control:focus-visible {
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+    box-shadow: 0 0 0 3px rgba(13, 27, 62, 0.25);
 }
 
 [data-tooltip] {
