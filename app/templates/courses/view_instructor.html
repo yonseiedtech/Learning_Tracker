@@ -81,10 +81,28 @@
                 </div>
             </div>
             {% if checkpoints %}
+            <div class="d-flex justify-content-between align-items-center mb-3 bulk-actions" id="bulkActions">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                    <label class="form-check-label small" for="selectAll">전체 선택</label>
+                </div>
+                <div class="d-none" id="bulkDeleteBtns">
+                    <span class="text-muted small me-2"><span id="selectedCount">0</span>개 선택됨</span>
+                    <button class="btn btn-outline-danger btn-sm" onclick="bulkDeleteSelected()">
+                        <i class="bi bi-trash me-1"></i>선택 삭제
+                    </button>
+                    <button class="btn btn-danger btn-sm ms-1" onclick="bulkDeleteAll()">
+                        <i class="bi bi-trash-fill me-1"></i>전체 삭제
+                    </button>
+                </div>
+            </div>
             <div class="checkpoint-list">
                 {% for cp in checkpoints %}
-                <div class="checkpoint-item d-flex justify-content-between align-items-center">
+                <div class="checkpoint-item d-flex justify-content-between align-items-center" data-checkpoint-id="{{ cp.id }}">
                     <div class="d-flex align-items-center flex-grow-1">
+                        <div class="form-check me-2">
+                            <input class="form-check-input checkpoint-checkbox" type="checkbox" value="{{ cp.id }}" onchange="updateBulkActions()">
+                        </div>
                         <div class="checkpoint-number me-3">{{ cp.order }}</div>
                         <div>
                             <strong>{{ cp.title }}</strong>
@@ -147,11 +165,106 @@
 </style>
 
 <script>
+const csrfToken = '{{ csrf_token() }}';
+const courseId = {{ course.id }};
+
 function copyInviteCode() {
     const code = document.getElementById('inviteCode').textContent;
     navigator.clipboard.writeText(code).then(() => {
         alert('초대 코드가 복사되었습니다!');
     });
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.checkpoint-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.checkpoint-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkBtns = document.getElementById('bulkDeleteBtns');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAll = document.getElementById('selectAll');
+    
+    if (count > 0) {
+        bulkBtns.classList.remove('d-none');
+        selectedCount.textContent = count;
+    } else {
+        bulkBtns.classList.add('d-none');
+    }
+    
+    const allCheckboxes = document.querySelectorAll('.checkpoint-checkbox');
+    selectAll.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+    selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+}
+
+async function bulkDeleteSelected() {
+    const checkboxes = document.querySelectorAll('.checkpoint-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (ids.length === 0) {
+        alert('삭제할 체크포인트를 선택해주세요.');
+        return;
+    }
+    
+    if (!confirm(`선택한 ${ids.length}개의 체크포인트를 삭제하시겠습니까?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/checkpoints/course/${courseId}/bulk-delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ checkpoint_ids: ids })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert(`${data.deleted_count}개의 체크포인트가 삭제되었습니다.`);
+            location.reload();
+        } else {
+            alert('오류: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+    }
+}
+
+async function bulkDeleteAll() {
+    const totalCount = document.querySelectorAll('.checkpoint-checkbox').length;
+    
+    if (!confirm(`정말로 모든 체크포인트(${totalCount}개)를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/checkpoints/course/${courseId}/bulk-delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ delete_all: true })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert(`${data.deleted_count}개의 체크포인트가 삭제되었습니다.`);
+            location.reload();
+        } else {
+            alert('오류: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+    }
 }
 </script>
 {% endblock %}

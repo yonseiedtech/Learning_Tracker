@@ -67,6 +67,39 @@ def delete(checkpoint_id):
     flash('체크포인트가 삭제되었습니다!', 'success')
     return redirect(url_for('courses.view', course_id=course.id))
 
+
+@bp.route('/course/<int:course_id>/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        return jsonify({'error': '권한이 없습니다.'}), 403
+    
+    data = request.get_json()
+    checkpoint_ids = data.get('checkpoint_ids', [])
+    delete_all = data.get('delete_all', False)
+    
+    if delete_all:
+        checkpoints = Checkpoint.query.filter_by(course_id=course_id, deleted_at=None).all()
+    else:
+        checkpoints = Checkpoint.query.filter(
+            Checkpoint.id.in_(checkpoint_ids),
+            Checkpoint.course_id == course_id,
+            Checkpoint.deleted_at == None
+        ).all()
+    
+    deleted_count = 0
+    for cp in checkpoints:
+        cp.deleted_at = datetime.utcnow()
+        deleted_count += 1
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'deleted_count': deleted_count
+    })
+
 @bp.route('/reorder', methods=['POST'])
 @login_required
 def reorder():
