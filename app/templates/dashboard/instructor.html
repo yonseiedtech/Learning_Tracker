@@ -5,12 +5,126 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-1">강사 대시보드</h2>
-        <p class="text-muted mb-0">강좌와 학생 진도를 관리하세요</p>
+        <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.username }}님!</h2>
+        <p class="text-muted mb-0">오늘의 강의 현황을 확인하세요</p>
     </div>
-    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>새 강좌 만들기
-    </a>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('subjects.create') }}" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-folder-plus me-1"></i>과목 생성
+        </a>
+        <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-3">
+            <i class="bi bi-plus-lg me-1"></i>강좌 생성
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-people fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ total_students }}</div>
+            <div class="stat-label text-muted small">전체 수강생</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+                <i class="bi bi-journal-bookmark fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ courses|length }}</div>
+            <div class="stat-label text-muted small">개설 강좌</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <i class="bi bi-flag fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ total_checkpoints }}</div>
+            <div class="stat-label text-muted small">체크포인트</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <i class="bi bi-broadcast fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ active_sessions|length }}</div>
+            <div class="stat-label text-muted small">진행 중 세션</div>
+        </div>
+    </div>
+</div>
+
+{% if active_sessions %}
+<div class="glass-card p-4 mb-4 border-start border-success border-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-broadcast-pin text-success me-2"></i>진행 중인 라이브 세션</h5>
+    <div class="row g-3">
+        {% for session in active_sessions %}
+        <div class="col-md-6">
+            <div class="d-flex align-items-center p-3 rounded-3" style="background: rgba(40, 167, 69, 0.1);">
+                <div class="pulse-dot me-3"></div>
+                <div class="flex-grow-1">
+                    <strong>{{ session.course.title }}</strong>
+                    <p class="mb-0 small text-muted">{{ session.started_at.strftime('%H:%M') }}부터 진행 중</p>
+                </div>
+                <a href="{{ url_for('courses.live_instructor', course_id=session.course.id) }}" class="btn btn-success btn-sm rounded-pill">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>입장하기
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if upcoming_sessions %}
+<div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-calendar-event text-primary me-2"></i>예정된 라이브 세션</h5>
+    <div class="list-group list-group-flush">
+        {% for session in upcoming_sessions %}
+        <div class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+            <div>
+                <strong>{{ session.course.title }}</strong>
+                <p class="mb-0 small text-muted">
+                    <i class="bi bi-clock me-1"></i>{{ session.scheduled_at.strftime('%m/%d %H:%M') }}
+                </p>
+            </div>
+            <span class="badge bg-primary bg-opacity-10 text-primary">예정됨</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if recent_progress %}
+<div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-activity text-info me-2"></i>최근 학습 활동</h5>
+    <div class="activity-feed" style="max-height: 300px; overflow-y: auto;">
+        {% for progress in recent_progress %}
+        <div class="activity-item d-flex align-items-start mb-3">
+            <div class="activity-avatar me-3">
+                <div class="avatar-circle">{{ progress.user.username[0]|upper }}</div>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between">
+                    <strong class="small">{{ progress.user.username }}</strong>
+                    <small class="text-muted">{{ progress.completed_at.strftime('%m/%d %H:%M') }}</small>
+                </div>
+                <p class="mb-0 small text-muted">
+                    <span class="text-success"><i class="bi bi-check-circle me-1"></i></span>
+                    {{ progress.checkpoint.title }} 완료
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌</h5>
 </div>
 
 {% if courses %}
@@ -26,7 +140,7 @@
                     <span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollments.count() }} 명</span>
                 </div>
                 <h5 class="fw-bold mb-2">{{ course.title }}</h5>
-                <p class="text-muted small mb-3">{{ course.description[:80] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 80 else '' }}</p>
+                <p class="text-muted small mb-3">{{ course.description[:60] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 60 else '' }}</p>
                 
                 <div class="d-flex gap-2 mb-3">
                     <span class="badge bg-light text-dark">
@@ -34,21 +148,25 @@
                     </span>
                 </div>
                 
-                <div class="invite-code-box mb-3">
-                    <small class="text-muted d-block mb-1">초대 코드</small>
-                    <code class="fs-5 fw-bold text-primary">{{ course.invite_code }}</code>
+                <div class="invite-code-box mb-0 p-2 rounded-2" style="background: rgba(102, 126, 234, 0.05);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted d-block">초대 코드</small>
+                            <code class="fw-bold text-primary">{{ course.invite_code }}</code>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="copyCode('{{ course.invite_code }}')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0 p-4 pt-0">
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm flex-fill rounded-pill">
-                        <i class="bi bi-eye me-1"></i>보기
+                        <i class="bi bi-eye me-1"></i>관리
                     </a>
                     <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success btn-sm flex-fill rounded-pill">
                         <i class="bi bi-broadcast me-1"></i>라이브
-                    </a>
-                    <a href="{{ url_for('analytics.instructor_dashboard', course_id=course.id) }}" class="btn btn-info btn-sm flex-fill rounded-pill text-white">
-                        <i class="bi bi-graph-up me-1"></i>분석
                     </a>
                 </div>
             </div>
@@ -59,13 +177,120 @@
 {% else %}
 <div class="empty-state glass-card text-center py-5">
     <div class="empty-icon mb-4">
-        <i class="bi bi-journal-x"></i>
+        <i class="bi bi-journal-plus"></i>
     </div>
-    <h4 class="fw-bold mb-2">아직 강좌가 없습니다</h4>
-    <p class="text-muted mb-4">첫 번째 강좌를 만들어 학습 관리를 시작하세요!</p>
-    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>강좌 만들기
-    </a>
+    <h4 class="fw-bold mb-2">첫 강좌를 만들어 보세요!</h4>
+    <p class="text-muted mb-4">강좌를 생성하고 학생들의 학습을 관리해 보세요</p>
+    <div class="d-flex gap-2 justify-content-center">
+        <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-2"></i>강좌 만들기
+        </a>
+    </div>
+    <div class="mt-4 pt-4 border-top">
+        <p class="text-muted small mb-3">빠른 시작 가이드</p>
+        <div class="row justify-content-center g-3">
+            <div class="col-auto">
+                <div class="quick-start-item text-center p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                    <div class="step-number">1</div>
+                    <strong class="small d-block">강좌 생성</strong>
+                    <small class="text-muted">제목과 설명 입력</small>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="quick-start-item text-center p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                    <div class="step-number">2</div>
+                    <strong class="small d-block">체크포인트 추가</strong>
+                    <small class="text-muted">AI 자동 생성 가능</small>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="quick-start-item text-center p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                    <div class="step-number">3</div>
+                    <strong class="small d-block">초대 코드 공유</strong>
+                    <small class="text-muted">학생들에게 전달</small>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="quick-start-item text-center p-3 rounded-3" style="background: rgba(102, 126, 234, 0.05);">
+                    <div class="step-number">4</div>
+                    <strong class="small d-block">라이브 세션 시작</strong>
+                    <small class="text-muted">실시간 진도 추적</small>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
+
+<style>
+.stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
+}
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+.stat-value {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.pulse-dot {
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border-radius: 50%;
+    animation: pulse-live 2s infinite;
+}
+@keyframes pulse-live {
+    0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+}
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+.activity-feed {
+    scrollbar-width: thin;
+}
+</style>
+
+<script>
+function copyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert('초대 코드가 복사되었습니다: ' + code);
+    });
+}
+</script>
 {% endblock %}

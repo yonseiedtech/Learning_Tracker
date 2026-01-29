@@ -1,15 +1,107 @@
 {% extends "base.html" %}
 
-{% block title %}학생 대시보드 - 학습 진도 트래커{% endblock %}
+{% block title %}내 학습 대시보드 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold mb-1">내 학습 대시보드</h2>
-        <p class="text-muted mb-0">수강 중인 강좌와 학습 진도를 확인하세요</p>
+<div class="mb-4">
+    <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.username }}님!</h2>
+    <p class="text-muted mb-0">오늘도 함께 성장해요</p>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-fire fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ streak_days }}</div>
+            <div class="stat-label text-muted small">연속 학습일</div>
+            {% if streak_days >= 7 %}
+            <span class="badge bg-warning text-dark mt-2"><i class="bi bi-trophy me-1"></i>훌륭해요!</span>
+            {% elif streak_days >= 3 %}
+            <span class="badge bg-success mt-2"><i class="bi bi-star me-1"></i>좋은 시작!</span>
+            {% endif %}
+        </div>
     </div>
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>수강 신청
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+                <i class="bi bi-check-circle fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ total_completed }}</div>
+            <div class="stat-label text-muted small">완료한 체크포인트</div>
+            <div class="progress mt-2" style="height: 6px;">
+                <div class="progress-bar bg-success" style="width: {{ completion_rate }}%"></div>
+            </div>
+            <small class="text-muted">{{ completion_rate }}% 완료</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <i class="bi bi-clock-history fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ total_hours }}</div>
+            <div class="stat-label text-muted small">총 학습 시간</div>
+            <small class="text-success"><i class="bi bi-graph-up-arrow me-1"></i>시간</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="glass-card stat-card p-4 text-center h-100">
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <i class="bi bi-journal-bookmark fs-4 text-white"></i>
+            </div>
+            <div class="stat-value display-6 fw-bold">{{ courses|length }}</div>
+            <div class="stat-label text-muted small">수강 중인 강좌</div>
+        </div>
+    </div>
+</div>
+
+{% if active_sessions %}
+<div class="glass-card p-4 mb-4 border-start border-success border-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-broadcast-pin text-success me-2"></i>진행 중인 라이브 세션</h5>
+    <div class="row g-3">
+        {% for item in active_sessions %}
+        <div class="col-md-6">
+            <div class="d-flex align-items-center p-3 rounded-3" style="background: rgba(40, 167, 69, 0.1);">
+                <div class="pulse-dot me-3"></div>
+                <div class="flex-grow-1">
+                    <strong>{{ item.course.title }}</strong>
+                    <p class="mb-0 small text-muted">{{ item.session.started_at.strftime('%H:%M') }}부터 진행 중</p>
+                </div>
+                <a href="{{ url_for('courses.live_student', course_id=item.course.id) }}" class="btn btn-success btn-sm rounded-pill">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>참여하기
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if upcoming_sessions %}
+<div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-calendar-event text-primary me-2"></i>예정된 라이브 세션</h5>
+    <div class="list-group list-group-flush">
+        {% for session in upcoming_sessions %}
+        <div class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+            <div>
+                <strong>{{ session.course.title }}</strong>
+                <p class="mb-0 small text-muted">
+                    <i class="bi bi-clock me-1"></i>{{ session.scheduled_at.strftime('%m/%d %H:%M') }}
+                </p>
+            </div>
+            <span class="badge bg-primary bg-opacity-10 text-primary">예정됨</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌</h5>
+    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary btn-sm rounded-pill">
+        <i class="bi bi-plus-lg me-1"></i>수강 신청
     </a>
 </div>
 
@@ -23,32 +115,30 @@
                     <div class="course-icon course-icon-student">
                         <i class="bi bi-mortarboard"></i>
                     </div>
+                    {% set cp_count = course.checkpoints.filter_by(deleted_at=None).count() %}
                     <span class="badge bg-success bg-opacity-10 text-success">수강 중</span>
                 </div>
                 <h5 class="fw-bold mb-2">{{ course.title }}</h5>
-                <p class="text-muted small mb-3">{{ course.description[:80] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 80 else '' }}</p>
+                <p class="text-muted small mb-3">{{ course.description[:60] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 60 else '' }}</p>
                 
                 <div class="d-flex align-items-center mb-3">
                     <i class="bi bi-person-circle me-2 text-muted"></i>
                     <small class="text-muted">강사: {{ course.instructor.username }}</small>
                 </div>
                 
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 mb-3">
                     <span class="badge bg-light text-dark">
-                        <i class="bi bi-flag me-1"></i>{{ course.checkpoints.filter_by(deleted_at=None).count() }} 체크포인트
+                        <i class="bi bi-flag me-1"></i>{{ cp_count }} 체크포인트
                     </span>
                 </div>
             </div>
             <div class="card-footer bg-transparent border-0 p-4 pt-0">
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm flex-fill rounded-pill">
-                        <i class="bi bi-book me-1"></i>학습하기
+                        <i class="bi bi-book me-1"></i>학습
                     </a>
                     <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success btn-sm flex-fill rounded-pill">
                         <i class="bi bi-broadcast me-1"></i>라이브
-                    </a>
-                    <a href="{{ url_for('analytics.student_dashboard', course_id=course.id) }}" class="btn btn-info btn-sm flex-fill rounded-pill text-white">
-                        <i class="bi bi-graph-up me-1"></i>진도
                     </a>
                 </div>
             </div>
@@ -59,13 +149,79 @@
 {% else %}
 <div class="empty-state glass-card text-center py-5">
     <div class="empty-icon mb-4">
-        <i class="bi bi-journal-x"></i>
+        <i class="bi bi-journal-plus"></i>
     </div>
-    <h4 class="fw-bold mb-2">수강 중인 강좌가 없습니다</h4>
-    <p class="text-muted mb-4">초대 코드를 입력하여 강좌에 등록하세요!</p>
+    <h4 class="fw-bold mb-2">아직 수강 중인 강좌가 없어요</h4>
+    <p class="text-muted mb-4">강사님께 받은 초대 코드로 강좌에 등록해 보세요!</p>
     <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>수강 신청하기
+        <i class="bi bi-plus-lg me-2"></i>지금 수강 신청하기
     </a>
+    <div class="mt-4 pt-4 border-top">
+        <p class="text-muted small mb-2">초대 코드 입력 방법</p>
+        <div class="d-flex justify-content-center gap-3">
+            <div class="text-center">
+                <div class="step-number">1</div>
+                <small>코드 입력</small>
+            </div>
+            <div class="text-center">
+                <div class="step-number">2</div>
+                <small>강좌 확인</small>
+            </div>
+            <div class="text-center">
+                <div class="step-number">3</div>
+                <small>학습 시작!</small>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
+
+<style>
+.stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.15);
+}
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+.stat-value {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.pulse-dot {
+    width: 12px;
+    height: 12px;
+    background: #28a745;
+    border-radius: 50%;
+    animation: pulse-live 2s infinite;
+}
+@keyframes pulse-live {
+    0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: 600;
+}
+</style>
 {% endblock %}
