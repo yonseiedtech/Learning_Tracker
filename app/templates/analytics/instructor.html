@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">Analytics</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up text-primary me-2"></i>Course Analytics: {{ course.title }}</h2>
+    <a href="{{ url_for('analytics.export_csv', course_id=course.id) }}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ students|length }}</h3>
+                <small>Total Students</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats|length }}</h3>
+                <small>Checkpoints</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ avg_progress }}%</h3>
+                <small>Avg. Progress</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ lagging_students|length }}</h3>
+                <small>Lagging Students</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Checkpoint Completion Rates</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="completionChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Average Duration per Checkpoint</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="durationChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        {% if lagging_students %}
+        <div class="card shadow-sm border-warning mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Lagging Students</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Students below 70% of class average</p>
+                <ul class="list-group list-group-flush">
+                    {% for student in lagging_students %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ student.username }}</span>
+                        <span class="badge bg-warning text-dark">{{ student.progress_percent }}%</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Student Progress</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for student in students|sort(attribute='progress_percent', reverse=true) %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>{{ student.username }}</span>
+                            <small>{{ student.completed_checkpoints }}/{{ student.total_checkpoints }}</small>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar {% if student.progress_percent >= 70 %}bg-success{% elif student.progress_percent >= 40 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ student.progress_percent }}%"></div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+const stats = {{ stats|tojson }};
+
+const completionCtx = document.getElementById('completionChart').getContext('2d');
+new Chart(completionCtx, {
+    type: 'bar',
+    data: {
+        labels: stats.map(s => s.title.substring(0, 20)),
+        datasets: [{
+            label: 'Completion Rate (%)',
+            data: stats.map(s => s.completion_rate),
+            backgroundColor: 'rgba(13, 110, 253, 0.7)',
+            borderColor: 'rgba(13, 110, 253, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+
+const durationCtx = document.getElementById('durationChart').getContext('2d');
+new Chart(durationCtx, {
+    type: 'bar',
+    data: {
+        labels: stats.map(s => s.title.substring(0, 20)),
+        datasets: [{
+            label: 'Avg Duration (min)',
+            data: stats.map(s => (s.avg_duration_seconds / 60).toFixed(1)),
+            backgroundColor: 'rgba(25, 135, 84, 0.7)',
+            borderColor: 'rgba(25, 135, 84, 1)',
+            borderWidth: 1
+        }, {
+            label: 'Estimated (min)',
+            data: stats.map(s => s.estimated_minutes),
+            backgroundColor: 'rgba(108, 117, 125, 0.3)',
+            borderColor: 'rgba(108, 117, 125, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

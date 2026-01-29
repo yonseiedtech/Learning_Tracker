@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}My Progress - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">My Progress</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-graph-up text-primary me-2"></i>My Progress: {{ course.title }}</h2>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ progress_percent }}%</h3>
+                <small>Overall Progress</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ completed_count }}/{{ total_checkpoints }}</h3>
+                <small>Checkpoints Done</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ total_time_minutes }}</h3>
+                <small>Minutes Spent</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ (course_avg_seconds / 60)|round(1) }}</h3>
+                <small>Course Avg (min/CP)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Time Spent per Checkpoint</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="timeChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Learning Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for p in progress %}
+                    {% if p.completed %}
+                    <div class="timeline-item d-flex mb-3">
+                        <div class="timeline-marker bg-success rounded-circle me-3" style="width: 12px; height: 12px; margin-top: 5px;"></div>
+                        <div class="flex-grow-1">
+                            <strong>{{ p.title }}</strong>
+                            <p class="mb-0 small text-muted">
+                                Completed: {{ p.completed_at[:16] if p.completed_at else 'N/A' }}
+                                {% if p.duration_minutes > 0 %}
+                                | Duration: {{ p.duration_minutes }} min
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        {% if slowest_checkpoints %}
+        <div class="card shadow-sm border-warning mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-hourglass me-2"></i>Slowest Checkpoints</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">These took you the longest</p>
+                <ul class="list-group list-group-flush">
+                    {% for cp in slowest_checkpoints %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ cp.title[:25] }}{{ '...' if cp.title|length > 25 else '' }}</span>
+                        <span class="badge bg-warning text-dark">{{ cp.duration_minutes }} min</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Checkpoint Status</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for p in progress %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if p.completed %}
+                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                            {% elif p.started %}
+                            <i class="bi bi-circle-half text-warning me-2"></i>
+                            {% else %}
+                            <i class="bi bi-circle text-muted me-2"></i>
+                            {% endif %}
+                            <span>{{ p.order }}. {{ p.title[:20] }}{{ '...' if p.title|length > 20 else '' }}</span>
+                        </div>
+                        {% if p.duration_minutes > 0 %}
+                        <small class="text-muted">{{ p.duration_minutes }} min</small>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+const progress = {{ progress|tojson }};
+
+const timeCtx = document.getElementById('timeChart').getContext('2d');
+new Chart(timeCtx, {
+    type: 'bar',
+    data: {
+        labels: progress.map(p => `${p.order}. ${p.title.substring(0, 15)}`),
+        datasets: [{
+            label: 'Time Spent (min)',
+            data: progress.map(p => p.duration_minutes),
+            backgroundColor: progress.map(p => p.completed ? 'rgba(25, 135, 84, 0.7)' : 'rgba(108, 117, 125, 0.3)'),
+            borderColor: progress.map(p => p.completed ? 'rgba(25, 135, 84, 1)' : 'rgba(108, 117, 125, 1)'),
+            borderWidth: 1
+        }, {
+            label: 'Estimated (min)',
+            data: progress.map(p => p.estimated_minutes),
+            type: 'line',
+            borderColor: 'rgba(220, 53, 69, 0.7)',
+            backgroundColor: 'transparent',
+            borderDash: [5, 5]
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

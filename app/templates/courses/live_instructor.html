@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Live Session - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">Live Session</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-broadcast text-success me-2"></i>Live Session: {{ course.title }}</h2>
+        <p class="text-muted mb-0">Real-time progress tracking</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-success fs-6" id="connectionStatus">
+            <i class="bi bi-circle-fill me-1"></i>Connected
+        </span>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary active" id="gridViewBtn" onclick="setView('grid')">
+                <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+            <button class="btn btn-outline-primary" id="listViewBtn" onclick="setView('list')">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Checkpoint Progress</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="progressChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-flag me-2"></i>Checkpoints</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for cp in checkpoints %}
+                <div class="list-group-item d-flex justify-content-between align-items-center checkpoint-stat" data-id="{{ cp.id }}">
+                    <span>{{ cp.order }}. {{ cp.title }}</span>
+                    <span class="badge bg-primary completion-badge" id="cp-{{ cp.id }}-badge">0/{{ students|length }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-people me-2"></i>Student Progress</h5>
+                <span class="badge bg-primary" id="studentCount">{{ students|length }} students</span>
+            </div>
+            <div class="card-body">
+                <div id="gridView" class="row g-3">
+                    {% for student in students %}
+                    <div class="col-md-4">
+                        <div class="card student-card" id="student-{{ student.id }}">
+                            <div class="card-body text-center">
+                                <i class="bi bi-person-circle display-6 text-muted"></i>
+                                <h6 class="mt-2 mb-1">{{ student.username }}</h6>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%" id="student-{{ student.id }}-progress"></div>
+                                </div>
+                                <small class="text-muted" id="student-{{ student.id }}-text">0/{{ checkpoints|length }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div id="listView" class="d-none">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                {% for cp in checkpoints %}
+                                <th class="text-center" title="{{ cp.title }}">{{ cp.order }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr id="student-row-{{ student.id }}">
+                                <td>{{ student.username }}</td>
+                                {% for cp in checkpoints %}
+                                <td class="text-center" id="cell-{{ student.id }}-{{ cp.id }}">
+                                    <i class="bi bi-circle text-muted"></i>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+const courseId = {{ course.id }};
+const checkpoints = {{ checkpoints|map(attribute='id')|list|tojson }};
+const studentIds = {{ students|map(attribute='id')|list|tojson }};
+const totalCheckpoints = {{ checkpoints|length }};
+const totalStudents = {{ students|length }};
+
+let studentProgress = {};
+studentIds.forEach(id => {
+    studentProgress[id] = {};
+    checkpoints.forEach(cpId => {
+        studentProgress[id][cpId] = false;
+    });
+});
+
+const socket = io();
+
+socket.on('connect', function() {
+    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>Connected';
+    document.getElementById('connectionStatus').className = 'badge bg-success fs-6';
+    socket.emit('join_course', { course_id: courseId, mode: 'live' });
+});
+
+socket.on('disconnect', function() {
+    document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-circle-fill me-1"></i>Disconnected';
+    document.getElementById('connectionStatus').className = 'badge bg-danger fs-6';
+});
+
+socket.on('progress_update', function(data) {
+    const { user_id, checkpoint_id, status } = data;
+    if (status === 'completed') {
+        studentProgress[user_id][checkpoint_id] = true;
+        updateStudentDisplay(user_id);
+        updateCell(user_id, checkpoint_id, true);
+    }
+});
+
+socket.on('session_stats', function(data) {
+    const { completion_rates } = data;
+    for (const cpId in completion_rates) {
+        const stats = completion_rates[cpId];
+        const badge = document.getElementById(`cp-${cpId}-badge`);
+        if (badge) {
+            badge.textContent = `${stats.completed}/${stats.total}`;
+        }
+    }
+    updateChart(completion_rates);
+});
+
+socket.on('student_joined', function(data) {
+    console.log('Student joined:', data.username);
+});
+
+function updateStudentDisplay(userId) {
+    const completed = Object.values(studentProgress[userId]).filter(v => v).length;
+    const percent = (completed / totalCheckpoints) * 100;
+    
+    const progressBar = document.getElementById(`student-${userId}-progress`);
+    const text = document.getElementById(`student-${userId}-text`);
+    
+    if (progressBar) {
+        progressBar.style.width = `${percent}%`;
+        progressBar.className = `progress-bar ${percent === 100 ? 'bg-success' : ''}`;
+    }
+    if (text) {
+        text.textContent = `${completed}/${totalCheckpoints}`;
+    }
+}
+
+function updateCell(userId, checkpointId, completed) {
+    const cell = document.getElementById(`cell-${userId}-${checkpointId}`);
+    if (cell) {
+        cell.innerHTML = completed 
+            ? '<i class="bi bi-check-circle-fill text-success"></i>'
+            : '<i class="bi bi-circle text-muted"></i>';
+    }
+}
+
+function setView(view) {
+    if (view === 'grid') {
+        document.getElementById('gridView').classList.remove('d-none');
+        document.getElementById('listView').classList.add('d-none');
+        document.getElementById('gridViewBtn').classList.add('active');
+        document.getElementById('listViewBtn').classList.remove('active');
+    } else {
+        document.getElementById('gridView').classList.add('d-none');
+        document.getElementById('listView').classList.remove('d-none');
+        document.getElementById('gridViewBtn').classList.remove('active');
+        document.getElementById('listViewBtn').classList.add('active');
+    }
+}
+
+let progressChart;
+function updateChart(completionRates) {
+    const labels = [];
+    const data = [];
+    
+    checkpoints.forEach((cpId, index) => {
+        labels.push(`CP ${index + 1}`);
+        const stats = completionRates[cpId];
+        data.push(stats ? (stats.completed / stats.total * 100).toFixed(1) : 0);
+    });
+    
+    if (progressChart) {
+        progressChart.data.datasets[0].data = data;
+        progressChart.update();
+    } else {
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        progressChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Completion %',
+                    data: data,
+                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+}
+
+setInterval(function() {
+    socket.emit('request_stats', { course_id: courseId, mode: 'live' });
+}, 3000);
+</script>
+{% endblock %}
+{% endblock %}

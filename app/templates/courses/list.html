@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}My Courses - Learning Progress Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-journal-bookmark text-primary me-2"></i>My Courses</h2>
+    {% if current_user.is_instructor() %}
+    <a href="{{ url_for('courses.create') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Create Course
+    </a>
+    {% else %}
+    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Enroll
+    </a>
+    {% endif %}
+</div>
+
+{% if courses %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Course</th>
+                <th>Description</th>
+                {% if current_user.is_instructor() %}
+                <th>Students</th>
+                <th>Invite Code</th>
+                {% else %}
+                <th>Instructor</th>
+                {% endif %}
+                <th>Checkpoints</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in courses %}
+            <tr>
+                <td><strong>{{ course.title }}</strong></td>
+                <td class="text-muted">{{ course.description[:50] if course.description else '-' }}{{ '...' if course.description and course.description|length > 50 else '' }}</td>
+                {% if current_user.is_instructor() %}
+                <td><span class="badge bg-primary">{{ course.enrollments.count() }}</span></td>
+                <td><code>{{ course.invite_code }}</code></td>
+                {% else %}
+                <td>{{ course.instructor.username }}</td>
+                {% endif %}
+                <td><span class="badge bg-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}</span></td>
+                <td>
+                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    {% if current_user.is_instructor() %}
+    You haven't created any courses yet. <a href="{{ url_for('courses.create') }}">Create your first course</a>!
+    {% else %}
+    You're not enrolled in any courses. <a href="{{ url_for('courses.enroll') }}">Enroll with an invite code</a>!
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

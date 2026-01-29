@@ -1,0 +1,111 @@
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.student-card {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.student-card.completed {
+    border-color: #198754;
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.checkpoint-item {
+    transition: background-color 0.2s ease;
+}
+
+.checkpoint-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.checkpoint-live {
+    transition: all 0.3s ease;
+}
+
+.checkpoint-live.just-completed {
+    animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.drag-handle {
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.timeline-marker {
+    flex-shrink: 0;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.list-group-item {
+    transition: background-color 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+.form-control:focus, .form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+.table th {
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
