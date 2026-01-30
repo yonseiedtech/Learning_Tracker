@@ -16,7 +16,7 @@
         <h2 class="fw-bold mb-1"><i class="bi bi-broadcast text-success me-2"></i>라이브 세션</h2>
         <p class="text-muted mb-0">{{ course.title }} - 실시간 진도 추적</p>
     </div>
-    <div class="d-flex gap-2 align-items-center">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
         <div class="glass-card px-3 py-2 d-flex align-items-center gap-2">
             <i class="bi bi-clock text-primary"></i>
             <span id="currentTime">--:--:--</span>
@@ -24,6 +24,33 @@
         <span class="badge connection-badge bg-success" id="connectionStatus">
             <i class="bi bi-circle-fill me-1"></i>연결됨
         </span>
+        <div class="glass-card px-3 py-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">라이브 상태:</span>
+                <span class="badge fs-6" id="liveStatusBadge" 
+                      data-status="{{ session.live_status }}"
+                      style="background: {% if session.live_status == 'live' %}#dc3545{% elif session.live_status == 'preparing' %}#ffc107{% else %}#6c757d{% endif %}; color: {% if session.live_status == 'preparing' %}#212529{% else %}white{% endif %}">
+                    {% if session.live_status == 'live' %}
+                    <i class="bi bi-broadcast-pin me-1"></i>라이브 중
+                    {% elif session.live_status == 'preparing' %}
+                    <i class="bi bi-hourglass-split me-1"></i>준비중
+                    {% else %}
+                    <i class="bi bi-stop-circle me-1"></i>종료
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="btn-group" role="group" aria-label="라이브 상태 제어">
+            <button type="button" class="btn btn-sm btn-outline-warning" onclick="setLiveStatus('preparing')" title="준비중">
+                <i class="bi bi-hourglass-split"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="setLiveStatus('live')" title="라이브 시작">
+                <i class="bi bi-broadcast-pin"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setLiveStatus('ended')" title="라이브 종료">
+                <i class="bi bi-stop-circle"></i>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -636,6 +663,51 @@ socket.on('timer_sync', function(data) {
     timer.elapsedSeconds = elapsed_seconds;
     updateTimerDisplay(checkpoint_id);
 });
+
+function setLiveStatus(status) {
+    if (status === 'ended' && !confirm('정말 라이브를 종료하시겠습니까?')) {
+        return;
+    }
+    
+    fetch(`/courses/{{ course.id }}/live/set-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ status: status })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const badge = document.getElementById('liveStatusBadge');
+            badge.dataset.status = status;
+            
+            if (status === 'live') {
+                badge.style.background = '#dc3545';
+                badge.style.color = 'white';
+                badge.innerHTML = '<i class="bi bi-broadcast-pin me-1"></i>라이브 중';
+            } else if (status === 'preparing') {
+                badge.style.background = '#ffc107';
+                badge.style.color = '#212529';
+                badge.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>준비중';
+            } else {
+                badge.style.background = '#6c757d';
+                badge.style.color = 'white';
+                badge.innerHTML = '<i class="bi bi-stop-circle me-1"></i>종료';
+                if (status === 'ended') {
+                    window.location.href = '{{ url_for("courses.view", course_id=course.id) }}';
+                }
+            }
+            
+            socket.emit('live_status_changed', { 
+                course_id: courseId, 
+                status: status,
+                status_display: data.status_display
+            });
+        }
+    });
+}
 
 function setCurrentCheckpoint(checkpointId) {
     if (completedCheckpoints.has(checkpointId)) return;

@@ -11,10 +11,10 @@ bp = Blueprint('courses', __name__, url_prefix='/courses')
 @login_required
 def list_courses():
     if current_user.is_instructor():
-        courses = Course.query.filter_by(instructor_id=current_user.id).all()
+        courses = Course.query.filter_by(instructor_id=current_user.id).filter(Course.deleted_at.is_(None)).all()
     else:
         enrollments = Enrollment.query.filter_by(user_id=current_user.id).all()
-        courses = [e.course for e in enrollments]
+        courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private']
     return render_template('courses/list.html', courses=courses)
 
 @bp.route('/create', methods=['GET', 'POST'])
@@ -43,6 +43,11 @@ def create():
 @login_required
 def view(course_id):
     course = Course.query.get_or_404(course_id)
+    
+    if course.deleted_at:
+        if not (current_user.is_instructor() and course.instructor_id == current_user.id):
+            flash('해당 세션을 찾을 수 없습니다.', 'danger')
+            return redirect(url_for('main.dashboard'))
     
     if current_user.is_instructor():
         if course.instructor_id != current_user.id:
@@ -116,7 +121,7 @@ def delete(course_id):
         flash('이 강좌를 삭제할 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
-    db.session.delete(course)
+    course.deleted_at = datetime.utcnow()
     db.session.commit()
     flash('강좌가 삭제되었습니다!', 'success')
     return redirect(url_for('main.dashboard'))
@@ -133,6 +138,10 @@ def enroll():
         course = Course.query.filter_by(invite_code=form.invite_code.data.upper()).first()
         if not course:
             flash('유효하지 않은 초대 코드입니다.', 'danger')
+            return render_template('courses/enroll.html', form=form)
+        
+        if course.deleted_at or course.visibility == 'private':
+            flash('해당 세션에 등록할 수 없습니다.', 'danger')
             return render_template('courses/enroll.html', form=form)
         
         if current_user.is_enrolled(course):
@@ -204,6 +213,12 @@ def start_session(course_id):
 @login_required
 def live_mode(course_id):
     course = Course.query.get_or_404(course_id)
+    
+    if course.deleted_at:
+        if not (current_user.is_instructor() and course.instructor_id == current_user.id):
+            flash('해당 세션을 찾을 수 없습니다.', 'danger')
+            return redirect(url_for('main.dashboard'))
+    
     checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).order_by(Checkpoint.order).all()
     
     session = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
@@ -367,3 +382,30 @@ def create_session_post(course_id):
     
     flash('공지가 등록되었습니다.', 'success')
     return redirect(url_for('courses.live_mode', course_id=course_id))
+
+
+@bp.route('/<int:course_id>/live/set-status', methods=['POST'])
+@login_required
+def set_live_status(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
+    
+    session = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
+    if not session:
+        return jsonify({'success': False, 'message': '진행 중인 세션이 없습니다.'}), 404
+    
+    status = request.json.get('status', 'preparing')
+    if status not in ['preparing', 'live', 'ended']:
+        return jsonify({'success': False, 'message': '유효하지 않은 상태입니다.'}), 400
+    
+    session.live_status = status
+    if status == 'ended':
+        session.ended_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'status': status,
+        'status_display': session.get_live_status_display()
+    })

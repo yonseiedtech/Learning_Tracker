@@ -23,8 +23,8 @@ def index():
 @login_required
 def dashboard():
     if current_user.is_instructor():
-        courses = Course.query.filter_by(instructor_id=current_user.id).all()
-        subjects = Subject.query.filter_by(instructor_id=current_user.id).all()
+        courses = Course.query.filter_by(instructor_id=current_user.id).filter(Course.deleted_at.is_(None)).all()
+        subjects = Subject.query.filter_by(instructor_id=current_user.id).filter(Subject.deleted_at.is_(None)).all()
         
         total_students = db.session.query(func.count(func.distinct(Enrollment.user_id))).join(Course).filter(
             Course.instructor_id == current_user.id
@@ -37,11 +37,13 @@ def dashboard():
         
         active_sessions = ActiveSession.query.join(Course).filter(
             Course.instructor_id == current_user.id,
+            Course.deleted_at.is_(None),
             ActiveSession.ended_at == None
         ).all()
         
         upcoming_sessions = ActiveSession.query.join(Course).filter(
             Course.instructor_id == current_user.id,
+            Course.deleted_at.is_(None),
             ActiveSession.session_type == 'scheduled',
             ActiveSession.scheduled_at > datetime.utcnow(),
             ActiveSession.ended_at == None
@@ -63,7 +65,7 @@ def dashboard():
         )
     else:
         enrollments = Enrollment.query.filter_by(user_id=current_user.id).all()
-        courses = [e.course for e in enrollments]
+        courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private']
         
         total_completed = Progress.query.filter_by(user_id=current_user.id).filter(Progress.completed_at != None).count()
         
@@ -98,6 +100,8 @@ def dashboard():
         
         upcoming_for_student = ActiveSession.query.join(Course).join(Enrollment).filter(
             Enrollment.user_id == current_user.id,
+            Course.deleted_at.is_(None),
+            Course.visibility != 'private',
             ActiveSession.session_type == 'scheduled',
             ActiveSession.scheduled_at > datetime.utcnow(),
             ActiveSession.ended_at == None

@@ -22,13 +22,25 @@
             <small class="text-muted"><i class="bi bi-person me-1"></i>강사: {{ subject.instructor.username }}</small>
         </div>
         {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i>세션 추가
-            </a>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            {% if not subject.is_visible %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-eye-slash me-1"></i>비공개</span>
+            {% endif %}
             <a href="{{ url_for('subjects.edit', subject_id=subject.id) }}" class="btn btn-outline-primary">
                 <i class="bi bi-pencil me-1"></i>수정
             </a>
+            <form action="{{ url_for('subjects.toggle_subject_visibility', subject_id=subject.id) }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-secondary" title="{{ '공개로 전환' if not subject.is_visible else '비공개로 전환' }}">
+                    <i class="bi bi-{{ 'eye' if not subject.is_visible else 'eye-slash' }}"></i>
+                </button>
+            </form>
+            <form action="{{ url_for('subjects.delete_subject', subject_id=subject.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말 이 과목을 삭제하시겠습니까? 모든 세션과 데이터가 함께 삭제됩니다.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-danger" title="과목 삭제">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </form>
         </div>
         {% elif not current_user.is_instructor() %}
         <div>
@@ -70,7 +82,14 @@
 {% endif %}
 
 <div class="glass-card p-4">
-    <h5 class="fw-bold mb-4"><i class="bi bi-calendar-week me-2 text-primary"></i>주차별 세션</h5>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0"><i class="bi bi-calendar-week me-2 text-primary"></i>주차별 세션</h5>
+        {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+        <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>세션 추가
+        </a>
+        {% endif %}
+    </div>
     
     {% if courses %}
     <div class="table-responsive">
@@ -86,7 +105,8 @@
             </thead>
             <tbody>
                 {% for course in courses %}
-                <tr>
+                {% if not course.deleted_at %}
+                <tr class="{{ 'table-secondary' if course.visibility == 'private' else '' }}">
                     <td>
                         <span class="badge bg-primary bg-opacity-10 text-primary fs-6">
                             {{ course.week_number or '-' }}주차
@@ -94,6 +114,9 @@
                     </td>
                     <td>
                         <strong>{{ course.title }}</strong>
+                        {% if course.visibility == 'private' %}
+                        <span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash"></i></span>
+                        {% endif %}
                         {% if course.description %}
                         <br><small class="text-muted">{{ course.description[:50] }}{% if course.description|length > 50 %}...{% endif %}</small>
                         {% endif %}
@@ -104,17 +127,40 @@
                     <td>
                         {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
                         {% if active_session %}
-                        <span class="badge bg-primary"><i class="bi bi-broadcast me-1"></i>진행 중</span>
+                            {% if active_session.live_status == 'live' %}
+                            <span class="badge bg-danger"><i class="bi bi-broadcast me-1"></i>라이브 중</span>
+                            {% elif active_session.live_status == 'preparing' %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>준비중</span>
+                            {% else %}
+                            <span class="badge bg-secondary"><i class="bi bi-stop-circle me-1"></i>종료</span>
+                            {% endif %}
                         {% else %}
                         <span class="badge bg-secondary">대기 중</span>
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye me-1"></i>보기
-                        </a>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary" title="보기">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+                            <form action="{{ url_for('subjects.toggle_course_visibility', course_id=course.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ '공개로 전환' if course.visibility == 'private' else '비공개로 전환' }}">
+                                    <i class="bi bi-{{ 'eye' if course.visibility == 'private' else 'eye-slash' }}"></i>
+                                </button>
+                            </form>
+                            <form action="{{ url_for('subjects.delete_course', course_id=course.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말 이 세션을 삭제하시겠습니까?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="세션 삭제">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>

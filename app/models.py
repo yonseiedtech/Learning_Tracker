@@ -62,6 +62,8 @@ class Subject(db.Model):
     description = db.Column(db.Text)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
+    is_visible = db.Column(db.Boolean, default=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -92,6 +94,7 @@ class Course(db.Model):
     week_number = db.Column(db.Integer, nullable=True)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -222,6 +225,7 @@ class ActiveSession(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     mode = db.Column(db.String(20), nullable=False, default='live')
     session_type = db.Column(db.String(20), nullable=False, default='immediate')
+    live_status = db.Column(db.String(20), default='preparing')
     scheduled_at = db.Column(db.DateTime, nullable=True)
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime, nullable=True)
@@ -236,6 +240,14 @@ class ActiveSession(db.Model):
         if self.scheduled_at:
             return datetime.utcnow() >= self.scheduled_at
         return False
+    
+    def get_live_status_display(self):
+        status_map = {
+            'preparing': '라이브 준비중',
+            'live': '라이브 중',
+            'ended': '라이브 종료'
+        }
+        return status_map.get(self.live_status, '대기중')
 
 class UnderstandingStatus(db.Model):
     __tablename__ = 'understanding_status'
