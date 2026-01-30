@@ -3,6 +3,17 @@
 {% block title %}로그인 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark glass-nav position-fixed w-100" style="z-index: 1001;">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
+            <i class="bi bi-mortarboard-fill me-2"></i>학습 트래커
+        </a>
+        <div class="ms-auto d-flex gap-2">
+            <a class="nav-link text-white" href="{{ url_for('auth.login') }}">로그인</a>
+            <a class="btn btn-light btn-sm px-3" href="{{ url_for('auth.register') }}">회원가입</a>
+        </div>
+    </div>
+</nav>
 <div class="login-page-wrapper">
     <div class="login-bg-overlay"></div>
     <div class="container position-relative">

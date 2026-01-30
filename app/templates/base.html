@@ -44,7 +44,12 @@
                     {% endif %}
                     {% endif %}
                 </ul>
-                <ul class="navbar-nav">
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item me-2">
+                        <button class="btn btn-link nav-link p-0" id="themeToggle" onclick="toggleTheme()" title="테마 변경">
+                            <i class="bi bi-sun-fill" id="themeIcon"></i>
+                        </button>
+                    </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
@@ -94,6 +99,30 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+    }
+    
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+    }
+    
+    function updateThemeIcon(theme) {
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+        }
+    }
+    
+    initTheme();
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

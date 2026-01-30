@@ -725,3 +725,176 @@ main {
         opacity: 1;
     }
 }
+
+/* Dark Mode Styles */
+[data-theme="dark"] {
+    --glass-bg: rgba(30, 35, 45, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+    background-attachment: fixed;
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .glass-card {
+    background: rgba(30, 35, 45, 0.95);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .glass-dropdown {
+    background: rgba(30, 35, 45, 0.98);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .text-muted {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: #e4e6eb !important;
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4, 
+[data-theme="dark"] h5, 
+[data-theme="dark"] h6 {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .card {
+    background: rgba(30, 35, 45, 0.95);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .table {
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background: rgba(20, 25, 35, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background: rgba(25, 30, 40, 0.95);
+    border-color: var(--navy-accent);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .input-group-text {
+    background: rgba(20, 25, 35, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .list-group-item {
+    background: rgba(30, 35, 45, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .modal-content {
+    background: rgba(30, 35, 45, 0.98);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e4e6eb;
+}
+
+[data-theme="dark"] .modal-header {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-footer {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1);
+}
+
+[data-theme="dark"] .footer-modern {
+    background: rgba(15, 20, 25, 0.9);
+    border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+    background: rgba(30, 35, 45, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .tab-content {
+    background: rgba(30, 35, 45, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .alert {
+    background: rgba(30, 35, 45, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .progress {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .badge.bg-light {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #e4e6eb !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: rgba(255, 255, 255, 0.7);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .checkpoint-item {
+    background: rgba(30, 35, 45, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .chat-bubble {
+    background: rgba(40, 45, 55, 0.9);
+}
+
+[data-theme="dark"] .chat-bubble.own {
+    background: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
+}
+
+[data-theme="dark"] #themeToggle {
+    color: #ffc107;
+}
