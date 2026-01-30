@@ -103,6 +103,8 @@ class Subject(db.Model):
     
     instructor = db.relationship('User', backref='subjects_taught')
     courses = db.relationship('Course', backref='subject', lazy='dynamic', cascade='all, delete-orphan')
+    enrollments = db.relationship('SubjectEnrollment', backref='enrolled_subject', lazy='dynamic')
+    members = db.relationship('SubjectMember', backref='member_subject', lazy='dynamic')
     
     @staticmethod
     def generate_invite_code():
@@ -511,7 +513,6 @@ class SubjectEnrollment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    subject = db.relationship('Subject', backref='enrollments')
     user = db.relationship('User', backref='subject_enrollments')
     
     __table_args__ = (db.UniqueConstraint('subject_id', 'user_id', name='unique_subject_enrollment'),)
@@ -570,7 +571,6 @@ class SubjectMember(db.Model):
     role = db.Column(db.String(30), nullable=False, default='student')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    subject = db.relationship('Subject', backref=db.backref('members', lazy='dynamic'))
     user = db.relationship('User', backref=db.backref('subject_memberships', lazy='dynamic'))
     
     __table_args__ = (db.UniqueConstraint('subject_id', 'user_id', name='unique_subject_member'),)

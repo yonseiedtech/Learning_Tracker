@@ -163,7 +163,7 @@ def account_settings():
         basic_info_form.email.data = current_user.email
         basic_info_form.phone.data = current_user.phone
         
-        additional_form.organization.data = current_user.organization
+        additional_form.organization.data = current_user.organization_name
         additional_form.position.data = current_user.position
         additional_form.job_title.data = current_user.job_title
     
@@ -235,7 +235,7 @@ def account_settings():
         
         elif action == 'additional_info':
             if additional_form.validate_on_submit():
-                current_user.organization = additional_form.organization.data
+                current_user.organization_name = additional_form.organization.data
                 current_user.position = additional_form.position.data
                 current_user.job_title = additional_form.job_title.data
                 db.session.commit()
