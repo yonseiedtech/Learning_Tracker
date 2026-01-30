@@ -5,7 +5,7 @@
 {% block content %}
 <style>
 .landing-dark {
-    background: #0a0a0a;
+    background: #050508;
     color: #ffffff;
     margin: -2rem calc(-50vw + 50%);
     margin-top: -2rem;
@@ -16,6 +16,7 @@
     right: 50%;
     margin-left: -50vw;
     margin-right: -50vw;
+    overflow-x: hidden;
 }
 
 .landing-nav {
@@ -24,33 +25,74 @@
     left: 0;
     right: 0;
     z-index: 1000;
-    padding: 1.5rem 3rem;
+    padding: 1rem 3rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(10, 10, 10, 0.8);
+    background: rgba(5, 5, 8, 0.85);
     backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    transition: all 0.3s ease;
+}
+
+.landing-nav.scrolled {
+    padding: 0.75rem 3rem;
+    background: rgba(5, 5, 8, 0.95);
+}
+
+.landing-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: #fff;
+}
+
+.landing-logo-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
 }
 
 .landing-nav-links {
     display: flex;
-    gap: 2rem;
+    gap: 2.5rem;
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
 .landing-nav-links a {
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.5);
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 500;
-    transition: color 0.3s ease;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.landing-nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    transition: width 0.3s ease;
 }
 
 .landing-nav-links a:hover {
     color: #ffffff;
+}
+
+.landing-nav-links a:hover::after {
+    width: 100%;
 }
 
 .landing-hero {
@@ -60,7 +102,7 @@
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 8rem 2rem 4rem;
+    padding: 10rem 2rem 6rem;
     position: relative;
     overflow: hidden;
 }
@@ -68,39 +110,91 @@
 .landing-hero::before {
     content: '';
     position: absolute;
-    top: 0;
+    top: -50%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.08) 30%, transparent 70%);
+    pointer-events: none;
+}
+
+.landing-hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: radial-gradient(ellipse at center top, rgba(26, 58, 92, 0.3) 0%, transparent 60%);
+    height: 300px;
+    background: linear-gradient(to top, #050508, transparent);
     pointer-events: none;
 }
 
 .landing-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
     border-radius: 100px;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: #3b82f6;
     margin-bottom: 2rem;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.landing-badge i {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .landing-title {
-    font-size: clamp(2.5rem, 8vw, 5rem);
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: clamp(3rem, 10vw, 5.5rem);
+    font-weight: 800;
+    line-height: 1.05;
     margin-bottom: 1.5rem;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.landing-title-gradient {
+    background: linear-gradient(135deg, #ffffff 0%, #3b82f6 50%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .landing-subtitle {
-    font-size: clamp(1rem, 2.5vw, 1.5rem);
-    color: rgba(255, 255, 255, 0.6);
-    max-width: 700px;
-    line-height: 1.6;
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    color: rgba(255, 255, 255, 0.5);
+    max-width: 600px;
+    line-height: 1.7;
     margin-bottom: 3rem;
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.landing-cta-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeInUp 0.6s ease-out 0.3s both;
 }
 
 .landing-cta {
@@ -108,247 +202,400 @@
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 2rem;
-    background: #ffffff;
-    color: #0a0a0a;
-    border-radius: 100px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #ffffff;
+    border-radius: 14px;
     text-decoration: none;
     font-weight: 600;
     font-size: 1rem;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 }
 
 .landing-cta:hover {
-    transform: scale(1.05);
-    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.15);
-    color: #0a0a0a;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+    color: #ffffff;
 }
 
 .landing-cta-secondary {
-    background: transparent;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: none;
 }
 
 .landing-cta-secondary:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
     color: #ffffff;
 }
 
-.landing-section {
-    padding: 8rem 2rem;
-    position: relative;
-}
-
-.landing-section-nav {
-    position: sticky;
-    top: 100px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.landing-section-nav a {
-    color: rgba(255, 255, 255, 0.4);
-    text-decoration: none;
-    padding: 0.5rem 0;
-    border-left: 2px solid transparent;
-    padding-left: 1rem;
-    transition: all 0.3s ease;
-}
-
-.landing-section-nav a:hover,
-.landing-section-nav a.active {
-    color: #ffffff;
-    border-left-color: #ffffff;
-}
-
-.landing-feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.landing-feature-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
-    padding: 2.5rem;
-    transition: all 0.3s ease;
-}
-
-.landing-feature-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    transform: translateY(-4px);
-}
-
-.landing-feature-icon {
-    width: 56px;
-    height: 56px;
-    background: linear-gradient(135deg, #1a3a5c 0%, #3d7ab8 100%);
-    border-radius: 16px;
+.landing-trust {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
+    gap: 2rem;
+    margin-top: 4rem;
+    padding-top: 3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    animation: fadeInUp 0.6s ease-out 0.4s both;
 }
 
-.landing-feature-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
+.landing-trust-item {
+    text-align: center;
 }
 
-.landing-feature-desc {
-    color: rgba(255, 255, 255, 0.5);
-    line-height: 1.7;
-    font-size: 0.95rem;
+.landing-trust-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.landing-trust-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 0.25rem;
 }
 
 .landing-showcase {
-    max-width: 1000px;
+    max-width: 1100px;
     margin: 4rem auto 0;
     position: relative;
+    z-index: 1;
+    animation: fadeInUp 0.8s ease-out 0.5s both;
 }
 
 .landing-showcase-card {
-    background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(20, 20, 25, 0.9) 0%, rgba(30, 30, 40, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 24px;
-    padding: 2rem;
-    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+    padding: 1.5rem;
+    box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .landing-showcase-header {
     display: flex;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 1.5rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
 }
 
 .landing-showcase-dot {
     width: 12px;
     height: 12px;
     border-radius: 50%;
+    opacity: 0.8;
 }
 
 .landing-showcase-dot.red { background: #ff5f57; }
 .landing-showcase-dot.yellow { background: #febc2e; }
 .landing-showcase-dot.green { background: #28c840; }
 
+.landing-showcase-title {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
 .landing-showcase-content {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
 }
 
 .landing-showcase-item {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: 16px;
-    padding: 1.5rem;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.landing-showcase-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(59, 130, 246, 0.2);
+    transform: translateY(-2px);
 }
 
 .landing-showcase-item h4 {
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
     margin-bottom: 0.5rem;
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .landing-showcase-item .value {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: #ffffff;
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.landing-showcase-item .value span {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
 }
 
 .landing-showcase-progress {
-    height: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 100px;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     overflow: hidden;
 }
 
 .landing-showcase-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #3d7ab8 0%, #11998e 100%);
+    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
     border-radius: 100px;
-    animation: progressGrow 2s ease-out forwards;
+    animation: progressGrow 2s ease-out 1s forwards;
+    width: 0;
 }
 
 @keyframes progressGrow {
-    from { width: 0; }
     to { width: 78%; }
 }
 
-.landing-divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    margin: 0 2rem;
+.landing-section {
+    padding: 8rem 2rem;
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.landing-section-header {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.landing-section-badge {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    color: #8b5cf6;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
 }
 
 .landing-section-title {
-    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-size: clamp(2rem, 5vw, 3rem);
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     letter-spacing: -0.02em;
 }
 
 .landing-section-desc {
     color: rgba(255, 255, 255, 0.5);
     font-size: 1.1rem;
-    max-width: 600px;
+    max-width: 550px;
+    margin: 0 auto;
     line-height: 1.7;
 }
 
-.landing-stats {
+.landing-feature-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
-    max-width: 800px;
-    margin: 4rem auto 0;
-    text-align: center;
+    gap: 1.5rem;
 }
 
-.landing-stat-value {
-    font-size: 3rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #ffffff 0%, #3d7ab8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+.landing-feature-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 20px;
+    padding: 2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
-.landing-stat-label {
-    color: rgba(255, 255, 255, 0.5);
+.landing-feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.landing-feature-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(59, 130, 246, 0.15);
+    transform: translateY(-4px);
+}
+
+.landing-feature-card:hover::before {
+    opacity: 1;
+}
+
+.landing-feature-icon {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 1.25rem;
+    transition: transform 0.3s ease;
+}
+
+.landing-feature-card:hover .landing-feature-icon {
+    transform: scale(1.05);
+}
+
+.landing-feature-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: #ffffff;
+}
+
+.landing-feature-desc {
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.65;
     font-size: 0.9rem;
-    margin-top: 0.5rem;
 }
 
-.landing-footer {
-    padding: 4rem 2rem;
-    text-align: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+.landing-testimonials {
+    padding: 6rem 2rem;
+    background: rgba(59, 130, 246, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.landing-footer-cta {
-    max-width: 600px;
+.landing-testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
-.landing-footer-title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
+.landing-testimonial-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 20px;
+    padding: 2rem;
 }
 
-.landing-footer-desc {
+.landing-testimonial-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+}
+
+.landing-testimonial-author {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.landing-testimonial-avatar {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.landing-testimonial-info h5 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.landing-testimonial-info span {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.landing-cta-section {
+    padding: 8rem 2rem;
+    text-align: center;
+    position: relative;
+}
+
+.landing-cta-section::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.landing-cta-card {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 4rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+.landing-cta-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+}
+
+.landing-cta-desc {
     color: rgba(255, 255, 255, 0.5);
+    font-size: 1.1rem;
     margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.landing-footer {
+    padding: 3rem 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    text-align: center;
+}
+
+.landing-footer-text {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 992px) {
+    .landing-feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .landing-testimonial-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .landing-showcase-content {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 768px) {
@@ -360,58 +607,88 @@
         display: none;
     }
     
-    .landing-showcase-content {
-        grid-template-columns: 1fr;
+    .landing-hero {
+        padding: 8rem 1.5rem 4rem;
     }
     
-    .landing-stats {
-        grid-template-columns: 1fr;
+    .landing-trust {
+        flex-direction: column;
         gap: 1.5rem;
     }
     
     .landing-feature-grid {
         grid-template-columns: 1fr;
     }
+    
+    .landing-showcase-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .landing-cta-card {
+        padding: 2.5rem 1.5rem;
+    }
+    
+    .landing-cta-title {
+        font-size: 1.75rem;
+    }
 }
 </style>
 
 <div class="landing-dark">
-    <nav class="landing-nav">
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-mortarboard-fill" style="font-size: 1.5rem;"></i>
+    <nav class="landing-nav" id="landingNav">
+        <a href="{{ url_for('main.index') }}" class="landing-logo">
+            <div class="landing-logo-icon">
+                <i class="bi bi-mortarboard-fill"></i>
+            </div>
             <span class="fw-bold">학습 트래커</span>
-        </div>
+        </a>
         <ul class="landing-nav-links">
-            <li><a href="#features">기능</a></li>
-            <li><a href="#showcase">미리보기</a></li>
-            <li><a href="#modes">학습 모드</a></li>
+            <li><a href="#features">주요 기능</a></li>
+            <li><a href="#testimonials">사용자 후기</a></li>
+            <li><a href="#start">시작하기</a></li>
         </ul>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('auth.login') }}" class="landing-cta-secondary landing-cta" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">로그인</a>
-            <a href="{{ url_for('auth.register') }}" class="landing-cta" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">시작하기</a>
+            <a href="{{ url_for('auth.login') }}" class="landing-cta landing-cta-secondary" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">로그인</a>
+            <a href="{{ url_for('auth.register') }}" class="landing-cta" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">무료 시작</a>
         </div>
     </nav>
 
     <section class="landing-hero">
         <span class="landing-badge">
-            <i class="bi bi-lightning-fill me-1"></i>실시간 학습 모니터링 플랫폼
+            <i class="bi bi-stars"></i>
+            교육 현장을 위한 스마트 솔루션
         </span>
         <h1 class="landing-title">
-            학습 진도를<br>한눈에.
+            <span class="landing-title-gradient">학습 진도</span>를<br>한눈에 파악하세요
         </h1>
         <p class="landing-subtitle">
-            강의실 실시간 동기화와 자기주도 학습 분석을 통해<br>
-            효과적인 학습 경험을 설계합니다.
+            실시간 강의실 동기화와 AI 기반 학습 분석으로<br>
+            교수자와 학습자 모두에게 최적의 경험을 제공합니다.
         </p>
-        <div class="d-flex gap-3 flex-wrap justify-content-center">
+        <div class="landing-cta-group">
             <a href="{{ url_for('auth.register') }}" class="landing-cta">
-                <i class="bi bi-arrow-right"></i>
+                <i class="bi bi-arrow-right-circle-fill"></i>
                 무료로 시작하기
             </a>
             <a href="{{ url_for('auth.login') }}" class="landing-cta landing-cta-secondary">
-                <i class="bi bi-play-circle"></i>
+                <i class="bi bi-play-circle-fill"></i>
                 로그인
             </a>
+        </div>
+        
+        <div class="landing-trust">
+            <div class="landing-trust-item">
+                <div class="landing-trust-value">500+</div>
+                <div class="landing-trust-label">활성 강좌</div>
+            </div>
+            <div class="landing-trust-item">
+                <div class="landing-trust-value">10,000+</div>
+                <div class="landing-trust-label">학습자</div>
+            </div>
+            <div class="landing-trust-item">
+                <div class="landing-trust-value">98%</div>
+                <div class="landing-trust-label">만족도</div>
+            </div>
         </div>
         
         <div class="landing-showcase">
@@ -420,42 +697,39 @@
                     <div class="landing-showcase-dot red"></div>
                     <div class="landing-showcase-dot yellow"></div>
                     <div class="landing-showcase-dot green"></div>
+                    <div class="landing-showcase-title">학습 대시보드</div>
                 </div>
                 <div class="landing-showcase-content">
                     <div class="landing-showcase-item">
-                        <h4>전체 진행률</h4>
-                        <div class="value">78%</div>
+                        <h4>진행률</h4>
+                        <div class="value">78<span>%</span></div>
                         <div class="landing-showcase-progress">
                             <div class="landing-showcase-progress-bar"></div>
                         </div>
                     </div>
                     <div class="landing-showcase-item">
-                        <h4>완료한 체크포인트</h4>
-                        <div class="value">24<span style="font-size: 1rem; color: rgba(255,255,255,0.5);"> / 32</span></div>
+                        <h4>체크포인트</h4>
+                        <div class="value">24<span>/32</span></div>
                     </div>
                     <div class="landing-showcase-item">
-                        <h4>총 학습 시간</h4>
-                        <div class="value">12<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">시간</span> 45<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">분</span></div>
+                        <h4>학습 시간</h4>
+                        <div class="value">12<span>h</span> 45<span>m</span></div>
                     </div>
                     <div class="landing-showcase-item">
-                        <h4>연속 학습일</h4>
-                        <div class="value" style="display: flex; align-items: center; gap: 0.5rem;">
-                            7<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">일</span>
-                            <i class="bi bi-fire" style="color: #ff6b35; font-size: 1.5rem;"></i>
-                        </div>
+                        <h4>연속 학습</h4>
+                        <div class="value">7<span>일</span> <i class="bi bi-fire" style="color: #f97316;"></i></div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <div class="landing-divider"></div>
-
     <section class="landing-section" id="features">
-        <div class="text-center mb-5">
+        <div class="landing-section-header">
+            <span class="landing-section-badge">Features</span>
             <h2 class="landing-section-title">왜 학습 트래커인가요?</h2>
-            <p class="landing-section-desc mx-auto">
-                강사와 학생 모두를 위한 직관적인 학습 관리 솔루션
+            <p class="landing-section-desc">
+                교육 현장의 니즈를 반영한 핵심 기능들로 효과적인 학습 관리를 지원합니다.
             </p>
         </div>
         
@@ -464,129 +738,137 @@
                 <div class="landing-feature-icon">
                     <i class="bi bi-broadcast"></i>
                 </div>
-                <h3 class="landing-feature-title">라이브 세션</h3>
+                <h3 class="landing-feature-title">실시간 라이브 세션</h3>
                 <p class="landing-feature-desc">
-                    실시간 강의실에서 모든 학생의 진도를 한눈에 확인하고 
-                    즉각적인 피드백을 제공합니다.
+                    강의 중 모든 학생의 진도를 실시간으로 확인하고 즉각적인 피드백을 제공합니다.
                 </p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);">
                     <i class="bi bi-person-workspace"></i>
                 </div>
                 <h3 class="landing-feature-title">자기주도 학습</h3>
                 <p class="landing-feature-desc">
-                    개인별 학습 시간과 패턴을 분석하여 
-                    맞춤형 학습 인사이트를 제공합니다.
+                    개인별 학습 시간과 패턴을 분석하여 맞춤형 학습 인사이트를 제공합니다.
                 </p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
-                <h3 class="landing-feature-title">상세 분석</h3>
+                <h3 class="landing-feature-title">상세 분석 리포트</h3>
                 <p class="landing-feature-desc">
-                    완료율, 소요 시간, 학습 패턴 등 
-                    다양한 데이터 시각화 및 리포트를 제공합니다.
+                    완료율, 소요 시간, 학습 패턴 등 다양한 데이터 시각화 및 리포트를 제공합니다.
                 </p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);">
                     <i class="bi bi-robot"></i>
                 </div>
-                <h3 class="landing-feature-title">AI 체크포인트</h3>
+                <h3 class="landing-feature-title">AI 체크포인트 생성</h3>
                 <p class="landing-feature-desc">
-                    PPT, 영상, 음성 파일을 분석하여 
-                    자동으로 학습 체크포인트를 생성합니다.
+                    PPT, 영상, 음성 파일을 분석하여 자동으로 학습 체크포인트를 생성합니다.
                 </p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);">
                     <i class="bi bi-chat-dots"></i>
                 </div>
-                <h3 class="landing-feature-title">실시간 채팅</h3>
+                <h3 class="landing-feature-title">실시간 소통</h3>
                 <p class="landing-feature-desc">
-                    라이브 세션 중 @멘션, 메시지 편집/삭제 등 
-                    풍부한 채팅 기능을 지원합니다.
+                    @멘션, 메시지 편집/삭제, 게시판 등 풍부한 커뮤니케이션 기능을 지원합니다.
                 </p>
             </div>
             <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);">
                     <i class="bi bi-calendar-check"></i>
                 </div>
                 <h3 class="landing-feature-title">출석 관리</h3>
                 <p class="landing-feature-desc">
-                    세션별 출석 체크와 관리 기능으로 
-                    참석 현황을 손쉽게 파악합니다.
+                    세션별 출석 체크와 관리 기능으로 참석 현황을 손쉽게 파악합니다.
                 </p>
             </div>
         </div>
     </section>
 
-    <div class="landing-divider"></div>
-
-    <section class="landing-section" id="modes">
-        <div class="text-center">
-            <h2 class="landing-section-title">두 가지 학습 모드</h2>
-            <p class="landing-section-desc mx-auto">
-                상황에 맞는 최적의 학습 환경을 제공합니다
+    <section class="landing-testimonials" id="testimonials">
+        <div class="landing-section-header">
+            <span class="landing-section-badge">Testimonials</span>
+            <h2 class="landing-section-title">사용자들의 이야기</h2>
+            <p class="landing-section-desc">
+                실제 교육 현장에서 학습 트래커를 사용하고 있는 분들의 후기입니다.
             </p>
         </div>
         
-        <div class="landing-stats">
-            <div>
-                <div class="landing-stat-value">실시간</div>
-                <div class="landing-stat-label">라이브 세션 동기화</div>
-            </div>
-            <div>
-                <div class="landing-stat-value">자유</div>
-                <div class="landing-stat-label">자기주도 학습</div>
-            </div>
-            <div>
-                <div class="landing-stat-value">분석</div>
-                <div class="landing-stat-label">학습 패턴 인사이트</div>
-            </div>
-        </div>
-        
-        <div class="landing-feature-grid" style="margin-top: 4rem;">
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon">
-                    <i class="bi bi-broadcast-pin"></i>
-                </div>
-                <h3 class="landing-feature-title">라이브 모드</h3>
-                <p class="landing-feature-desc">
-                    강사가 진행하는 실시간 강의에서 모든 학생의 진도가 
-                    동기화됩니다. 누가 어디까지 완료했는지 한눈에 파악하고, 
-                    게시판과 채팅으로 소통하세요.
+        <div class="landing-testimonial-grid">
+            <div class="landing-testimonial-card">
+                <p class="landing-testimonial-text">
+                    "실시간으로 학생들의 진도를 확인할 수 있어서 누가 어려움을 겪고 있는지 바로 알 수 있습니다. 수업 효율이 크게 올랐어요."
                 </p>
-            </div>
-            <div class="landing-feature-card">
-                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                    <i class="bi bi-journal-bookmark"></i>
+                <div class="landing-testimonial-author">
+                    <div class="landing-testimonial-avatar">김</div>
+                    <div class="landing-testimonial-info">
+                        <h5>김교수</h5>
+                        <span>컴퓨터공학과 교수</span>
+                    </div>
                 </div>
-                <h3 class="landing-feature-title">자습 모드</h3>
-                <p class="landing-feature-desc">
-                    자신만의 속도로 학습하세요. 학습 시간이 자동으로 측정되고, 
-                    일시정지/재개 기능으로 정확한 시간을 기록합니다. 
-                    필요하면 시간을 초기화할 수도 있습니다.
+            </div>
+            <div class="landing-testimonial-card">
+                <p class="landing-testimonial-text">
+                    "자기주도 학습 모드가 정말 좋아요. 제 학습 시간이 정확히 기록되니까 시간 관리가 훨씬 수월해졌습니다."
                 </p>
+                <div class="landing-testimonial-author">
+                    <div class="landing-testimonial-avatar">이</div>
+                    <div class="landing-testimonial-info">
+                        <h5>이학생</h5>
+                        <span>대학교 3학년</span>
+                    </div>
+                </div>
+            </div>
+            <div class="landing-testimonial-card">
+                <p class="landing-testimonial-text">
+                    "AI가 자동으로 체크포인트를 만들어주니 강의 준비 시간이 절반으로 줄었습니다. 혁신적인 도구예요."
+                </p>
+                <div class="landing-testimonial-author">
+                    <div class="landing-testimonial-avatar">박</div>
+                    <div class="landing-testimonial-info">
+                        <h5>박강사</h5>
+                        <span>온라인 교육 강사</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
-    <div class="landing-divider"></div>
-
-    <footer class="landing-footer">
-        <div class="landing-footer-cta">
-            <h3 class="landing-footer-title">지금 바로 시작하세요</h3>
-            <p class="landing-footer-desc">
-                무료로 강좌를 만들고 학습 진도를 효과적으로 관리해보세요
+    <section class="landing-cta-section" id="start">
+        <div class="landing-cta-card">
+            <h2 class="landing-cta-title">지금 바로 시작하세요</h2>
+            <p class="landing-cta-desc">
+                무료로 강좌를 만들고 학습 진도를 효과적으로 관리해보세요.<br>
+                설정은 5분이면 충분합니다.
             </p>
             <a href="{{ url_for('auth.register') }}" class="landing-cta">
-                <i class="bi bi-arrow-right"></i>
-                회원가입하기
+                <i class="bi bi-arrow-right-circle-fill"></i>
+                무료 회원가입
             </a>
         </div>
+    </section>
+
+    <footer class="landing-footer">
+        <p class="landing-footer-text">
+            © 2026 학습 진도 트래커. 효율적인 학습 관리 시스템.
+        </p>
     </footer>
 </div>
+
+<script>
+window.addEventListener('scroll', function() {
+    const nav = document.getElementById('landingNav');
+    if (window.scrollY > 50) {
+        nav.classList.add('scrolled');
+    } else {
+        nav.classList.remove('scrolled');
+    }
+});
+</script>
 {% endblock %}

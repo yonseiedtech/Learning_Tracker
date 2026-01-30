@@ -1,18 +1,26 @@
 :root {
-    --primary-gradient: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
-    --secondary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    --tertiary-gradient: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
-    --navy-primary: #0d1b3e;
-    --navy-secondary: #1a3a5c;
-    --navy-light: #2a5a8c;
-    --navy-accent: #3d7ab8;
-    --glass-bg: rgba(255, 255, 255, 0.95);
-    --glass-border: rgba(255, 255, 255, 0.18);
-    --shadow-soft: 0 8px 32px rgba(13, 27, 62, 0.1);
-    --shadow-hover: 0 16px 48px rgba(13, 27, 62, 0.15);
-    --border-radius: 16px;
-    --border-radius-lg: 24px;
-    --border-radius-sm: 12px;
+    --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    --secondary-gradient: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    --tertiary-gradient: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --accent-color: #8b5cf6;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --navy-primary: #0f172a;
+    --navy-secondary: #1e293b;
+    --navy-light: #334155;
+    --navy-accent: #3b82f6;
+    --glass-bg: rgba(255, 255, 255, 0.98);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.1);
+    --border-radius: 14px;
+    --border-radius-lg: 20px;
+    --border-radius-sm: 10px;
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -32,10 +40,53 @@ main {
 }
 
 .glass-nav {
-    background: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     padding: 0.75rem 0;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    transition: var(--transition-normal);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+    background: var(--primary-gradient);
+}
+
+.btn-success {
+    background: var(--secondary-gradient);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    border-radius: var(--border-radius-sm);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .glass-card {
@@ -43,12 +94,17 @@ main {
     border-radius: var(--border-radius);
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-soft);
-    transition: all 0.3s ease;
+    transition: var(--transition-normal);
 }
 
 .glass-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-2px);
     box-shadow: var(--shadow-hover);
+}
+
+.glass-card.no-hover:hover {
+    transform: none;
+    box-shadow: var(--shadow-soft);
 }
 
 .glass-dropdown {

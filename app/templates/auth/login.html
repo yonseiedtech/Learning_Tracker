@@ -116,44 +116,64 @@
 }
 
 .login-card .auth-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
-    border-radius: 20px;
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border-radius: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: 2rem;
     color: white;
     margin-bottom: 1rem;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25);
 }
 
 .login-card h2 {
-    color: #0d1b3e;
+    color: #0f172a;
+    font-weight: 700;
 }
 
 .login-card .form-check-input:checked {
-    background-color: #0d1b3e;
-    border-color: #0d1b3e;
+    background-color: #3b82f6;
+    border-color: #3b82f6;
 }
 
 .login-card .btn-primary {
-    background: linear-gradient(135deg, #0d1b3e 0%, #1a3a5c 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
     border: none;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
 .login-card .btn-primary:hover {
-    background: linear-gradient(135deg, #1a3a5c 0%, #2a5a8c 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(13, 27, 62, 0.3);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
 }
 
 .login-card .text-primary {
-    color: #1a3a5c !important;
+    color: #3b82f6 !important;
+    font-weight: 500;
 }
 
 .login-card .text-primary:hover {
-    color: #0d1b3e !important;
+    color: #2563eb !important;
+}
+
+.login-card .input-group-modern {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.login-card .form-control {
+    border-radius: 0 10px 10px 0;
+}
+
+.login-card .input-group-text {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #64748b;
 }
 </style>
 {% endblock %}
