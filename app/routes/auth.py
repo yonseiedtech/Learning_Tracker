@@ -95,8 +95,8 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('로그아웃되었습니다.', 'info')
-    return redirect(url_for('auth.login'))
+    flash('로그아웃되었습니다. 다음에 또 만나요!', 'success')
+    return redirect(url_for('main.index'))
 
 @bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
