@@ -2,6 +2,9 @@
 
 {% block title %}로그인 - 학습 진도 트래커{% endblock %}
 
+{% block navbar %}{% endblock %}
+{% block toasts %}{% endblock %}
+
 {% block content %}
 <style>
 .auth-page {
@@ -479,7 +482,6 @@
                                 <span>자동 로그인</span>
                             </label>
                         </div>
-                        <a href="{{ url_for('auth.forgot_password') }}" class="auth-forgot-link">비밀번호 찾기</a>
                     </div>
                     
                     <button type="submit" class="auth-btn">
@@ -490,6 +492,9 @@
                 
                 <div class="auth-footer">
                     계정이 없으신가요? <a href="{{ url_for('auth.register') }}">회원가입</a>
+                </div>
+                <div class="auth-footer" style="margin-top: 0.75rem;">
+                    <a href="{{ url_for('auth.forgot_password') }}" style="color: var(--auth-text-muted); font-weight: 500;">비밀번호를 잊으셨나요?</a>
                 </div>
             </div>
         </div>
