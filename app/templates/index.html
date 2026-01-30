@@ -3,114 +3,583 @@
 {% block title %}학습 진도 트래커 - 실시간 학습 관리 시스템{% endblock %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="row align-items-center min-vh-75">
-        <div class="col-lg-6 mb-5 mb-lg-0">
-            <span class="badge badge-gradient mb-3">실시간 학습 모니터링</span>
-            <h1 class="display-3 fw-bold mb-4">
-                <span class="gradient-text">스마트한</span> 학습 진도<br>관리의 시작
-            </h1>
-            <p class="lead text-muted mb-5">
-                실시간 강의실 추적과 자기주도 학습 분석을 통해<br>
-                효과적인 학습 경험을 제공합니다.
-            </p>
-            <div class="d-flex gap-3 flex-wrap">
-                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg">
-                    <i class="bi bi-rocket-takeoff me-2"></i>무료로 시작하기
-                </a>
-                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-lg px-4 py-3 rounded-pill">
-                    <i class="bi bi-play-circle me-2"></i>로그인
-                </a>
-            </div>
+<style>
+.landing-dark {
+    background: #0a0a0a;
+    color: #ffffff;
+    margin: -2rem -15px;
+    padding: 0;
+}
+
+.landing-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 1.5rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.landing-nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.landing-nav-links a {
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.landing-nav-links a:hover {
+    color: #ffffff;
+}
+
+.landing-hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.landing-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at center top, rgba(26, 58, 92, 0.3) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.landing-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 100px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 2rem;
+}
+
+.landing-title {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.landing-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 700px;
+    line-height: 1.6;
+    margin-bottom: 3rem;
+}
+
+.landing-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: #ffffff;
+    color: #0a0a0a;
+    border-radius: 100px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.landing-cta:hover {
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px rgba(255, 255, 255, 0.15);
+    color: #0a0a0a;
+}
+
+.landing-cta-secondary {
+    background: transparent;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.landing-cta-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+}
+
+.landing-section {
+    padding: 8rem 2rem;
+    position: relative;
+}
+
+.landing-section-nav {
+    position: sticky;
+    top: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.landing-section-nav a {
+    color: rgba(255, 255, 255, 0.4);
+    text-decoration: none;
+    padding: 0.5rem 0;
+    border-left: 2px solid transparent;
+    padding-left: 1rem;
+    transition: all 0.3s ease;
+}
+
+.landing-section-nav a:hover,
+.landing-section-nav a.active {
+    color: #ffffff;
+    border-left-color: #ffffff;
+}
+
+.landing-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.landing-feature-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    padding: 2.5rem;
+    transition: all 0.3s ease;
+}
+
+.landing-feature-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px);
+}
+
+.landing-feature-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #1a3a5c 0%, #3d7ab8 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.landing-feature-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.landing-feature-desc {
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.7;
+    font-size: 0.95rem;
+}
+
+.landing-showcase {
+    max-width: 1000px;
+    margin: 4rem auto 0;
+    position: relative;
+}
+
+.landing-showcase-card {
+    background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+}
+
+.landing-showcase-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.landing-showcase-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.landing-showcase-dot.red { background: #ff5f57; }
+.landing-showcase-dot.yellow { background: #febc2e; }
+.landing-showcase-dot.green { background: #28c840; }
+
+.landing-showcase-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.landing-showcase-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.landing-showcase-item h4 {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.landing-showcase-item .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.landing-showcase-progress {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 100px;
+    margin-top: 1rem;
+    overflow: hidden;
+}
+
+.landing-showcase-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3d7ab8 0%, #11998e 100%);
+    border-radius: 100px;
+    animation: progressGrow 2s ease-out forwards;
+}
+
+@keyframes progressGrow {
+    from { width: 0; }
+    to { width: 78%; }
+}
+
+.landing-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    margin: 0 2rem;
+}
+
+.landing-section-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.landing-section-desc {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.1rem;
+    max-width: 600px;
+    line-height: 1.7;
+}
+
+.landing-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    max-width: 800px;
+    margin: 4rem auto 0;
+    text-align: center;
+}
+
+.landing-stat-value {
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ffffff 0%, #3d7ab8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.landing-stat-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.landing-footer {
+    padding: 4rem 2rem;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.landing-footer-cta {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.landing-footer-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.landing-footer-desc {
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .landing-nav {
+        padding: 1rem 1.5rem;
+    }
+    
+    .landing-nav-links {
+        display: none;
+    }
+    
+    .landing-showcase-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .landing-stats {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .landing-feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="landing-dark">
+    <nav class="landing-nav">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-mortarboard-fill" style="font-size: 1.5rem;"></i>
+            <span class="fw-bold">학습 트래커</span>
         </div>
-        <div class="col-lg-6">
-            <div class="hero-visual">
-                <div class="floating-card card-1">
-                    <i class="bi bi-broadcast text-primary"></i>
-                    <span>실시간 동기화</span>
+        <ul class="landing-nav-links">
+            <li><a href="#features">기능</a></li>
+            <li><a href="#showcase">미리보기</a></li>
+            <li><a href="#modes">학습 모드</a></li>
+        </ul>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('auth.login') }}" class="landing-cta-secondary landing-cta" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">로그인</a>
+            <a href="{{ url_for('auth.register') }}" class="landing-cta" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">시작하기</a>
+        </div>
+    </nav>
+
+    <section class="landing-hero">
+        <span class="landing-badge">
+            <i class="bi bi-lightning-fill me-1"></i>실시간 학습 모니터링 플랫폼
+        </span>
+        <h1 class="landing-title">
+            학습 진도를<br>한눈에.
+        </h1>
+        <p class="landing-subtitle">
+            강의실 실시간 동기화와 자기주도 학습 분석을 통해<br>
+            효과적인 학습 경험을 설계합니다.
+        </p>
+        <div class="d-flex gap-3 flex-wrap justify-content-center">
+            <a href="{{ url_for('auth.register') }}" class="landing-cta">
+                <i class="bi bi-arrow-right"></i>
+                무료로 시작하기
+            </a>
+            <a href="{{ url_for('auth.login') }}" class="landing-cta landing-cta-secondary">
+                <i class="bi bi-play-circle"></i>
+                로그인
+            </a>
+        </div>
+        
+        <div class="landing-showcase">
+            <div class="landing-showcase-card">
+                <div class="landing-showcase-header">
+                    <div class="landing-showcase-dot red"></div>
+                    <div class="landing-showcase-dot yellow"></div>
+                    <div class="landing-showcase-dot green"></div>
                 </div>
-                <div class="floating-card card-2">
-                    <i class="bi bi-graph-up-arrow text-success"></i>
-                    <span>진도 분석</span>
-                </div>
-                <div class="floating-card card-3">
-                    <i class="bi bi-people text-info"></i>
-                    <span>협업 학습</span>
-                </div>
-                <div class="hero-main-card glass-card">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="avatar-lg me-3">P</div>
-                        <div>
-                            <h6 class="mb-0">Python 기초 강좌</h6>
-                            <small class="text-muted">진행률 75%</small>
+                <div class="landing-showcase-content">
+                    <div class="landing-showcase-item">
+                        <h4>전체 진행률</h4>
+                        <div class="value">78%</div>
+                        <div class="landing-showcase-progress">
+                            <div class="landing-showcase-progress-bar"></div>
                         </div>
                     </div>
-                    <div class="progress progress-modern mb-2">
-                        <div class="progress-bar bg-gradient-primary" style="width: 75%"></div>
+                    <div class="landing-showcase-item">
+                        <h4>완료한 체크포인트</h4>
+                        <div class="value">24<span style="font-size: 1rem; color: rgba(255,255,255,0.5);"> / 32</span></div>
                     </div>
-                    <div class="d-flex justify-content-between text-muted small">
-                        <span>6/8 체크포인트 완료</span>
-                        <span class="text-primary"><i class="bi bi-lightning-fill"></i> 진행 중</span>
+                    <div class="landing-showcase-item">
+                        <h4>총 학습 시간</h4>
+                        <div class="value">12<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">시간</span> 45<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">분</span></div>
+                    </div>
+                    <div class="landing-showcase-item">
+                        <h4>연속 학습일</h4>
+                        <div class="value" style="display: flex; align-items: center; gap: 0.5rem;">
+                            7<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">일</span>
+                            <i class="bi bi-fire" style="color: #ff6b35; font-size: 1.5rem;"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
+    </section>
 
-<div class="features-section py-5">
-    <div class="text-center mb-5">
-        <h2 class="fw-bold mb-3">왜 학습 트래커인가요?</h2>
-        <p class="text-muted">강사와 학생 모두를 위한 최적의 학습 관리 솔루션</p>
-    </div>
-    
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="feature-card glass-card h-100 text-center p-4">
-                <div class="feature-icon mb-4">
+    <div class="landing-divider"></div>
+
+    <section class="landing-section" id="features">
+        <div class="text-center mb-5">
+            <h2 class="landing-section-title">왜 학습 트래커인가요?</h2>
+            <p class="landing-section-desc mx-auto">
+                강사와 학생 모두를 위한 직관적인 학습 관리 솔루션
+            </p>
+        </div>
+        
+        <div class="landing-feature-grid">
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon">
                     <i class="bi bi-broadcast"></i>
                 </div>
-                <h5 class="fw-bold mb-3">라이브 모드</h5>
-                <p class="text-muted mb-0">
-                    실시간 강의실에서 모든 학생의 진도를<br>
-                    한눈에 확인하고 즉각적인 피드백 제공
+                <h3 class="landing-feature-title">라이브 세션</h3>
+                <p class="landing-feature-desc">
+                    실시간 강의실에서 모든 학생의 진도를 한눈에 확인하고 
+                    즉각적인 피드백을 제공합니다.
                 </p>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="feature-card glass-card h-100 text-center p-4">
-                <div class="feature-icon feature-icon-secondary mb-4">
-                    <i class="bi bi-clock-history"></i>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <i class="bi bi-person-workspace"></i>
                 </div>
-                <h5 class="fw-bold mb-3">자기주도 학습</h5>
-                <p class="text-muted mb-0">
-                    개인별 학습 시간과 패턴을 분석하여<br>
-                    맞춤형 학습 인사이트 제공
+                <h3 class="landing-feature-title">자기주도 학습</h3>
+                <p class="landing-feature-desc">
+                    개인별 학습 시간과 패턴을 분석하여 
+                    맞춤형 학습 인사이트를 제공합니다.
                 </p>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="feature-card glass-card h-100 text-center p-4">
-                <div class="feature-icon feature-icon-tertiary mb-4">
-                    <i class="bi bi-bar-chart-line"></i>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);">
+                    <i class="bi bi-graph-up-arrow"></i>
                 </div>
-                <h5 class="fw-bold mb-3">상세 분석</h5>
-                <p class="text-muted mb-0">
-                    완료율, 소요 시간, 학습 패턴 등<br>
-                    다양한 데이터 시각화 및 리포트
+                <h3 class="landing-feature-title">상세 분석</h3>
+                <p class="landing-feature-desc">
+                    완료율, 소요 시간, 학습 패턴 등 
+                    다양한 데이터 시각화 및 리포트를 제공합니다.
+                </p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <h3 class="landing-feature-title">AI 체크포인트</h3>
+                <p class="landing-feature-desc">
+                    PPT, 영상, 음성 파일을 분석하여 
+                    자동으로 학습 체크포인트를 생성합니다.
+                </p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <i class="bi bi-chat-dots"></i>
+                </div>
+                <h3 class="landing-feature-title">실시간 채팅</h3>
+                <p class="landing-feature-desc">
+                    라이브 세션 중 @멘션, 메시지 편집/삭제 등 
+                    풍부한 채팅 기능을 지원합니다.
+                </p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <h3 class="landing-feature-title">출석 관리</h3>
+                <p class="landing-feature-desc">
+                    세션별 출석 체크와 관리 기능으로 
+                    참석 현황을 손쉽게 파악합니다.
                 </p>
             </div>
         </div>
-    </div>
-</div>
+    </section>
 
-<div class="cta-section py-5">
-    <div class="glass-card text-center p-5">
-        <h3 class="fw-bold mb-3">지금 바로 시작하세요</h3>
-        <p class="text-muted mb-4">무료로 강좌를 만들고 학습 진도를 관리해보세요</p>
-        <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-5 rounded-pill">
-            <i class="bi bi-arrow-right-circle me-2"></i>회원가입
-        </a>
-    </div>
+    <div class="landing-divider"></div>
+
+    <section class="landing-section" id="modes">
+        <div class="text-center">
+            <h2 class="landing-section-title">두 가지 학습 모드</h2>
+            <p class="landing-section-desc mx-auto">
+                상황에 맞는 최적의 학습 환경을 제공합니다
+            </p>
+        </div>
+        
+        <div class="landing-stats">
+            <div>
+                <div class="landing-stat-value">실시간</div>
+                <div class="landing-stat-label">라이브 세션 동기화</div>
+            </div>
+            <div>
+                <div class="landing-stat-value">자유</div>
+                <div class="landing-stat-label">자기주도 학습</div>
+            </div>
+            <div>
+                <div class="landing-stat-value">분석</div>
+                <div class="landing-stat-label">학습 패턴 인사이트</div>
+            </div>
+        </div>
+        
+        <div class="landing-feature-grid" style="margin-top: 4rem;">
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon">
+                    <i class="bi bi-broadcast-pin"></i>
+                </div>
+                <h3 class="landing-feature-title">라이브 모드</h3>
+                <p class="landing-feature-desc">
+                    강사가 진행하는 실시간 강의에서 모든 학생의 진도가 
+                    동기화됩니다. 누가 어디까지 완료했는지 한눈에 파악하고, 
+                    게시판과 채팅으로 소통하세요.
+                </p>
+            </div>
+            <div class="landing-feature-card">
+                <div class="landing-feature-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <i class="bi bi-journal-bookmark"></i>
+                </div>
+                <h3 class="landing-feature-title">자습 모드</h3>
+                <p class="landing-feature-desc">
+                    자신만의 속도로 학습하세요. 학습 시간이 자동으로 측정되고, 
+                    일시정지/재개 기능으로 정확한 시간을 기록합니다. 
+                    필요하면 시간을 초기화할 수도 있습니다.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <div class="landing-divider"></div>
+
+    <footer class="landing-footer">
+        <div class="landing-footer-cta">
+            <h3 class="landing-footer-title">지금 바로 시작하세요</h3>
+            <p class="landing-footer-desc">
+                무료로 강좌를 만들고 학습 진도를 효과적으로 관리해보세요
+            </p>
+            <a href="{{ url_for('auth.register') }}" class="landing-cta">
+                <i class="bi bi-arrow-right"></i>
+                회원가입하기
+            </a>
+        </div>
+    </footer>
 </div>
 {% endblock %}
