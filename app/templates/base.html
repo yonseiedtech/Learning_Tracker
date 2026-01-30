@@ -323,8 +323,8 @@
     }
     
     main.unified-main {
-        padding-top: 5rem;
-        margin-top: 2rem;
+        padding-top: 5rem !important;
+        margin-top: 0;
         min-height: calc(100vh - 80px);
     }
     
@@ -647,7 +647,7 @@
     </div>
     {% endblock %}
 
-    <main class="container py-4 unified-main">
+    <main class="container unified-main" style="padding-top: 6rem !important;">
         {% block content %}{% endblock %}
     </main>
 
