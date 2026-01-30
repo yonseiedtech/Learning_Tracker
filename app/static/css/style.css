@@ -166,6 +166,17 @@ main {
     transform: translate(-50%, -50%);
     width: 320px;
     padding: 1.5rem;
+    animation: heroFloat 3s ease-in-out infinite;
+}
+
+.hero-main-card:hover {
+    transform: translate(-50%, -50%);
+    box-shadow: var(--shadow-hover);
+}
+
+@keyframes heroFloat {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50% { transform: translate(-50%, calc(-50% - 10px)); }
 }
 
 .progress-modern {
