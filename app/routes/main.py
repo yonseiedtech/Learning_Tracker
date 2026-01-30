@@ -137,3 +137,8 @@ def calculate_streak(user_id):
             break
     
     return streak
+
+@bp.route('/notifications')
+@login_required
+def notifications():
+    return render_template('notifications.html')

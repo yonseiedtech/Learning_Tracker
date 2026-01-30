@@ -4,17 +4,18 @@ from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationE
 from app.models import User
 
 class RegistrationForm(FlaskForm):
-    username = StringField('사용자명', validators=[DataRequired(message='사용자명을 입력하세요'), Length(min=3, max=80, message='3~80자 사이로 입력하세요')])
+    full_name = StringField('이름', validators=[DataRequired(message='이름을 입력하세요'), Length(min=2, max=120, message='2~120자 사이로 입력하세요')])
     email = StringField('이메일', validators=[DataRequired(message='이메일을 입력하세요'), Email(message='올바른 이메일 형식을 입력하세요')])
+    phone = StringField('휴대폰 번호', validators=[DataRequired(message='휴대폰 번호를 입력하세요'), Length(min=10, max=20, message='올바른 휴대폰 번호를 입력하세요')])
     password = PasswordField('비밀번호', validators=[DataRequired(message='비밀번호를 입력하세요'), Length(min=6, message='최소 6자 이상 입력하세요')])
     confirm_password = PasswordField('비밀번호 확인', validators=[DataRequired(message='비밀번호 확인을 입력하세요'), EqualTo('password', message='비밀번호가 일치하지 않습니다')])
     role = SelectField('역할', choices=[('student', '학생'), ('instructor', '강사')])
     submit = SubmitField('회원가입')
     
-    def validate_username(self, username):
-        user = User.query.filter_by(username=username.data).first()
-        if user:
-            raise ValidationError('이미 사용 중인 사용자명입니다.')
+    def validate_phone(self, phone):
+        cleaned = ''.join(filter(str.isdigit, phone.data))
+        if len(cleaned) < 10:
+            raise ValidationError('올바른 휴대폰 번호를 입력하세요.')
     
     def validate_email(self, email):
         user = User.query.filter_by(email=email.data).first()

@@ -236,12 +236,6 @@
     margin-bottom: 1.25rem;
 }
 
-.auth-form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
 .auth-label {
     display: block;
     color: var(--auth-text);
@@ -300,7 +294,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .auth-role-option {
@@ -358,6 +352,25 @@
     font-weight: 500;
     font-size: 0.95rem;
     opacity: 0.8;
+}
+
+.instructor-notice {
+    display: none;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+    color: #f59e0b;
+}
+
+.instructor-notice.show {
+    display: block;
+}
+
+.instructor-notice i {
+    margin-right: 0.5rem;
 }
 
 .auth-btn {
@@ -428,7 +441,7 @@
         border-radius: 20px;
     }
     
-    .auth-form-row {
+    .auth-role-group {
         grid-template-columns: 1fr;
     }
 }
@@ -472,26 +485,37 @@
                 <form method="POST">
                     {{ form.hidden_tag() }}
                     
-                    <div class="auth-form-row">
-                        <div class="auth-form-group">
-                            <label class="auth-label">사용자명</label>
-                            <div class="auth-input-wrapper">
-                                {{ form.username(class="auth-input", placeholder="사용자명") }}
-                            </div>
-                            {% for error in form.username.errors %}
-                                <div class="error-message">{{ error }}</div>
-                            {% endfor %}
+                    <div class="auth-form-group">
+                        <label class="auth-label">이름</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.full_name(class="auth-input with-icon", placeholder="실명을 입력하세요") }}
+                            <i class="bi bi-person auth-input-icon"></i>
                         </div>
-                        
-                        <div class="auth-form-group">
-                            <label class="auth-label">이메일</label>
-                            <div class="auth-input-wrapper">
-                                {{ form.email(class="auth-input", placeholder="이메일 주소") }}
-                            </div>
-                            {% for error in form.email.errors %}
-                                <div class="error-message">{{ error }}</div>
-                            {% endfor %}
+                        {% for error in form.full_name.errors %}
+                            <div class="error-message">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="auth-form-group">
+                        <label class="auth-label">이메일</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.email(class="auth-input with-icon", placeholder="이메일 주소를 입력하세요") }}
+                            <i class="bi bi-envelope auth-input-icon"></i>
                         </div>
+                        {% for error in form.email.errors %}
+                            <div class="error-message">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="auth-form-group">
+                        <label class="auth-label">휴대폰 번호</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.phone(class="auth-input with-icon", placeholder="휴대폰 번호를 입력하세요") }}
+                            <i class="bi bi-phone auth-input-icon"></i>
+                        </div>
+                        {% for error in form.phone.errors %}
+                            <div class="error-message">{{ error }}</div>
+                        {% endfor %}
                     </div>
                     
                     <div class="auth-form-group">
@@ -516,6 +540,11 @@
                                 </label>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="instructor-notice" id="instructorNotice">
+                        <i class="bi bi-info-circle-fill"></i>
+                        강사로 가입하시면 회원가입 후 계정 설정에서 관리자 승인을 받아야 강사 기능을 사용할 수 있습니다.
                     </div>
                     
                     <div class="auth-form-group">
@@ -558,6 +587,9 @@
 (function() {
     const authPage = document.getElementById('authPage');
     const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const instructorRadio = document.getElementById('roleInstructor');
+    const studentRadio = document.getElementById('roleStudent');
+    const instructorNotice = document.getElementById('instructorNotice');
     
     function applyTheme(theme) {
         if (theme === 'light') {
@@ -577,6 +609,18 @@
         localStorage.setItem('siteTheme', newTheme);
         applyTheme(newTheme);
     });
+    
+    function updateInstructorNotice() {
+        if (instructorRadio.checked) {
+            instructorNotice.classList.add('show');
+        } else {
+            instructorNotice.classList.remove('show');
+        }
+    }
+    
+    instructorRadio.addEventListener('change', updateInstructorNotice);
+    studentRadio.addEventListener('change', updateInstructorNotice);
+    updateInstructorNotice();
 })();
 </script>
 {% endblock %}

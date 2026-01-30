@@ -26,15 +26,28 @@ def register():
     
     form = RegistrationForm()
     if form.validate_on_submit():
+        username = form.email.data.split('@')[0]
+        base_username = username
+        counter = 1
+        while User.query.filter_by(username=username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
         user = User(
-            username=form.username.data,
+            username=username,
             email=form.email.data,
+            full_name=form.full_name.data,
+            phone=form.phone.data,
             role=form.role.data
         )
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('회원가입이 완료되었습니다! 로그인해주세요.', 'success')
+        
+        if form.role.data == 'instructor':
+            flash('회원가입이 완료되었습니다! 강사 기능을 사용하려면 로그인 후 계정 설정에서 강사 인증을 요청해주세요.', 'success')
+        else:
+            flash('회원가입이 완료되었습니다! 로그인해주세요.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', form=form)
