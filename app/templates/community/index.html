@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}커뮤니티 - 학습 진도 트래커{% endblock %}
+
+{% block content %}
+<div class="community-container">
+    <div class="community-header">
+        <h1><i class="bi bi-people-fill"></i> 커뮤니티</h1>
+        <p class="text-muted">학습 경험을 공유하고 함께 성장하세요</p>
+    </div>
+    
+    <div class="community-tabs">
+        <a href="{{ url_for('community.index', tab='reviews') }}" class="tab-link {{ 'active' if tab == 'reviews' else '' }}">
+            <i class="bi bi-chat-heart"></i>
+            학습 리뷰
+        </a>
+        <a href="{{ url_for('community.index', tab='qna') }}" class="tab-link {{ 'active' if tab == 'qna' else '' }}">
+            <i class="bi bi-question-circle"></i>
+            질의응답
+        </a>
+        <a href="{{ url_for('community.index', tab='study') }}" class="tab-link {{ 'active' if tab == 'study' else '' }}">
+            <i class="bi bi-people"></i>
+            스터디 모집
+        </a>
+    </div>
+    
+    <div class="community-content">
+        {% if tab == 'reviews' %}
+        <div class="section-header">
+            <h2>학습 리뷰</h2>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_review') }}" class="btn-create">
+                <i class="bi bi-plus-lg"></i> 리뷰 작성
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if reviews %}
+        <div class="card-grid">
+            {% for review in reviews %}
+            <a href="{{ url_for('community.review_detail', review_id=review.id) }}" class="review-card">
+                <div class="review-rating">
+                    {% for i in range(review.rating) %}
+                    <i class="bi bi-star-fill"></i>
+                    {% endfor %}
+                    {% for i in range(5 - review.rating) %}
+                    <i class="bi bi-star"></i>
+                    {% endfor %}
+                </div>
+                <h3>{{ review.title }}</h3>
+                <p class="review-excerpt">{{ review.content[:100] }}{% if review.content|length > 100 %}...{% endif %}</p>
+                <div class="review-meta">
+                    <span class="author">{{ review.user.username }}</span>
+                    <span class="stats">
+                        <i class="bi bi-eye"></i> {{ review.views_count }}
+                        <i class="bi bi-heart"></i> {{ review.likes_count }}
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="view-all-link">
+            <a href="{{ url_for('community.reviews_list') }}">모든 리뷰 보기 <i class="bi bi-arrow-right"></i></a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-chat-heart"></i>
+            <p>아직 등록된 리뷰가 없습니다.</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_review') }}" class="btn-create">첫 리뷰 작성하기</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% elif tab == 'qna' %}
+        <div class="section-header">
+            <h2>질의응답</h2>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_qna') }}" class="btn-create">
+                <i class="bi bi-plus-lg"></i> 질문하기
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if qna_posts %}
+        <div class="qna-list">
+            {% for post in qna_posts %}
+            <a href="{{ url_for('community.qna_detail', post_id=post.id) }}" class="qna-item">
+                <div class="qna-status {{ 'resolved' if post.is_resolved else 'unresolved' }}">
+                    {% if post.is_resolved %}
+                    <i class="bi bi-check-circle-fill"></i> 해결됨
+                    {% else %}
+                    <i class="bi bi-hourglass"></i> 미해결
+                    {% endif %}
+                </div>
+                <div class="qna-content">
+                    <h3>{{ post.title }}</h3>
+                    <div class="qna-meta">
+                        <span>{{ post.user.username }}</span>
+                        <span>{{ post.created_at.strftime('%Y-%m-%d') }}</span>
+                        <span><i class="bi bi-eye"></i> {{ post.views_count }}</span>
+                        <span><i class="bi bi-chat-dots"></i> {{ post.answers.count() }}</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="view-all-link">
+            <a href="{{ url_for('community.qna_list') }}">모든 질문 보기 <i class="bi bi-arrow-right"></i></a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-question-circle"></i>
+            <p>아직 등록된 질문이 없습니다.</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_qna') }}" class="btn-create">첫 질문 등록하기</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% elif tab == 'study' %}
+        <div class="section-header">
+            <h2>스터디 모집</h2>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_study_group') }}" class="btn-create">
+                <i class="bi bi-plus-lg"></i> 스터디 만들기
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if study_groups %}
+        <div class="card-grid">
+            {% for group in study_groups %}
+            <a href="{{ url_for('community.study_group_detail', group_id=group.id) }}" class="study-card">
+                <div class="study-category">
+                    {% if group.category == 'programming' %}프로그래밍
+                    {% elif group.category == 'data_science' %}데이터 사이언스
+                    {% elif group.category == 'design' %}디자인
+                    {% elif group.category == 'language' %}외국어
+                    {% elif group.category == 'certification' %}자격증
+                    {% else %}일반{% endif %}
+                </div>
+                <h3>{{ group.title }}</h3>
+                <p class="study-desc">{{ group.description[:80] }}{% if group.description|length > 80 %}...{% endif %}</p>
+                <div class="study-info">
+                    <span class="meeting-type">
+                        <i class="bi bi-{% if group.meeting_type == 'online' %}camera-video{% elif group.meeting_type == 'offline' %}geo-alt{% else %}shuffle{% endif %}"></i>
+                        {% if group.meeting_type == 'online' %}온라인{% elif group.meeting_type == 'offline' %}오프라인{% else %}혼합{% endif %}
+                    </span>
+                    <span class="members">
+                        <i class="bi bi-people"></i> {{ group.current_members }}/{{ group.max_members }}
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="view-all-link">
+            <a href="{{ url_for('community.study_groups_list') }}">모든 스터디 보기 <i class="bi bi-arrow-right"></i></a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-people"></i>
+            <p>모집 중인 스터디가 없습니다.</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('community.create_study_group') }}" class="btn-create">스터디 만들기</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.community-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.community-header {
+    margin-bottom: 2rem;
+}
+
+.community-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--app-text);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.community-header p {
+    margin-top: 0.5rem;
+}
+
+.community-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    background: var(--app-card-bg);
+    padding: 0.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--app-border);
+}
+
+.tab-link {
+    flex: 1;
+    padding: 0.875rem 1rem;
+    text-decoration: none;
+    color: var(--app-text-muted);
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.tab-link:hover {
+    background: var(--app-input-bg);
+    color: var(--app-text);
+}
+
+.tab-link.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #fff;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--app-text);
+}
+
+.btn-create {
+    padding: 0.625rem 1.25rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #fff !important;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.btn-create:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.review-card, .study-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    text-decoration: none;
+    color: var(--app-text);
+    transition: all 0.2s ease;
+    display: block;
+}
+
+.review-card:hover, .study-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.review-rating {
+    color: #f59e0b;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.review-card h3, .study-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.review-excerpt, .study-desc {
+    font-size: 0.9rem;
+    color: var(--app-text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.review-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--app-text-muted);
+}
+
+.review-meta .stats {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.review-meta .stats i {
+    margin-right: 0.25rem;
+}
+
+.study-category {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+}
+
+.study-info {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--app-text-muted);
+}
+
+.study-info i {
+    margin-right: 0.25rem;
+}
+
+.qna-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.qna-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.qna-item:hover {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: var(--app-input-bg);
+}
+
+.qna-status {
+    padding: 0.375rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.qna-status.resolved {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.qna-status.unresolved {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.qna-content {
+    flex: 1;
+}
+
+.qna-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--app-text);
+    margin-bottom: 0.5rem;
+}
+
+.qna-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--app-text-muted);
+}
+
+.qna-meta i {
+    margin-right: 0.25rem;
+}
+
+.view-all-link {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.view-all-link a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-all-link a:hover {
+    text-decoration: underline;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--app-text-muted);
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: var(--app-text-muted);
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .community-tabs {
+        flex-direction: column;
+    }
+    
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .qna-item {
+        flex-direction: column;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}

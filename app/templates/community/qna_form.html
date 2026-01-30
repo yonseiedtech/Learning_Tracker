@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}질문하기 - 커뮤니티{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <a href="{{ url_for('community.index', tab='qna') }}" class="back-link">
+            <i class="bi bi-arrow-left"></i> 돌아가기
+        </a>
+        <h1>질문 등록</h1>
+    </div>
+    
+    <form method="POST" class="qna-form">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+            <label for="{{ form.title.id }}">제목</label>
+            {{ form.title(class="form-control", placeholder="질문 제목을 입력하세요") }}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.content.id }}">내용</label>
+            {{ form.content(class="form-control", rows="10", placeholder="질문 내용을 자세히 작성해주세요") }}
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('community.index', tab='qna') }}" class="btn-secondary">취소</a>
+            <button type="submit" class="btn-primary">
+                <i class="bi bi-check-lg"></i> 등록
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-container { max-width: 700px; margin: 0 auto; }
+.form-header { margin-bottom: 2rem; }
+.back-link { color: var(--app-text-muted); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.form-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--app-text); }
+.qna-form { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 2rem; }
+.form-group { margin-bottom: 1.5rem; }
+.form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--app-text); }
+.form-control { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-input-bg); color: var(--app-text); font-size: 0.95rem; }
+.form-control:focus { outline: none; border-color: #3b82f6; }
+.form-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+.btn-secondary { padding: 0.75rem 1.5rem; background: var(--app-input-bg); border: 1px solid var(--app-border); border-radius: 10px; color: var(--app-text); font-weight: 500; text-decoration: none; }
+.btn-primary { padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 10px; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+</style>
+{% endblock %}

@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}{{ review.title }} - 커뮤니티{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <a href="{{ url_for('community.index', tab='reviews') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> 목록으로
+    </a>
+    
+    <article class="review-article">
+        <header class="article-header">
+            <div class="review-rating">
+                {% for i in range(review.rating) %}
+                <i class="bi bi-star-fill"></i>
+                {% endfor %}
+                {% for i in range(5 - review.rating) %}
+                <i class="bi bi-star"></i>
+                {% endfor %}
+            </div>
+            <h1>{{ review.title }}</h1>
+            <div class="article-meta">
+                <span class="author">
+                    <i class="bi bi-person-circle"></i> {{ review.user.username }}
+                </span>
+                <span class="date">{{ review.created_at.strftime('%Y년 %m월 %d일') }}</span>
+                <span class="views"><i class="bi bi-eye"></i> {{ review.views_count }}</span>
+                <span class="likes"><i class="bi bi-heart"></i> {{ review.likes_count }}</span>
+            </div>
+        </header>
+        
+        <div class="article-content">
+            {{ review.content }}
+        </div>
+        
+        {% if current_user.is_authenticated %}
+        <div class="article-actions">
+            <button class="like-btn" onclick="likeReview({{ review.id }})">
+                <i class="bi bi-heart"></i> 좋아요
+            </button>
+        </div>
+        {% endif %}
+    </article>
+    
+    <section class="comments-section">
+        <h2>댓글 ({{ comments|length }})</h2>
+        
+        {% if current_user.is_authenticated %}
+        <form method="POST" action="{{ url_for('community.add_review_comment', review_id=review.id) }}" class="comment-form">
+            {{ comment_form.hidden_tag() }}
+            {{ comment_form.content(class="form-control", rows="3", placeholder="댓글을 입력하세요") }}
+            <button type="submit" class="btn-submit">
+                <i class="bi bi-send"></i> 등록
+            </button>
+        </form>
+        {% endif %}
+        
+        <div class="comments-list">
+            {% for comment in comments %}
+            <div class="comment-item">
+                <div class="comment-author">{{ comment.user.username }}</div>
+                <div class="comment-content">{{ comment.content }}</div>
+                <div class="comment-date">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            {% else %}
+            <p class="no-comments">아직 댓글이 없습니다.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<style>
+.detail-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.back-link {
+    color: var(--app-text-muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.back-link:hover {
+    color: var(--app-text);
+}
+
+.review-article {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.article-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.review-rating {
+    color: #f59e0b;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.article-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--app-text);
+    margin-bottom: 1rem;
+}
+
+.article-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--app-text-muted);
+}
+
+.article-meta i {
+    margin-right: 0.25rem;
+}
+
+.article-content {
+    line-height: 1.8;
+    color: var(--app-text);
+    white-space: pre-wrap;
+}
+
+.article-actions {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.like-btn {
+    padding: 0.625rem 1.25rem;
+    background: var(--app-input-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    color: var(--app-text);
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.like-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.comments-section {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.comments-section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--app-text);
+    margin-bottom: 1rem;
+}
+
+.comment-form {
+    margin-bottom: 1.5rem;
+}
+
+.comment-form .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-input-bg);
+    color: var(--app-text);
+    margin-bottom: 0.75rem;
+}
+
+.btn-submit {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.comment-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.comment-item:last-child {
+    border-bottom: none;
+}
+
+.comment-author {
+    font-weight: 600;
+    color: var(--app-text);
+    margin-bottom: 0.5rem;
+}
+
+.comment-content {
+    color: var(--app-text);
+    margin-bottom: 0.5rem;
+}
+
+.comment-date {
+    font-size: 0.85rem;
+    color: var(--app-text-muted);
+}
+
+.no-comments {
+    text-align: center;
+    color: var(--app-text-muted);
+    padding: 2rem;
+}
+</style>
+
+<script>
+function likeReview(reviewId) {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || 
+                      document.querySelector('meta[name="csrf-token"]')?.content || '';
+    
+    fetch(`/community/reviews/${reviewId}/like`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Failed to like');
+    })
+    .then(data => {
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}학습 리뷰 - 커뮤니티{% endblock %}
+
+{% block content %}
+<div class="list-container">
+    <div class="list-header">
+        <div>
+            <a href="{{ url_for('community.index', tab='reviews') }}" class="back-link">
+                <i class="bi bi-arrow-left"></i> 커뮤니티
+            </a>
+            <h1>학습 리뷰</h1>
+        </div>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('community.create_review') }}" class="btn-create">
+            <i class="bi bi-plus-lg"></i> 리뷰 작성
+        </a>
+        {% endif %}
+    </div>
+    
+    {% if reviews.items %}
+    <div class="card-grid">
+        {% for review in reviews.items %}
+        <a href="{{ url_for('community.review_detail', review_id=review.id) }}" class="review-card">
+            <div class="review-rating">
+                {% for i in range(review.rating) %}
+                <i class="bi bi-star-fill"></i>
+                {% endfor %}
+            </div>
+            <h3>{{ review.title }}</h3>
+            <p class="review-excerpt">{{ review.content[:100] }}...</p>
+            <div class="review-meta">
+                <span>{{ review.user.username }}</span>
+                <span><i class="bi bi-eye"></i> {{ review.views_count }} <i class="bi bi-heart"></i> {{ review.likes_count }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    
+    {% if reviews.pages > 1 %}
+    <nav class="pagination">
+        {% if reviews.has_prev %}
+        <a href="{{ url_for('community.reviews_list', page=reviews.prev_num) }}">&laquo; 이전</a>
+        {% endif %}
+        <span>{{ reviews.page }} / {{ reviews.pages }}</span>
+        {% if reviews.has_next %}
+        <a href="{{ url_for('community.reviews_list', page=reviews.next_num) }}">다음 &raquo;</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-chat-heart"></i>
+        <p>아직 등록된 리뷰가 없습니다.</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.list-container { max-width: 1000px; margin: 0 auto; }
+.list-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+.back-link { color: var(--app-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.list-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--app-text); }
+.btn-create { padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff !important; border-radius: 10px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+.review-card { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 1.25rem; text-decoration: none; color: var(--app-text); transition: all 0.2s ease; }
+.review-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.review-rating { color: #f59e0b; margin-bottom: 0.75rem; }
+.review-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+.review-excerpt { font-size: 0.9rem; color: var(--app-text-muted); margin-bottom: 1rem; }
+.review-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--app-text-muted); }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; }
+.pagination a { color: #3b82f6; text-decoration: none; }
+.empty-state { text-align: center; padding: 4rem 2rem; background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; }
+.empty-state i { font-size: 3rem; color: var(--app-text-muted); }
+</style>
+{% endblock %}

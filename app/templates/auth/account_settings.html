@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}계정 설정 - 학습 진도 트래커{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1><i class="bi bi-gear"></i> 계정 설정</h1>
+        <p class="text-muted">프로필 및 계정 정보를 관리하세요</p>
+    </div>
+    
+    <div class="settings-tabs">
+        <button class="tab-btn active" data-tab="profile">
+            <i class="bi bi-person-circle"></i>
+            프로필
+        </button>
+        <button class="tab-btn" data-tab="basic-info">
+            <i class="bi bi-info-circle"></i>
+            기본정보
+        </button>
+        <button class="tab-btn" data-tab="additional-info">
+            <i class="bi bi-building"></i>
+            추가정보
+        </button>
+        <button class="tab-btn" data-tab="other">
+            <i class="bi bi-shield-check"></i>
+            기타
+        </button>
+    </div>
+    
+    <div class="settings-content">
+        <!-- Profile Tab -->
+        <div class="tab-content active" id="profile">
+            <div class="settings-card">
+                <h3>프로필 이미지</h3>
+                <form method="POST" enctype="multipart/form-data" class="profile-image-form">
+                    {{ profile_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="profile_image">
+                    <div class="profile-image-section">
+                        <div class="current-avatar">
+                            {% if current_user.profile_image %}
+                            <img src="{{ current_user.profile_image }}" alt="Profile" class="avatar-preview">
+                            {% else %}
+                            <div class="avatar-placeholder">
+                                {{ current_user.username[0]|upper }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="image-upload-info">
+                            <label class="upload-btn">
+                                <i class="bi bi-upload"></i>
+                                이미지 업로드
+                                <input type="file" name="profile_image" accept=".png,.jpg,.jpeg" style="display: none;" onchange="this.form.submit()">
+                            </label>
+                            <small>PNG, JPG, JPEG / 최대 1MB</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="settings-card">
+                <h3>프로필 정보</h3>
+                <form method="POST">
+                    {{ profile_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="profile">
+                    <div class="form-group">
+                        <label for="{{ profile_form.nickname.id }}">닉네임</label>
+                        {{ profile_form.nickname(class="form-control", placeholder="닉네임을 입력하세요") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ profile_form.full_name.id }}">이름</label>
+                        {{ profile_form.full_name(class="form-control", placeholder="실명을 입력하세요") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ profile_form.profile_url.id }}">프로필 주소</label>
+                        {{ profile_form.profile_url(class="form-control", placeholder="https://example.com/yourprofile") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ profile_form.bio.id }}">자기소개</label>
+                        {{ profile_form.bio(class="form-control", rows="4", placeholder="자신을 소개해주세요") }}
+                    </div>
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-check-lg"></i> 저장
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Basic Info Tab -->
+        <div class="tab-content" id="basic-info">
+            <div class="settings-card">
+                <h3>계정 정보</h3>
+                <form method="POST">
+                    {{ basic_info_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="basic_info">
+                    <div class="form-group">
+                        <label for="{{ basic_info_form.email.id }}">이메일</label>
+                        {{ basic_info_form.email(class="form-control", placeholder="이메일 주소") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ basic_info_form.phone.id }}">휴대폰 번호</label>
+                        {{ basic_info_form.phone(class="form-control", placeholder="010-0000-0000") }}
+                    </div>
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-check-lg"></i> 저장
+                    </button>
+                </form>
+            </div>
+            
+            <div class="settings-card">
+                <h3>비밀번호 변경</h3>
+                <form method="POST">
+                    {{ password_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="password">
+                    <div class="form-group">
+                        <label for="{{ password_form.current_password.id }}">현재 비밀번호</label>
+                        {{ password_form.current_password(class="form-control", placeholder="현재 비밀번호") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ password_form.new_password.id }}">새 비밀번호</label>
+                        {{ password_form.new_password(class="form-control", placeholder="새 비밀번호 (6자 이상)") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ password_form.confirm_password.id }}">비밀번호 확인</label>
+                        {{ password_form.confirm_password(class="form-control", placeholder="새 비밀번호 확인") }}
+                    </div>
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-lock"></i> 비밀번호 변경
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Additional Info Tab -->
+        <div class="tab-content" id="additional-info">
+            <div class="settings-card">
+                <h3>추가 정보</h3>
+                <form method="POST">
+                    {{ additional_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="additional_info">
+                    <div class="form-group">
+                        <label for="{{ additional_form.organization.id }}">소속</label>
+                        {{ additional_form.organization(class="form-control", placeholder="회사, 학교, 기관 등") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ additional_form.position.id }}">직책</label>
+                        {{ additional_form.position(class="form-control", placeholder="팀장, 매니저 등") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ additional_form.job_title.id }}">직급</label>
+                        {{ additional_form.job_title(class="form-control", placeholder="과장, 대리, 사원 등") }}
+                    </div>
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="bi bi-check-lg"></i> 저장
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Other Tab -->
+        <div class="tab-content" id="other">
+            <div class="settings-card">
+                <h3>강사 인증</h3>
+                <p class="text-muted">강사로 활동하시려면 관리자의 인증이 필요합니다.</p>
+                
+                <div class="verification-status">
+                    {% if current_user.instructor_verified %}
+                    <div class="status-badge verified">
+                        <i class="bi bi-patch-check-fill"></i>
+                        인증된 강사
+                    </div>
+                    <p>축하합니다! 강사 인증이 완료되었습니다.</p>
+                    {% elif current_user.verification_requested_at %}
+                    <div class="status-badge pending">
+                        <i class="bi bi-hourglass-split"></i>
+                        인증 대기중
+                    </div>
+                    <p>{{ current_user.verification_requested_at.strftime('%Y년 %m월 %d일') }}에 요청되었습니다. 관리자 승인을 기다려주세요.</p>
+                    {% else %}
+                    <div class="status-badge not-verified">
+                        <i class="bi bi-shield-x"></i>
+                        인증되지 않음
+                    </div>
+                    <p>강사 인증을 요청하시면 관리자가 검토 후 승인합니다.</p>
+                    <form method="POST">
+                        <input type="hidden" name="action" value="request_verification">
+                        <button type="submit" class="btn-primary-custom">
+                            <i class="bi bi-send"></i> 강사 인증 요청
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="settings-card">
+                <h3>계정 정보</h3>
+                <div class="account-info">
+                    <div class="info-row">
+                        <span class="label">역할</span>
+                        <span class="value">{{ '강사' if current_user.is_instructor() else '학생' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">가입일</span>
+                        <span class="value">{{ current_user.created_at.strftime('%Y년 %m월 %d일') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">마지막 수정</span>
+                        <span class="value">{{ current_user.updated_at.strftime('%Y년 %m월 %d일') if current_user.updated_at else '-' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.settings-header {
+    margin-bottom: 2rem;
+}
+
+.settings-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--app-text);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.settings-header p {
+    margin-top: 0.5rem;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background: var(--app-card-bg);
+    padding: 0.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--app-border);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 0.875rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--app-text-muted);
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    background: var(--app-input-bg);
+    color: var(--app-text);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #fff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.settings-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--app-text);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--app-text);
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-input-bg);
+    color: var(--app-text);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-primary-custom {
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary-custom:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.profile-image-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.current-avatar .avatar-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--app-border);
+}
+
+.avatar-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.image-upload-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.upload-btn {
+    padding: 0.625rem 1rem;
+    background: var(--app-input-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--app-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.upload-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+}
+
+.image-upload-info small {
+    color: var(--app-text-muted);
+    font-size: 0.85rem;
+}
+
+.verification-status {
+    padding: 1rem 0;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.status-badge.verified {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.status-badge.pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.status-badge.not-verified {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row .label {
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+}
+
+.info-row .value {
+    font-weight: 500;
+    color: var(--app-text);
+}
+
+@media (max-width: 768px) {
+    .settings-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab-btn {
+        flex: 1 1 45%;
+        font-size: 0.85rem;
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .profile-image-section {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            this.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}

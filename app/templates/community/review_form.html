@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}리뷰 작성 - 커뮤니티{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <a href="{{ url_for('community.index', tab='reviews') }}" class="back-link">
+            <i class="bi bi-arrow-left"></i> 돌아가기
+        </a>
+        <h1>학습 리뷰 작성</h1>
+    </div>
+    
+    <form method="POST" class="review-form">
+        {{ form.hidden_tag() }}
+        
+        <div class="form-group">
+            <label for="{{ form.title.id }}">제목</label>
+            {{ form.title(class="form-control", placeholder="리뷰 제목을 입력하세요") }}
+        </div>
+        
+        <div class="form-group">
+            <label>평점</label>
+            <div class="rating-input">
+                {% for value, label in form.rating.choices %}
+                <label class="rating-option">
+                    <input type="radio" name="{{ form.rating.name }}" value="{{ value }}" {{ 'checked' if form.rating.data == value else '' }}>
+                    <span class="rating-stars">
+                        {% for i in range(value) %}
+                        <i class="bi bi-star-fill"></i>
+                        {% endfor %}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.content.id }}">내용</label>
+            {{ form.content(class="form-control", rows="8", placeholder="학습 경험을 공유해주세요") }}
+        </div>
+        
+        <div class="form-actions">
+            <a href="{{ url_for('community.index', tab='reviews') }}" class="btn-secondary">취소</a>
+            <button type="submit" class="btn-primary">
+                <i class="bi bi-check-lg"></i> 등록
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.form-header {
+    margin-bottom: 2rem;
+}
+
+.back-link {
+    color: var(--app-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.back-link:hover {
+    color: var(--app-text);
+}
+
+.form-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--app-text);
+}
+
+.review-form {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--app-text);
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: var(--app-input-bg);
+    color: var(--app-text);
+    font-size: 0.95rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.rating-input {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.rating-option {
+    cursor: pointer;
+}
+
+.rating-option input {
+    display: none;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    color: #d1d5db;
+    transition: all 0.2s ease;
+}
+
+.rating-option input:checked + .rating-stars {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.rating-option:hover .rating-stars {
+    border-color: #f59e0b;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: var(--app-input-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    color: var(--app-text);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.btn-secondary:hover {
+    background: var(--app-border);
+}
+
+.btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+</style>
+{% endblock %}

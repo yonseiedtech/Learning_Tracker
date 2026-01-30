@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}스터디 모집 - 커뮤니티{% endblock %}
+
+{% block content %}
+<div class="list-container">
+    <div class="list-header">
+        <div>
+            <a href="{{ url_for('community.index', tab='study') }}" class="back-link">
+                <i class="bi bi-arrow-left"></i> 커뮤니티
+            </a>
+            <h1>스터디 모집</h1>
+        </div>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('community.create_study_group') }}" class="btn-create">
+            <i class="bi bi-plus-lg"></i> 스터디 만들기
+        </a>
+        {% endif %}
+    </div>
+    
+    <div class="category-tabs">
+        {% for cat_value, cat_name in categories %}
+        <a href="{{ url_for('community.study_groups_list', category=cat_value) }}" class="{{ 'active' if current_category == cat_value else '' }}">{{ cat_name }}</a>
+        {% endfor %}
+    </div>
+    
+    {% if study_groups.items %}
+    <div class="card-grid">
+        {% for group in study_groups.items %}
+        <a href="{{ url_for('community.study_group_detail', group_id=group.id) }}" class="study-card">
+            <div class="study-category">
+                {% if group.category == 'programming' %}프로그래밍
+                {% elif group.category == 'data_science' %}데이터 사이언스
+                {% elif group.category == 'design' %}디자인
+                {% elif group.category == 'language' %}외국어
+                {% elif group.category == 'certification' %}자격증
+                {% else %}일반{% endif %}
+            </div>
+            <h3>{{ group.title }}</h3>
+            <p class="study-desc">{{ group.description[:80] }}...</p>
+            <div class="study-info">
+                <span><i class="bi bi-{% if group.meeting_type == 'online' %}camera-video{% elif group.meeting_type == 'offline' %}geo-alt{% else %}shuffle{% endif %}"></i> {% if group.meeting_type == 'online' %}온라인{% elif group.meeting_type == 'offline' %}오프라인{% else %}혼합{% endif %}</span>
+                <span><i class="bi bi-people"></i> {{ group.current_members }}/{{ group.max_members }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    
+    {% if study_groups.pages > 1 %}
+    <nav class="pagination">
+        {% if study_groups.has_prev %}<a href="{{ url_for('community.study_groups_list', page=study_groups.prev_num, category=current_category) }}">&laquo; 이전</a>{% endif %}
+        <span>{{ study_groups.page }} / {{ study_groups.pages }}</span>
+        {% if study_groups.has_next %}<a href="{{ url_for('community.study_groups_list', page=study_groups.next_num, category=current_category) }}">다음 &raquo;</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-people"></i>
+        <p>모집 중인 스터디가 없습니다.</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.list-container { max-width: 1000px; margin: 0 auto; }
+.list-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+.back-link { color: var(--app-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.list-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--app-text); }
+.btn-create { padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff !important; border-radius: 10px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; }
+.category-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.category-tabs a { padding: 0.5rem 1rem; background: var(--app-input-bg); border: 1px solid var(--app-border); border-radius: 8px; color: var(--app-text-muted); text-decoration: none; font-size: 0.9rem; }
+.category-tabs a.active, .category-tabs a:hover { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border-color: transparent; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+.study-card { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 1.25rem; text-decoration: none; color: var(--app-text); transition: all 0.2s ease; }
+.study-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.study-category { display: inline-block; padding: 0.25rem 0.625rem; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-size: 0.75rem; font-weight: 600; border-radius: 6px; margin-bottom: 0.75rem; }
+.study-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+.study-desc { font-size: 0.9rem; color: var(--app-text-muted); margin-bottom: 1rem; }
+.study-info { display: flex; gap: 1rem; font-size: 0.85rem; color: var(--app-text-muted); }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; }
+.pagination a { color: #3b82f6; text-decoration: none; }
+.empty-state { text-align: center; padding: 4rem 2rem; background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; }
+.empty-state i { font-size: 3rem; color: var(--app-text-muted); }
+</style>
+{% endblock %}

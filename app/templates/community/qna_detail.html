@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - 질의응답{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <a href="{{ url_for('community.qna_list') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> 목록으로
+    </a>
+    
+    <article class="qna-article">
+        <header class="article-header">
+            <div class="qna-status {{ 'resolved' if post.is_resolved else 'unresolved' }}">
+                {% if post.is_resolved %}<i class="bi bi-check-circle-fill"></i> 해결됨{% else %}<i class="bi bi-hourglass"></i> 미해결{% endif %}
+            </div>
+            <h1>{{ post.title }}</h1>
+            <div class="article-meta">
+                <span><i class="bi bi-person-circle"></i> {{ post.user.username }}</span>
+                <span>{{ post.created_at.strftime('%Y년 %m월 %d일') }}</span>
+                <span><i class="bi bi-eye"></i> {{ post.views_count }}</span>
+            </div>
+        </header>
+        
+        <div class="article-content" style="white-space: pre-wrap;">{{ post.content }}</div>
+    </article>
+    
+    <section class="answers-section">
+        <h2>답변 ({{ answers|length }})</h2>
+        
+        {% if current_user.is_authenticated %}
+        <form method="POST" action="{{ url_for('community.add_qna_answer', post_id=post.id) }}" class="answer-form">
+            {{ answer_form.hidden_tag() }}
+            {{ answer_form.content(class="form-control", rows="4", placeholder="답변을 작성해주세요") }}
+            <button type="submit" class="btn-submit"><i class="bi bi-send"></i> 답변 등록</button>
+        </form>
+        {% endif %}
+        
+        <div class="answers-list">
+            {% for answer in answers %}
+            <div class="answer-item {{ 'accepted' if answer.is_accepted else '' }}">
+                {% if answer.is_accepted %}
+                <div class="accepted-badge"><i class="bi bi-check-circle-fill"></i> 채택된 답변</div>
+                {% endif %}
+                <div class="answer-author">{{ answer.user.username }}</div>
+                <div class="answer-content">{{ answer.content }}</div>
+                <div class="answer-footer">
+                    <span class="answer-date">{{ answer.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% if current_user.is_authenticated and current_user.id == post.user_id and not post.is_resolved %}
+                    <form method="POST" action="{{ url_for('community.accept_answer', post_id=post.id, answer_id=answer.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="accept-btn"><i class="bi bi-check-lg"></i> 채택</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p class="no-answers">아직 답변이 없습니다.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<style>
+.detail-container { max-width: 800px; margin: 0 auto; }
+.back-link { color: var(--app-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+.qna-article { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+.article-header { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--app-border); }
+.qna-status { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; }
+.qna-status.resolved { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.qna-status.unresolved { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.article-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--app-text); margin-bottom: 1rem; }
+.article-meta { display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--app-text-muted); }
+.article-content { line-height: 1.8; color: var(--app-text); white-space: pre-wrap; }
+.answers-section { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 1.5rem; }
+.answers-section h2 { font-size: 1.1rem; font-weight: 600; color: var(--app-text); margin-bottom: 1rem; }
+.answer-form { margin-bottom: 1.5rem; }
+.answer-form .form-control { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-input-bg); color: var(--app-text); margin-bottom: 0.75rem; }
+.btn-submit { padding: 0.5rem 1rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 500; cursor: pointer; }
+.answer-item { padding: 1.25rem; border: 1px solid var(--app-border); border-radius: 12px; margin-bottom: 1rem; }
+.answer-item.accepted { border-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+.accepted-badge { color: #10b981; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+.answer-author { font-weight: 600; color: var(--app-text); margin-bottom: 0.5rem; }
+.answer-content { color: var(--app-text); margin-bottom: 0.75rem; white-space: pre-wrap; }
+.answer-footer { display: flex; justify-content: space-between; align-items: center; }
+.answer-date { font-size: 0.85rem; color: var(--app-text-muted); }
+.accept-btn { padding: 0.375rem 0.75rem; background: #10b981; border: none; border-radius: 6px; color: #fff; font-size: 0.85rem; cursor: pointer; }
+.no-answers { text-align: center; color: var(--app-text-muted); padding: 2rem; }
+</style>
+{% endblock %}

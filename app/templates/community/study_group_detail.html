@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.title }} - 스터디{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <a href="{{ url_for('community.study_groups_list') }}" class="back-link">
+        <i class="bi bi-arrow-left"></i> 목록으로
+    </a>
+    
+    <article class="study-article">
+        <header class="article-header">
+            <div class="study-category">
+                {% if group.category == 'programming' %}프로그래밍
+                {% elif group.category == 'data_science' %}데이터 사이언스
+                {% elif group.category == 'design' %}디자인
+                {% elif group.category == 'language' %}외국어
+                {% elif group.category == 'certification' %}자격증
+                {% else %}일반{% endif %}
+            </div>
+            <h1>{{ group.title }}</h1>
+            <div class="article-meta">
+                <span><i class="bi bi-person-fill"></i> {{ group.creator.username }}</span>
+                <span><i class="bi bi-calendar"></i> {{ group.created_at.strftime('%Y년 %m월 %d일') }}</span>
+            </div>
+        </header>
+        
+        <div class="study-info-grid">
+            <div class="info-item">
+                <i class="bi bi-{% if group.meeting_type == 'online' %}camera-video{% elif group.meeting_type == 'offline' %}geo-alt{% else %}shuffle{% endif %}"></i>
+                <div>
+                    <span class="label">진행 방식</span>
+                    <span class="value">{% if group.meeting_type == 'online' %}온라인{% elif group.meeting_type == 'offline' %}오프라인{% else %}혼합{% endif %}</span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="bi bi-people-fill"></i>
+                <div>
+                    <span class="label">인원</span>
+                    <span class="value">{{ group.current_members }} / {{ group.max_members }}명</span>
+                </div>
+            </div>
+            {% if group.meeting_schedule %}
+            <div class="info-item">
+                <i class="bi bi-clock"></i>
+                <div>
+                    <span class="label">모임 일정</span>
+                    <span class="value">{{ group.meeting_schedule }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="article-content">
+            <h3>스터디 소개</h3>
+            <p>{{ group.description }}</p>
+        </div>
+        
+        {% if group.tags %}
+        <div class="study-tags">
+            {% for tag in group.tags.split(',') %}
+            <span class="tag">{{ tag.strip() }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if current_user.is_authenticated and not is_member and not is_creator and not pending_request %}
+        <div class="join-section">
+            {% if group.current_members < group.max_members %}
+            <form method="POST" action="{{ url_for('community.join_study_group', group_id=group.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-join">
+                    <i class="bi bi-person-plus"></i> 가입 신청
+                </button>
+            </form>
+            {% else %}
+            <p class="full-notice">정원이 다 찼습니다.</p>
+            {% endif %}
+        </div>
+        {% elif pending_request %}
+        <div class="join-section">
+            <p class="pending-notice"><i class="bi bi-hourglass"></i> 가입 승인 대기 중입니다.</p>
+        </div>
+        {% endif %}
+    </article>
+    
+    <section class="members-section">
+        <h2>멤버 ({{ members|length }})</h2>
+        <div class="members-list">
+            {% for member in members %}
+            <div class="member-item">
+                <div class="member-avatar">{{ member.user.username[0]|upper }}</div>
+                <div class="member-info">
+                    <span class="member-name">{{ member.user.username }}</span>
+                    {% if member.user.id == group.creator_id %}
+                    <span class="leader-badge">스터디장</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    {% if is_creator and pending_members %}
+    <section class="pending-section">
+        <h2>가입 대기 ({{ pending_members|length }})</h2>
+        <div class="pending-list">
+            {% for member in pending_members %}
+            <div class="pending-item">
+                <span>{{ member.user.username }}</span>
+                <div class="pending-actions">
+                    <form method="POST" action="{{ url_for('community.approve_member', group_id=group.id, member_id=member.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-approve"><i class="bi bi-check"></i></button>
+                    </form>
+                    <form method="POST" action="{{ url_for('community.reject_member', group_id=group.id, member_id=member.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-reject"><i class="bi bi-x"></i></button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+<style>
+.detail-container { max-width: 800px; margin: 0 auto; }
+.back-link { color: var(--app-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+.study-article { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; }
+.article-header { margin-bottom: 1.5rem; }
+.study-category { display: inline-block; padding: 0.375rem 0.75rem; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-size: 0.85rem; font-weight: 600; border-radius: 8px; margin-bottom: 1rem; }
+.article-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--app-text); margin-bottom: 1rem; }
+.article-meta { display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--app-text-muted); }
+.study-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; padding: 1.5rem; background: var(--app-input-bg); border-radius: 12px; margin-bottom: 1.5rem; }
+.info-item { display: flex; align-items: center; gap: 0.75rem; }
+.info-item i { font-size: 1.5rem; color: #3b82f6; }
+.info-item .label { display: block; font-size: 0.8rem; color: var(--app-text-muted); }
+.info-item .value { display: block; font-weight: 600; color: var(--app-text); }
+.article-content h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--app-text); }
+.article-content p { line-height: 1.8; color: var(--app-text); white-space: pre-wrap; }
+.study-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+.tag { padding: 0.375rem 0.75rem; background: var(--app-input-bg); border-radius: 20px; font-size: 0.85rem; color: var(--app-text-muted); }
+.join-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--app-border); }
+.btn-join { padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 10px; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+.full-notice, .pending-notice { color: var(--app-text-muted); display: flex; align-items: center; gap: 0.5rem; }
+.members-section, .pending-section { background: var(--app-card-bg); border: 1px solid var(--app-border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.members-section h2, .pending-section h2 { font-size: 1.1rem; font-weight: 600; color: var(--app-text); margin-bottom: 1rem; }
+.members-list { display: flex; flex-wrap: wrap; gap: 1rem; }
+.member-item { display: flex; align-items: center; gap: 0.75rem; }
+.member-avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
+.member-name { font-weight: 500; color: var(--app-text); }
+.leader-badge { font-size: 0.75rem; padding: 0.125rem 0.5rem; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-radius: 4px; margin-left: 0.5rem; }
+.pending-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.pending-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--app-input-bg); border-radius: 8px; }
+.pending-actions { display: flex; gap: 0.5rem; }
+.btn-approve, .btn-reject { width: 32px; height: 32px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-approve { background: #10b981; color: #fff; }
+.btn-reject { background: #ef4444; color: #fff; }
+</style>
+{% endblock %}

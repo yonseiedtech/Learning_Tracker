@@ -3,9 +3,10 @@ from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from datetime import timedelta, datetime
 import secrets
+import base64
 from app import db
 from app.models import User
-from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
+from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, ProfileForm, BasicInfoForm, PasswordChangeForm, AdditionalInfoForm
 
 password_reset_tokens = {}
 
@@ -130,3 +131,113 @@ def reset_password(token):
             return redirect(url_for('auth.login'))
     
     return render_template('auth/reset_password.html', form=form)
+
+@bp.route('/account-settings', methods=['GET', 'POST'])
+@login_required
+def account_settings():
+    profile_form = ProfileForm(prefix='profile')
+    basic_info_form = BasicInfoForm(prefix='basic')
+    password_form = PasswordChangeForm(prefix='password')
+    additional_form = AdditionalInfoForm(prefix='additional')
+    
+    # Pre-populate forms with current data
+    if request.method == 'GET':
+        profile_form.nickname.data = current_user.nickname
+        profile_form.full_name.data = current_user.full_name
+        profile_form.profile_url.data = current_user.profile_url
+        profile_form.bio.data = current_user.bio
+        
+        basic_info_form.email.data = current_user.email
+        basic_info_form.phone.data = current_user.phone
+        
+        additional_form.organization.data = current_user.organization
+        additional_form.position.data = current_user.position
+        additional_form.job_title.data = current_user.job_title
+    
+    # Handle form submissions
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'profile':
+            if profile_form.validate_on_submit():
+                current_user.nickname = profile_form.nickname.data
+                current_user.full_name = profile_form.full_name.data
+                current_user.profile_url = profile_form.profile_url.data
+                current_user.bio = profile_form.bio.data
+                db.session.commit()
+                flash('프로필이 저장되었습니다.', 'success')
+                return redirect(url_for('auth.account_settings'))
+        
+        elif action == 'profile_image':
+            if 'profile_image' in request.files:
+                file = request.files['profile_image']
+                if file and file.filename:
+                    # Validate file type
+                    allowed_extensions = {'png', 'jpg', 'jpeg'}
+                    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                    if ext not in allowed_extensions:
+                        flash('PNG, JPG, JPEG 형식의 이미지만 업로드 가능합니다.', 'danger')
+                        return redirect(url_for('auth.account_settings'))
+                    
+                    # Check file size (1MB limit)
+                    file.seek(0, 2)
+                    size = file.tell()
+                    file.seek(0)
+                    if size > 1 * 1024 * 1024:
+                        flash('이미지 크기는 1MB 이하여야 합니다.', 'danger')
+                        return redirect(url_for('auth.account_settings'))
+                    
+                    # Convert to base64
+                    image_data = base64.b64encode(file.read()).decode('utf-8')
+                    current_user.profile_image = f"data:image/{ext};base64,{image_data}"
+                    db.session.commit()
+                    flash('프로필 이미지가 업데이트되었습니다.', 'success')
+                    return redirect(url_for('auth.account_settings'))
+        
+        elif action == 'basic_info':
+            if basic_info_form.validate_on_submit():
+                # Check if email already exists for another user
+                if basic_info_form.email.data != current_user.email:
+                    existing_user = User.query.filter_by(email=basic_info_form.email.data).first()
+                    if existing_user:
+                        flash('이미 사용 중인 이메일입니다.', 'danger')
+                        return redirect(url_for('auth.account_settings'))
+                
+                current_user.email = basic_info_form.email.data
+                current_user.phone = basic_info_form.phone.data
+                db.session.commit()
+                flash('기본 정보가 저장되었습니다.', 'success')
+                return redirect(url_for('auth.account_settings'))
+        
+        elif action == 'password':
+            if password_form.validate_on_submit():
+                if not current_user.check_password(password_form.current_password.data):
+                    flash('현재 비밀번호가 올바르지 않습니다.', 'danger')
+                    return redirect(url_for('auth.account_settings'))
+                
+                current_user.set_password(password_form.new_password.data)
+                db.session.commit()
+                flash('비밀번호가 변경되었습니다.', 'success')
+                return redirect(url_for('auth.account_settings'))
+        
+        elif action == 'additional_info':
+            if additional_form.validate_on_submit():
+                current_user.organization = additional_form.organization.data
+                current_user.position = additional_form.position.data
+                current_user.job_title = additional_form.job_title.data
+                db.session.commit()
+                flash('추가 정보가 저장되었습니다.', 'success')
+                return redirect(url_for('auth.account_settings'))
+        
+        elif action == 'request_verification':
+            if not current_user.instructor_verified:
+                current_user.verification_requested_at = datetime.utcnow()
+                db.session.commit()
+                flash('강사 인증 요청이 접수되었습니다. 관리자 승인을 기다려주세요.', 'info')
+                return redirect(url_for('auth.account_settings'))
+    
+    return render_template('auth/account_settings.html',
+                          profile_form=profile_form,
+                          basic_info_form=basic_info_form,
+                          password_form=password_form,
+                          additional_form=additional_form)

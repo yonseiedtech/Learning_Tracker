@@ -19,6 +19,25 @@ class User(db.Model, UserMixin):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Profile fields
+    profile_image = db.Column(db.Text, nullable=True)  # Base64 encoded image
+    nickname = db.Column(db.String(80), nullable=True)
+    full_name = db.Column(db.String(120), nullable=True)
+    profile_url = db.Column(db.String(255), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    
+    # Basic info
+    phone = db.Column(db.String(20), nullable=True)
+    
+    # Additional info
+    organization = db.Column(db.String(200), nullable=True)  # 소속
+    position = db.Column(db.String(100), nullable=True)  # 직책
+    job_title = db.Column(db.String(100), nullable=True)  # 직급
+    
+    # Instructor verification
+    instructor_verified = db.Column(db.Boolean, default=False)
+    verification_requested_at = db.Column(db.DateTime, nullable=True)
+    
     courses_taught = db.relationship('Course', backref='instructor', lazy='dynamic')
     enrollments = db.relationship('Enrollment', backref='user', lazy='dynamic')
     progress_records = db.relationship('Progress', backref='user', lazy='dynamic')
@@ -314,3 +333,102 @@ class Attendance(db.Model):
     checked_by = db.relationship('User', foreign_keys=[checked_by_id])
     
     __table_args__ = (db.UniqueConstraint('course_id', 'user_id', 'session_id', name='unique_attendance'),)
+
+
+# Community Models
+class LearningReview(db.Model):
+    __tablename__ = 'learning_reviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, default=5)
+    likes_count = db.Column(db.Integer, default=0)
+    views_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='learning_reviews')
+    course = db.relationship('Course', backref='reviews')
+    subject = db.relationship('Subject', backref='reviews')
+    comments = db.relationship('ReviewComment', backref='review', lazy='dynamic', cascade='all, delete-orphan')
+
+class ReviewComment(db.Model):
+    __tablename__ = 'review_comments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    review_id = db.Column(db.Integer, db.ForeignKey('learning_reviews.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='review_comments')
+
+class QnAPost(db.Model):
+    __tablename__ = 'qna_posts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_resolved = db.Column(db.Boolean, default=False)
+    views_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='qna_posts')
+    course = db.relationship('Course', backref='qna_posts')
+    subject = db.relationship('Subject', backref='qna_posts')
+    answers = db.relationship('QnAAnswer', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
+class QnAAnswer(db.Model):
+    __tablename__ = 'qna_answers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('qna_posts.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_accepted = db.Column(db.Boolean, default=False)
+    likes_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='qna_answers')
+
+class StudyGroup(db.Model):
+    __tablename__ = 'study_groups'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), default='general')
+    max_members = db.Column(db.Integer, default=10)
+    current_members = db.Column(db.Integer, default=1)
+    status = db.Column(db.String(20), default='recruiting')
+    meeting_type = db.Column(db.String(20), default='online')
+    meeting_schedule = db.Column(db.String(200), nullable=True)
+    tags = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    creator = db.relationship('User', backref='created_study_groups')
+    members = db.relationship('StudyGroupMember', backref='group', lazy='dynamic', cascade='all, delete-orphan')
+
+class StudyGroupMember(db.Model):
+    __tablename__ = 'study_group_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('study_groups.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='study_group_memberships')
+    
+    __table_args__ = (db.UniqueConstraint('group_id', 'user_id', name='unique_group_member'),)
