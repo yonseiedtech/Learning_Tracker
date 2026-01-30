@@ -5,7 +5,36 @@
 {% block content %}
 <style>
 .auth-page {
-    background: #050508;
+    --auth-bg: #050508;
+    --auth-text: #ffffff;
+    --auth-text-muted: rgba(255, 255, 255, 0.5);
+    --auth-border: rgba(255, 255, 255, 0.06);
+    --auth-card-bg: rgba(15, 15, 20, 0.8);
+    --auth-input-bg: rgba(255, 255, 255, 0.03);
+    --auth-glow-1: rgba(139, 92, 246, 0.12);
+    --auth-glow-2: rgba(59, 130, 246, 0.08);
+    --auth-nav-bg: rgba(5, 5, 8, 0.85);
+    --auth-cta-secondary-bg: rgba(255, 255, 255, 0.05);
+    --auth-cta-secondary-text: #ffffff;
+}
+
+.auth-page.light-theme {
+    --auth-bg: #f8fafc;
+    --auth-text: #0f172a;
+    --auth-text-muted: rgba(15, 23, 42, 0.6);
+    --auth-border: rgba(15, 23, 42, 0.08);
+    --auth-card-bg: rgba(255, 255, 255, 0.95);
+    --auth-input-bg: rgba(15, 23, 42, 0.04);
+    --auth-glow-1: rgba(139, 92, 246, 0.08);
+    --auth-glow-2: rgba(59, 130, 246, 0.05);
+    --auth-nav-bg: rgba(248, 250, 252, 0.92);
+    --auth-cta-secondary-bg: rgba(15, 23, 42, 0.05);
+    --auth-cta-secondary-text: #0f172a;
+}
+
+.auth-page {
+    background: var(--auth-bg);
+    color: var(--auth-text);
     min-height: 100vh;
     margin: -2rem calc(-50vw + 50%);
     margin-top: -2rem;
@@ -17,9 +46,9 @@
     margin-left: -50vw;
     margin-right: -50vw;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    flex-direction: column;
+    overflow-x: hidden;
+    transition: background 0.4s ease, color 0.4s ease;
 }
 
 .auth-page::before {
@@ -30,28 +59,124 @@
     transform: translateX(-50%);
     width: 120%;
     height: 80%;
-    background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, rgba(59, 130, 246, 0.06) 40%, transparent 70%);
+    background: radial-gradient(ellipse at center, var(--auth-glow-1) 0%, var(--auth-glow-2) 40%, transparent 70%);
     pointer-events: none;
 }
 
-.auth-page::after {
-    content: '';
-    position: absolute;
-    bottom: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    height: 50%;
-    background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
-    pointer-events: none;
+.auth-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 1rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--auth-nav-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--auth-border);
+}
+
+.auth-nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: var(--auth-text);
+}
+
+.auth-nav-logo-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #fff;
+}
+
+.auth-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.theme-toggle-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--auth-border);
+    background: var(--auth-input-bg);
+    color: var(--auth-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle-btn:hover {
+    color: var(--auth-text);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.theme-toggle-btn .icon-dark { display: block; }
+.theme-toggle-btn .icon-light { display: none; }
+.auth-page.light-theme .theme-toggle-btn .icon-dark { display: none; }
+.auth-page.light-theme .theme-toggle-btn .icon-light { display: block; }
+
+.auth-cta-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.auth-cta-nav-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+}
+
+.auth-cta-nav-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    color: #ffffff !important;
+}
+
+.auth-cta-nav-secondary {
+    background: var(--auth-cta-secondary-bg);
+    border: 1px solid var(--auth-border);
+    color: var(--auth-cta-secondary-text) !important;
+}
+
+.auth-cta-nav-secondary:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--auth-cta-secondary-text) !important;
+}
+
+.auth-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 2rem 2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .auth-container {
     width: 100%;
-    max-width: 480px;
-    padding: 2rem;
-    position: relative;
-    z-index: 10;
+    max-width: 500px;
     animation: fadeInUp 0.6s ease-out;
 }
 
@@ -67,12 +192,12 @@
 }
 
 .auth-card {
-    background: rgba(15, 15, 20, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--auth-card-bg);
+    border: 1px solid var(--auth-border);
     border-radius: 24px;
-    padding: 2.5rem 2.5rem;
+    padding: 2.5rem;
     backdrop-filter: blur(20px);
-    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.3);
 }
 
 .auth-logo {
@@ -90,7 +215,7 @@
 }
 
 .auth-title {
-    color: #ffffff;
+    color: var(--auth-text);
     font-size: 1.75rem;
     font-weight: 700;
     text-align: center;
@@ -98,7 +223,7 @@
 }
 
 .auth-subtitle {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--auth-text-muted);
     text-align: center;
     margin-bottom: 2rem;
     font-size: 0.95rem;
@@ -108,12 +233,19 @@
     margin-bottom: 1.25rem;
 }
 
+.auth-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
 .auth-label {
     display: block;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--auth-text);
     font-size: 0.9rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
+    opacity: 0.8;
 }
 
 .auth-input-wrapper {
@@ -125,30 +257,34 @@
     left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--auth-text-muted);
     font-size: 1.1rem;
     transition: color 0.3s ease;
 }
 
 .auth-input {
     width: 100%;
-    padding: 0.9rem 1rem 0.9rem 3rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.9rem 1rem;
+    background: var(--auth-input-bg);
+    border: 1px solid var(--auth-border);
     border-radius: 12px;
-    color: #ffffff;
+    color: var(--auth-text);
     font-size: 1rem;
     transition: all 0.3s ease;
 }
 
+.auth-input.with-icon {
+    padding-left: 3rem;
+}
+
 .auth-input::placeholder {
-    color: rgba(255, 255, 255, 0.25);
+    color: var(--auth-text-muted);
+    opacity: 0.6;
 }
 
 .auth-input:focus {
     outline: none;
     border-color: rgba(139, 92, 246, 0.5);
-    background: rgba(255, 255, 255, 0.05);
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
@@ -179,16 +315,15 @@
     flex-direction: column;
     align-items: center;
     padding: 1.25rem 1rem;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--auth-input-bg);
+    border: 1px solid var(--auth-border);
     border-radius: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .auth-role-label:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(139, 92, 246, 0.3);
 }
 
 .auth-role-option input:checked + .auth-role-label {
@@ -199,13 +334,13 @@
 .auth-role-icon {
     width: 48px;
     height: 48px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--auth-input-bg);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--auth-text-muted);
     margin-bottom: 0.75rem;
     transition: all 0.3s ease;
 }
@@ -216,9 +351,10 @@
 }
 
 .auth-role-text {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--auth-text);
     font-weight: 500;
     font-size: 0.95rem;
+    opacity: 0.8;
 }
 
 .auth-btn {
@@ -245,14 +381,10 @@
     box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4);
 }
 
-.auth-btn:active {
-    transform: translateY(0);
-}
-
 .auth-footer {
     text-align: center;
     margin-top: 1.5rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--auth-text-muted);
     font-size: 0.95rem;
 }
 
@@ -265,23 +397,6 @@
 
 .auth-footer a:hover {
     color: #a78bfa;
-}
-
-.auth-back {
-    position: absolute;
-    top: 2rem;
-    left: 2rem;
-    color: rgba(255, 255, 255, 0.5);
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    transition: color 0.3s ease;
-}
-
-.auth-back:hover {
-    color: #ffffff;
 }
 
 .error-message {
@@ -300,15 +415,9 @@
     font-size: 0.9rem;
 }
 
-.auth-form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-@media (max-width: 540px) {
-    .auth-container {
-        padding: 1rem;
+@media (max-width: 768px) {
+    .auth-nav {
+        padding: 1rem 1.5rem;
     }
     
     .auth-card {
@@ -322,109 +431,149 @@
 }
 </style>
 
-<div class="auth-page">
-    <a href="{{ url_for('main.index') }}" class="auth-back">
-        <i class="bi bi-arrow-left"></i>
-        홈으로
-    </a>
-    
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-logo">
-                <i class="bi bi-person-plus-fill"></i>
+<div class="auth-page" id="authPage">
+    <nav class="auth-nav">
+        <a href="{{ url_for('main.index') }}" class="auth-nav-logo">
+            <div class="auth-nav-logo-icon">
+                <i class="bi bi-mortarboard-fill"></i>
             </div>
-            <h1 class="auth-title">회원가입</h1>
-            <p class="auth-subtitle">새로운 계정을 만들어 학습을 시작하세요</p>
-            
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="flash-alert">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            
-            <form method="POST">
-                {{ form.hidden_tag() }}
+            <span class="fw-bold">학습 트래커</span>
+        </a>
+        <div class="auth-nav-actions">
+            <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="테마 변경">
+                <i class="bi bi-moon-fill icon-dark"></i>
+                <i class="bi bi-sun-fill icon-light"></i>
+            </button>
+            <a href="{{ url_for('auth.login') }}" class="auth-cta-nav auth-cta-nav-secondary">로그인</a>
+            <a href="{{ url_for('auth.register') }}" class="auth-cta-nav auth-cta-nav-primary">회원가입</a>
+        </div>
+    </nav>
+
+    <div class="auth-content">
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-logo">
+                    <i class="bi bi-person-plus-fill"></i>
+                </div>
+                <h1 class="auth-title">회원가입</h1>
+                <p class="auth-subtitle">새로운 계정을 만들어 학습을 시작하세요</p>
                 
-                <div class="auth-form-row">
-                    <div class="auth-form-group">
-                        <label class="auth-label">사용자명</label>
-                        <div class="auth-input-wrapper">
-                            {{ form.username(class="auth-input", placeholder="사용자명", style="padding-left: 1rem;") }}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash-alert">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="auth-form-row">
+                        <div class="auth-form-group">
+                            <label class="auth-label">사용자명</label>
+                            <div class="auth-input-wrapper">
+                                {{ form.username(class="auth-input", placeholder="사용자명") }}
+                            </div>
+                            {% for error in form.username.errors %}
+                                <div class="error-message">{{ error }}</div>
+                            {% endfor %}
                         </div>
-                        {% for error in form.username.errors %}
+                        
+                        <div class="auth-form-group">
+                            <label class="auth-label">이메일</label>
+                            <div class="auth-input-wrapper">
+                                {{ form.email(class="auth-input", placeholder="이메일 주소") }}
+                            </div>
+                            {% for error in form.email.errors %}
+                                <div class="error-message">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="auth-form-group">
+                        <label class="auth-label">역할 선택</label>
+                        <div class="auth-role-group">
+                            <div class="auth-role-option">
+                                <input type="radio" name="role" id="roleStudent" value="student" checked>
+                                <label class="auth-role-label" for="roleStudent">
+                                    <div class="auth-role-icon">
+                                        <i class="bi bi-mortarboard"></i>
+                                    </div>
+                                    <span class="auth-role-text">학생</span>
+                                </label>
+                            </div>
+                            <div class="auth-role-option">
+                                <input type="radio" name="role" id="roleInstructor" value="instructor">
+                                <label class="auth-role-label" for="roleInstructor">
+                                    <div class="auth-role-icon">
+                                        <i class="bi bi-person-workspace"></i>
+                                    </div>
+                                    <span class="auth-role-text">강사</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="auth-form-group">
+                        <label class="auth-label">비밀번호</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.password(class="auth-input with-icon", placeholder="비밀번호를 입력하세요") }}
+                            <i class="bi bi-lock auth-input-icon"></i>
+                        </div>
+                        {% for error in form.password.errors %}
                             <div class="error-message">{{ error }}</div>
                         {% endfor %}
                     </div>
                     
                     <div class="auth-form-group">
-                        <label class="auth-label">이메일</label>
+                        <label class="auth-label">비밀번호 확인</label>
                         <div class="auth-input-wrapper">
-                            {{ form.email(class="auth-input", placeholder="이메일 주소", style="padding-left: 1rem;") }}
+                            {{ form.confirm_password(class="auth-input with-icon", placeholder="비밀번호를 다시 입력하세요") }}
+                            <i class="bi bi-shield-lock auth-input-icon"></i>
                         </div>
-                        {% for error in form.email.errors %}
+                        {% for error in form.confirm_password.errors %}
                             <div class="error-message">{{ error }}</div>
                         {% endfor %}
                     </div>
-                </div>
+                    
+                    <button type="submit" class="auth-btn">
+                        <i class="bi bi-person-plus"></i>
+                        회원가입
+                    </button>
+                </form>
                 
-                <div class="auth-form-group">
-                    <label class="auth-label">역할 선택</label>
-                    <div class="auth-role-group">
-                        <div class="auth-role-option">
-                            <input type="radio" name="role" id="roleStudent" value="student" checked>
-                            <label class="auth-role-label" for="roleStudent">
-                                <div class="auth-role-icon">
-                                    <i class="bi bi-mortarboard"></i>
-                                </div>
-                                <span class="auth-role-text">학생</span>
-                            </label>
-                        </div>
-                        <div class="auth-role-option">
-                            <input type="radio" name="role" id="roleInstructor" value="instructor">
-                            <label class="auth-role-label" for="roleInstructor">
-                                <div class="auth-role-icon">
-                                    <i class="bi bi-person-workspace"></i>
-                                </div>
-                                <span class="auth-role-text">강사</span>
-                            </label>
-                        </div>
-                    </div>
+                <div class="auth-footer">
+                    이미 계정이 있으신가요? <a href="{{ url_for('auth.login') }}">로그인</a>
                 </div>
-                
-                <div class="auth-form-group">
-                    <label class="auth-label">비밀번호</label>
-                    <div class="auth-input-wrapper">
-                        {{ form.password(class="auth-input", placeholder="비밀번호를 입력하세요") }}
-                        <i class="bi bi-lock auth-input-icon"></i>
-                    </div>
-                    {% for error in form.password.errors %}
-                        <div class="error-message">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                
-                <div class="auth-form-group">
-                    <label class="auth-label">비밀번호 확인</label>
-                    <div class="auth-input-wrapper">
-                        {{ form.confirm_password(class="auth-input", placeholder="비밀번호를 다시 입력하세요") }}
-                        <i class="bi bi-shield-lock auth-input-icon"></i>
-                    </div>
-                    {% for error in form.confirm_password.errors %}
-                        <div class="error-message">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                
-                <button type="submit" class="auth-btn">
-                    <i class="bi bi-person-plus"></i>
-                    회원가입
-                </button>
-            </form>
-            
-            <div class="auth-footer">
-                이미 계정이 있으신가요? <a href="{{ url_for('auth.login') }}">로그인</a>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    const authPage = document.getElementById('authPage');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            authPage.classList.add('light-theme');
+        } else {
+            authPage.classList.remove('light-theme');
+        }
+    }
+    
+    const savedTheme = localStorage.getItem('siteTheme') || 'dark';
+    applyTheme(savedTheme);
+    
+    themeToggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const isLight = authPage.classList.contains('light-theme');
+        const newTheme = isLight ? 'dark' : 'light';
+        localStorage.setItem('siteTheme', newTheme);
+        applyTheme(newTheme);
+    });
+})();
+</script>
 {% endblock %}

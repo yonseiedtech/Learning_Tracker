@@ -28,6 +28,15 @@ class LoginForm(FlaskForm):
     auto_login = BooleanField('자동 로그인')
     submit = SubmitField('로그인')
 
+class ForgotPasswordForm(FlaskForm):
+    email = StringField('이메일', validators=[DataRequired(message='이메일을 입력하세요'), Email(message='올바른 이메일 형식을 입력하세요')])
+    submit = SubmitField('비밀번호 재설정 링크 받기')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('새 비밀번호', validators=[DataRequired(message='새 비밀번호를 입력하세요'), Length(min=6, message='최소 6자 이상 입력하세요')])
+    confirm_password = PasswordField('비밀번호 확인', validators=[DataRequired(message='비밀번호 확인을 입력하세요'), EqualTo('password', message='비밀번호가 일치하지 않습니다')])
+    submit = SubmitField('비밀번호 변경')
+
 class CourseForm(FlaskForm):
     title = StringField('강좌명', validators=[DataRequired(message='강좌명을 입력하세요'), Length(max=200)])
     description = TextAreaField('설명', validators=[Optional()])

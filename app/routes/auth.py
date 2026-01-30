@@ -1,10 +1,13 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, make_response
 from flask_login import login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
-from datetime import timedelta
+from datetime import timedelta, datetime
+import secrets
 from app import db
 from app.models import User
-from app.forms import RegistrationForm, LoginForm
+from app.forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
+
+password_reset_tokens = {}
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -80,3 +83,50 @@ def logout():
     logout_user()
     flash('로그아웃되었습니다.', 'info')
     return redirect(url_for('auth.login'))
+
+@bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = secrets.token_urlsafe(32)
+            password_reset_tokens[token] = {
+                'user_id': user.id,
+                'email': form.email.data,
+                'expires': datetime.utcnow() + timedelta(hours=1)
+            }
+            return redirect(url_for('auth.reset_password', token=token))
+        flash('입력하신 이메일 주소로 비밀번호 재설정 안내를 확인해주세요.', 'info')
+    
+    return render_template('auth/forgot_password.html', form=form)
+
+@bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    
+    token_data = password_reset_tokens.get(token)
+    if not token_data:
+        flash('유효하지 않거나 만료된 링크입니다.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    
+    if datetime.utcnow() > token_data['expires']:
+        del password_reset_tokens[token]
+        flash('링크가 만료되었습니다. 다시 시도해주세요.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.get(token_data['user_id'])
+        if user:
+            user.set_password(form.password.data)
+            db.session.commit()
+            del password_reset_tokens[token]
+            flash('비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.', 'success')
+            return redirect(url_for('auth.login'))
+    
+    return render_template('auth/reset_password.html', form=form)
