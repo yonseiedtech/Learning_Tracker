@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import User, Course, Checkpoint, Enrollment, Progress
+from app.models import User, Course, Checkpoint, Enrollment, Progress, Subject, SubjectEnrollment, SubjectMember, Organization
 from datetime import datetime, timedelta
 import random
 
@@ -11,57 +11,170 @@ def seed_database():
         print("Creating all tables...")
         db.create_all()
         
+        print("Creating organizations...")
+        org1 = Organization(
+            name='테크 아카데미',
+            description='IT 전문 교육 기관'
+        )
+        org2 = Organization(
+            name='비즈니스 스쿨',
+            description='경영 및 비즈니스 교육 기관'
+        )
+        db.session.add(org1)
+        db.session.add(org2)
+        db.session.commit()
+        
         print("Creating users...")
+        
+        system_admin = User(
+            username='sysadmin',
+            email='sysadmin@example.com',
+            role='system_admin',
+            full_name='시스템 관리자'
+        )
+        system_admin.set_password('password123')
+        
+        org_admin1 = User(
+            username='orgadmin1',
+            email='orgadmin1@example.com',
+            role='org_admin',
+            organization_id=org1.id,
+            full_name='테크아카데미 관리자'
+        )
+        org_admin1.set_password('password123')
+        
+        org_admin2 = User(
+            username='orgadmin2',
+            email='orgadmin2@example.com',
+            role='org_admin',
+            organization_id=org2.id,
+            full_name='비즈니스스쿨 관리자'
+        )
+        org_admin2.set_password('password123')
+        
         instructor1 = User(
             username='instructor1',
             email='instructor1@example.com',
-            role='instructor'
+            role='instructor',
+            organization_id=org1.id,
+            full_name='김강사'
         )
         instructor1.set_password('password123')
         
         instructor2 = User(
             username='instructor2',
             email='instructor2@example.com',
-            role='instructor'
+            role='instructor',
+            organization_id=org1.id,
+            full_name='이강사'
         )
         instructor2.set_password('password123')
         
+        instructor3 = User(
+            username='instructor3',
+            email='instructor3@example.com',
+            role='instructor',
+            organization_id=org2.id,
+            full_name='박강사'
+        )
+        instructor3.set_password('password123')
+        
         students = []
         for i in range(1, 11):
+            org_id = org1.id if i <= 5 else org2.id
             student = User(
                 username=f'student{i}',
                 email=f'student{i}@example.com',
-                role='student'
+                role='student',
+                organization_id=org_id,
+                full_name=f'학습자{i}'
             )
             student.set_password('password123')
             students.append(student)
         
+        db.session.add(system_admin)
+        db.session.add(org_admin1)
+        db.session.add(org_admin2)
         db.session.add(instructor1)
         db.session.add(instructor2)
+        db.session.add(instructor3)
         for student in students:
             db.session.add(student)
         db.session.commit()
         
-        print("Creating courses...")
-        course1 = Course(
-            title='Introduction to Python',
-            description='Learn Python programming from scratch. This course covers variables, data types, control flow, functions, and basic data structures.',
+        print("Creating subjects...")
+        subject1 = Subject(
+            title='Python 프로그래밍 기초',
+            description='Python 프로그래밍을 처음부터 배우는 과정입니다.',
             instructor_id=instructor1.id,
+            organization_id=org1.id,
             invite_code='PYTHON01'
         )
         
-        course2 = Course(
-            title='Web Development Basics',
-            description='Master the fundamentals of web development including HTML, CSS, and JavaScript.',
+        subject2 = Subject(
+            title='웹개발 입문',
+            description='HTML, CSS, JavaScript를 활용한 웹개발 기초 과정',
             instructor_id=instructor1.id,
+            organization_id=org1.id,
             invite_code='WEBDEV01'
         )
         
-        course3 = Course(
-            title='Data Science Fundamentals',
-            description='Explore data analysis, visualization, and machine learning basics.',
+        subject3 = Subject(
+            title='데이터 분석 기초',
+            description='데이터 분석과 시각화, 머신러닝 기초',
             instructor_id=instructor2.id,
+            organization_id=org1.id,
             invite_code='DATASCI1'
+        )
+        
+        subject4 = Subject(
+            title='비즈니스 전략',
+            description='경영 전략과 의사결정 과정',
+            instructor_id=instructor3.id,
+            organization_id=org2.id,
+            invite_code='BIZ00001'
+        )
+        
+        db.session.add(subject1)
+        db.session.add(subject2)
+        db.session.add(subject3)
+        db.session.add(subject4)
+        db.session.commit()
+        
+        for subj, inst in [(subject1, instructor1), (subject2, instructor1), (subject3, instructor2), (subject4, instructor3)]:
+            member = SubjectMember(subject_id=subj.id, user_id=inst.id, role='instructor')
+            db.session.add(member)
+        db.session.commit()
+        
+        print("Creating courses (sessions)...")
+        course1 = Course(
+            title='1주차: Python 설치 및 환경 설정',
+            description='개발 환경을 구축하고 첫 Python 프로그램을 작성합니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='live_session',
+            week_number=1,
+            invite_code='PY1WK001'
+        )
+        
+        course2 = Course(
+            title='2주차: 변수와 데이터 타입',
+            description='문자열, 숫자, 불리언 등 기본 데이터 타입을 학습합니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='video',
+            week_number=2,
+            invite_code='PY1WK002'
+        )
+        
+        course3 = Course(
+            title='3주차: 제어문',
+            description='if/else와 반복문을 마스터합니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='live_session',
+            week_number=3,
+            invite_code='PY1WK003'
         )
         
         db.session.add(course1)
@@ -71,14 +184,9 @@ def seed_database():
         
         print("Creating checkpoints...")
         python_checkpoints = [
-            ('Setup Development Environment', 'Install Python and VS Code', 10),
-            ('Variables and Data Types', 'Learn about strings, numbers, and booleans', 20),
-            ('Control Flow', 'Master if/else statements and loops', 25),
-            ('Functions', 'Create and use functions effectively', 30),
-            ('Lists and Dictionaries', 'Work with Python collections', 25),
-            ('File Handling', 'Read and write files in Python', 20),
-            ('Error Handling', 'Learn try/except blocks', 15),
-            ('Final Project', 'Build a complete Python application', 45)
+            ('개발 환경 설정', 'Python과 VS Code 설치', 10),
+            ('Hello World 출력', '첫 프로그램 작성하기', 15),
+            ('변수 선언', '변수에 값 할당하기', 20),
         ]
         
         for i, (title, desc, est_min) in enumerate(python_checkpoints):
@@ -91,69 +199,46 @@ def seed_database():
             )
             db.session.add(cp)
         
-        web_checkpoints = [
-            ('HTML Basics', 'Learn HTML tags and structure', 20),
-            ('CSS Styling', 'Style your web pages with CSS', 25),
-            ('Responsive Design', 'Make mobile-friendly layouts', 30),
-            ('JavaScript Intro', 'Add interactivity with JavaScript', 35),
-            ('DOM Manipulation', 'Modify page content dynamically', 25),
-            ('Final Web Project', 'Build a complete website', 60)
-        ]
-        
-        for i, (title, desc, est_min) in enumerate(web_checkpoints):
-            cp = Checkpoint(
-                course_id=course2.id,
-                title=title,
-                description=desc,
-                order=i + 1,
-                estimated_minutes=est_min
-            )
-            db.session.add(cp)
-        
         db.session.commit()
         
         print("Creating enrollments...")
-        for student in students[:8]:
-            enrollment = Enrollment(course_id=course1.id, user_id=student.id)
+        for student in students[:5]:
+            enrollment = SubjectEnrollment(subject_id=subject1.id, user_id=student.id)
             db.session.add(enrollment)
-        
-        for student in students[2:7]:
-            enrollment = Enrollment(course_id=course2.id, user_id=student.id)
-            db.session.add(enrollment)
+            course_enroll = Enrollment(course_id=course1.id, user_id=student.id)
+            db.session.add(course_enroll)
         
         db.session.commit()
         
-        print("Creating sample progress...")
-        course1_checkpoints = Checkpoint.query.filter_by(course_id=course1.id).order_by(Checkpoint.order).all()
+        print("\n" + "="*60)
+        print("    테스트 계정 정보")
+        print("="*60)
+        print("\n[시스템 관리자] - 전체 시스템 관리")
+        print(f"  이메일: sysadmin@example.com")
+        print(f"  비밀번호: password123")
         
-        for student in students[:8]:
-            num_completed = random.randint(2, len(course1_checkpoints))
-            for cp in course1_checkpoints[:num_completed]:
-                started = datetime.utcnow() - timedelta(days=random.randint(1, 7), hours=random.randint(0, 23))
-                duration = random.randint(int(cp.estimated_minutes * 0.7 * 60), int(cp.estimated_minutes * 1.5 * 60))
-                completed = started + timedelta(seconds=duration)
-                
-                progress = Progress(
-                    user_id=student.id,
-                    checkpoint_id=cp.id,
-                    mode='self_paced',
-                    started_at=started,
-                    completed_at=completed,
-                    duration_seconds=duration
-                )
-                db.session.add(progress)
+        print("\n[기관 관리자] - 소속 기관 과목/세션만 관리")
+        print(f"  테크아카데미: orgadmin1@example.com")
+        print(f"  비즈니스스쿨: orgadmin2@example.com")
+        print(f"  비밀번호: password123 (공통)")
         
-        db.session.commit()
+        print("\n[강사] - 과목 생성 및 수업 진행")
+        print(f"  테크아카데미: instructor1@example.com, instructor2@example.com")
+        print(f"  비즈니스스쿨: instructor3@example.com")
+        print(f"  비밀번호: password123 (공통)")
         
-        print("\n=== Seed Data Summary ===")
-        print(f"Instructors: 2 (instructor1@example.com, instructor2@example.com)")
-        print(f"Students: 10 (student1@example.com - student10@example.com)")
-        print(f"Password for all users: password123")
-        print(f"\nCourses:")
-        print(f"  - {course1.title} (Invite Code: {course1.invite_code})")
-        print(f"  - {course2.title} (Invite Code: {course2.invite_code})")
-        print(f"  - {course3.title} (Invite Code: {course3.invite_code})")
-        print("\nDatabase seeded successfully!")
+        print("\n[학습자] - 과목 수강 및 학습")
+        print(f"  테크아카데미: student1~5@example.com")
+        print(f"  비즈니스스쿨: student6~10@example.com")
+        print(f"  비밀번호: password123 (공통)")
+        
+        print("\n[샘플 초대 코드]")
+        print(f"  Python 프로그래밍 기초: PYTHON01")
+        print(f"  웹개발 입문: WEBDEV01")
+        print(f"  데이터 분석 기초: DATASCI1")
+        print(f"  비즈니스 전략: BIZ00001")
+        print("\n" + "="*60)
+        print("데이터베이스 시드 완료!")
 
 if __name__ == '__main__':
     seed_database()

@@ -8,6 +8,20 @@ import string
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+class Organization(db.Model):
+    __tablename__ = 'organizations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    logo = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    members = db.relationship('User', backref='org', lazy='dynamic')
+    subjects = db.relationship('Subject', backref='org', lazy='dynamic')
+
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
     
@@ -16,11 +30,12 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='student')
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Profile fields
-    profile_image = db.Column(db.Text, nullable=True)  # Base64 encoded image
+    profile_image = db.Column(db.Text, nullable=True)
     nickname = db.Column(db.String(80), nullable=True)
     full_name = db.Column(db.String(120), nullable=True)
     profile_url = db.Column(db.String(255), nullable=True)
@@ -30,9 +45,9 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(20), nullable=True)
     
     # Additional info
-    organization = db.Column(db.String(200), nullable=True)  # 소속
-    position = db.Column(db.String(100), nullable=True)  # 직책
-    job_title = db.Column(db.String(100), nullable=True)  # 직급
+    organization_name = db.Column(db.String(200), nullable=True)
+    position = db.Column(db.String(100), nullable=True)
+    job_title = db.Column(db.String(100), nullable=True)
     
     # Instructor verification
     instructor_verified = db.Column(db.Boolean, default=False)
@@ -48,8 +63,26 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
     
+    def is_student(self):
+        return self.role == 'student'
+    
     def is_instructor(self):
-        return self.role == 'instructor'
+        return self.role in ['instructor', 'org_admin', 'system_admin']
+    
+    def is_org_admin(self):
+        return self.role == 'org_admin'
+    
+    def is_system_admin(self):
+        return self.role == 'system_admin'
+    
+    def can_access_subject(self, subject):
+        if self.is_system_admin():
+            return True
+        if self.is_org_admin() and subject.organization_id == self.organization_id:
+            return True
+        if subject.instructor_id == self.id:
+            return True
+        return False
     
     def is_enrolled(self, course):
         return Enrollment.query.filter_by(user_id=self.id, course_id=course.id).first() is not None
@@ -61,6 +94,7 @@ class Subject(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=True)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
     is_visible = db.Column(db.Boolean, default=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
