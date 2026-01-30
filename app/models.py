@@ -432,3 +432,62 @@ class StudyGroupMember(db.Model):
     user = db.relationship('User', backref='study_group_memberships')
     
     __table_args__ = (db.UniqueConstraint('group_id', 'user_id', name='unique_group_member'),)
+
+
+class SubjectEnrollment(db.Model):
+    __tablename__ = 'subject_enrollments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    subject = db.relationship('Subject', backref='enrollments')
+    user = db.relationship('User', backref='subject_enrollments')
+    
+    __table_args__ = (db.UniqueConstraint('subject_id', 'user_id', name='unique_subject_enrollment'),)
+
+
+class GuidePost(db.Model):
+    __tablename__ = 'guide_posts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(50), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    is_pinned = db.Column(db.Boolean, default=False)
+    is_answered = db.Column(db.Boolean, default=False)
+    view_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    author = db.relationship('User', backref='guide_posts')
+    comments = db.relationship('GuideComment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+    attachments = db.relationship('GuideAttachment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
+
+class GuideComment(db.Model):
+    __tablename__ = 'guide_comments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('guide_posts.id'), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_admin_reply = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    author = db.relationship('User', backref='guide_comments')
+
+
+class GuideAttachment(db.Model):
+    __tablename__ = 'guide_attachments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('guide_posts.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer)
+    file_type = db.Column(db.String(100))
+    file_data = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

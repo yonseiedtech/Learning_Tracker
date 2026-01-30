@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}글쓰기 - {{ categories[category].name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('guide.index') }}">이용안내</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('guide.index', category=category) }}">{{ categories[category].name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">글쓰기</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="glass-card p-4">
+    <h4 class="fw-bold mb-4">
+        <i class="bi bi-pencil-square me-2"></i>{{ categories[category].name }} 글쓰기
+    </h4>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label for="title" class="form-label fw-bold">제목</label>
+            <input type="text" class="form-control" id="title" name="title" required placeholder="제목을 입력하세요">
+        </div>
+        
+        <div class="mb-3">
+            <label for="content" class="form-label fw-bold">내용</label>
+            <textarea class="form-control" id="content" name="content" rows="10" required placeholder="내용을 입력하세요"></textarea>
+        </div>
+        
+        {% if is_admin %}
+        <div class="mb-4">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="is_pinned" name="is_pinned">
+                <label class="form-check-label" for="is_pinned">
+                    <i class="bi bi-pin me-1"></i>상단 고정
+                </label>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>등록
+            </button>
+            <a href="{{ url_for('guide.index', category=category) }}" class="btn btn-outline-secondary">취소</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}이용안내 - 학습 진도 트래커{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold mb-1">이용안내</h2>
+    <p class="text-muted mb-0">서비스 이용에 필요한 정보를 확인하세요</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="glass-card p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-list me-2"></i>카테고리</h6>
+            <ul class="list-unstyled mb-0">
+                {% for key, cat in categories.items() %}
+                <li class="mb-2">
+                    <a href="{{ url_for('guide.index', category=key) }}" 
+                       class="d-flex align-items-center text-decoration-none p-2 rounded {{ 'bg-primary text-white' if current_category == key else 'text-dark' }}"
+                       style="{{ '' if current_category == key else 'color: var(--app-text) !important;' }}">
+                        <i class="bi {{ cat.icon }} me-2"></i>
+                        {{ cat.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi {{ categories[current_category].icon }} me-2"></i>
+                    {{ categories[current_category].name }}
+                </h5>
+                {% if is_admin or not categories[current_category].admin_only %}
+                <a href="{{ url_for('guide.create_post', category=current_category) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i>글쓰기
+                </a>
+                {% endif %}
+            </div>
+            
+            {% if posts %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 60%;">제목</th>
+                            <th class="text-center">작성자</th>
+                            <th class="text-center">조회</th>
+                            <th class="text-center">작성일</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for post in posts %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('guide.view_post', post_id=post.id) }}" class="text-decoration-none" style="color: var(--app-text);">
+                                    {% if post.is_pinned %}
+                                    <span class="badge bg-danger me-1">공지</span>
+                                    {% endif %}
+                                    {% if current_category == 'qna' %}
+                                    <span class="badge {{ 'bg-success' if post.is_answered else 'bg-secondary' }} me-1">
+                                        {{ '답변완료' if post.is_answered else '답변대기' }}
+                                    </span>
+                                    {% endif %}
+                                    {{ post.title }}
+                                    {% if post.comments.count() > 0 %}
+                                    <span class="text-primary small">[{{ post.comments.count() }}]</span>
+                                    {% endif %}
+                                </a>
+                            </td>
+                            <td class="text-center">{{ post.author.username }}</td>
+                            <td class="text-center">{{ post.view_count }}</td>
+                            <td class="text-center text-muted small">{{ post.created_at.strftime('%Y-%m-%d') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                </div>
+                <h5 class="text-muted">등록된 게시글이 없습니다</h5>
+                <p class="text-muted small">
+                    {% if is_admin or not categories[current_category].admin_only %}
+                    첫 번째 글을 작성해보세요!
+                    {% else %}
+                    관리자가 곧 내용을 등록할 예정입니다.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

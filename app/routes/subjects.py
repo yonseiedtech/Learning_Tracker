@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Subject, Course, Enrollment
+from app.models import Subject, Course, Enrollment, SubjectEnrollment
 from app.forms import SubjectForm
 from datetime import datetime
 
@@ -11,15 +11,20 @@ bp = Blueprint('subjects', __name__, url_prefix='/subjects')
 @login_required
 def list_subjects():
     if current_user.is_instructor():
-        subjects = Subject.query.filter_by(instructor_id=current_user.id).order_by(Subject.created_at.desc()).all()
+        enrolled_subjects = Subject.query.filter_by(instructor_id=current_user.id).order_by(Subject.created_at.desc()).all()
+        all_subjects = []
     else:
-        enrolled_subject_ids = db.session.query(Course.subject_id).join(Enrollment).filter(
-            Enrollment.user_id == current_user.id,
-            Course.subject_id.isnot(None)
-        ).distinct().all()
-        subject_ids = [s[0] for s in enrolled_subject_ids if s[0]]
-        subjects = Subject.query.filter(Subject.id.in_(subject_ids)).all() if subject_ids else []
-    return render_template('subjects/list.html', subjects=subjects)
+        enrolled_subject_ids = db.session.query(SubjectEnrollment.subject_id).filter(
+            SubjectEnrollment.user_id == current_user.id
+        ).all()
+        enrolled_ids = [s[0] for s in enrolled_subject_ids]
+        enrolled_subjects = Subject.query.filter(Subject.id.in_(enrolled_ids)).all() if enrolled_ids else []
+        all_subjects = Subject.query.filter(~Subject.id.in_(enrolled_ids) if enrolled_ids else True).order_by(Subject.created_at.desc()).all()
+    
+    return render_template('subjects/list.html', 
+                          enrolled_subjects=enrolled_subjects, 
+                          all_subjects=all_subjects,
+                          is_instructor=current_user.is_instructor())
 
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -50,10 +55,11 @@ def view(subject_id):
     
     is_enrolled = False
     if not current_user.is_instructor():
-        for course in courses:
-            if current_user.is_enrolled(course):
-                is_enrolled = True
-                break
+        subject_enrollment = SubjectEnrollment.query.filter_by(
+            subject_id=subject_id, 
+            user_id=current_user.id
+        ).first()
+        is_enrolled = subject_enrollment is not None
     
     return render_template('subjects/view.html', subject=subject, courses=courses, is_enrolled=is_enrolled)
 
@@ -117,21 +123,107 @@ def regenerate_code(subject_id):
     db.session.commit()
     return jsonify({'success': True, 'invite_code': subject.invite_code})
 
-@bp.route('/enroll', methods=['POST'])
+@bp.route('/<int:subject_id>/enroll', methods=['POST'])
 @login_required
-def enroll():
+def enroll_subject(subject_id):
+    if current_user.is_instructor():
+        flash('강사는 과목 등록을 할 수 없습니다.', 'warning')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    subject = Subject.query.get_or_404(subject_id)
+    
+    existing_enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=current_user.id
+    ).first()
+    
+    if existing_enrollment:
+        flash('이미 해당 과목에 등록되어 있습니다.', 'info')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    subject_enrollment = SubjectEnrollment(
+        subject_id=subject_id,
+        user_id=current_user.id
+    )
+    db.session.add(subject_enrollment)
+    
+    courses = subject.courses.all()
+    enrolled_count = 0
+    for course in courses:
+        if not current_user.is_enrolled(course):
+            enrollment = Enrollment(user_id=current_user.id, course_id=course.id)
+            db.session.add(enrollment)
+            enrolled_count += 1
+    
+    db.session.commit()
+    flash(f'{subject.title} 과목에 등록되었습니다. ({enrolled_count}개 세션 자동 등록)', 'success')
+    return redirect(url_for('subjects.view', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/unenroll', methods=['POST'])
+@login_required
+def unenroll_subject(subject_id):
+    if current_user.is_instructor():
+        flash('강사는 과목 등록 취소를 할 수 없습니다.', 'warning')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    subject = Subject.query.get_or_404(subject_id)
+    
+    subject_enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not subject_enrollment:
+        flash('해당 과목에 등록되어 있지 않습니다.', 'warning')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    db.session.delete(subject_enrollment)
+    
+    courses = subject.courses.all()
+    for course in courses:
+        enrollment = Enrollment.query.filter_by(
+            course_id=course.id,
+            user_id=current_user.id
+        ).first()
+        if enrollment:
+            db.session.delete(enrollment)
+    
+    db.session.commit()
+    flash(f'{subject.title} 과목 등록이 취소되었습니다.', 'success')
+    return redirect(url_for('subjects.list_subjects'))
+
+
+@bp.route('/enroll-by-code', methods=['POST'])
+@login_required
+def enroll_by_code():
+    if current_user.is_instructor():
+        flash('강사는 과목 등록을 할 수 없습니다.', 'warning')
+        return redirect(url_for('main.dashboard'))
+    
     invite_code = request.form.get('invite_code', '').strip().upper()
     if not invite_code:
         flash('초대 코드를 입력하세요.', 'danger')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('subjects.list_subjects'))
     
     subject = Subject.query.filter_by(invite_code=invite_code).first()
     if subject:
-        courses = subject.courses.all()
-        if not courses:
-            flash('해당 과목에 등록된 세션이 없습니다.', 'warning')
-            return redirect(url_for('main.dashboard'))
+        existing_enrollment = SubjectEnrollment.query.filter_by(
+            subject_id=subject.id,
+            user_id=current_user.id
+        ).first()
         
+        if existing_enrollment:
+            flash('이미 해당 과목에 등록되어 있습니다.', 'info')
+            return redirect(url_for('subjects.view', subject_id=subject.id))
+        
+        subject_enrollment = SubjectEnrollment(
+            subject_id=subject.id,
+            user_id=current_user.id
+        )
+        db.session.add(subject_enrollment)
+        
+        courses = subject.courses.all()
         enrolled_count = 0
         for course in courses:
             if not current_user.is_enrolled(course):
@@ -139,12 +231,9 @@ def enroll():
                 db.session.add(enrollment)
                 enrolled_count += 1
         
-        if enrolled_count > 0:
-            db.session.commit()
-            flash(f'{subject.title} 과목의 {enrolled_count}개 세션에 등록되었습니다.', 'success')
-        else:
-            flash('이미 해당 과목에 등록되어 있습니다.', 'info')
+        db.session.commit()
+        flash(f'{subject.title} 과목에 등록되었습니다. ({enrolled_count}개 세션 자동 등록)', 'success')
         return redirect(url_for('subjects.view', subject_id=subject.id))
     
     flash('유효하지 않은 초대 코드입니다.', 'danger')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('subjects.list_subjects'))

@@ -17,17 +17,37 @@
         <div>
             <h2 class="fw-bold mb-2"><i class="bi bi-book me-2 text-primary"></i>{{ subject.title }}</h2>
             {% if subject.description %}
-            <p class="text-muted mb-0">{{ subject.description }}</p>
+            <p class="text-muted mb-2">{{ subject.description }}</p>
             {% endif %}
+            <small class="text-muted"><i class="bi bi-person me-1"></i>강사: {{ subject.instructor.username }}</small>
         </div>
         {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
         <div class="d-flex gap-2 flex-wrap">
             <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i>주차 추가
+                <i class="bi bi-plus-lg me-1"></i>세션 추가
             </a>
             <a href="{{ url_for('subjects.edit', subject_id=subject.id) }}" class="btn btn-outline-primary">
                 <i class="bi bi-pencil me-1"></i>수정
             </a>
+        </div>
+        {% elif not current_user.is_instructor() %}
+        <div>
+            {% if is_enrolled %}
+            <span class="badge bg-success fs-6 me-2"><i class="bi bi-check-circle me-1"></i>등록됨</span>
+            <form action="{{ url_for('subjects.unenroll_subject', subject_id=subject.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말 이 과목 등록을 취소하시겠습니까? 모든 세션 등록도 함께 취소됩니다.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>등록 취소
+                </button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('subjects.enroll_subject', subject_id=subject.id) }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i>과목 등록
+                </button>
+            </form>
+            {% endif %}
         </div>
         {% endif %}
     </div>
