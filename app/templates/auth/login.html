@@ -3,17 +3,6 @@
 {% block title %}로그인 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
-<nav class="navbar navbar-expand-lg navbar-dark glass-nav position-fixed w-100" style="z-index: 1001;">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
-            <i class="bi bi-mortarboard-fill me-2"></i>학습 트래커
-        </a>
-        <div class="ms-auto d-flex gap-2">
-            <a class="nav-link text-white" href="{{ url_for('auth.login') }}">로그인</a>
-            <a class="btn btn-light btn-sm px-3" href="{{ url_for('auth.register') }}">회원가입</a>
-        </div>
-    </div>
-</nav>
 <div class="login-page-wrapper">
     <div class="login-bg-overlay"></div>
     <div class="container position-relative">
@@ -79,10 +68,10 @@
 <style>
 .login-page-wrapper {
     position: fixed;
-    top: 0;
+    top: 56px;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 56px);
     overflow-y: auto;
     background-image: url('{{ url_for("static", filename="images/login-bg.jpg") }}');
     background-size: cover;
@@ -92,16 +81,33 @@
 
 .login-bg-overlay {
     position: fixed;
-    top: 0;
+    top: 56px;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 56px);
     background: linear-gradient(135deg, rgba(13, 27, 62, 0.85) 0%, rgba(23, 48, 89, 0.80) 100%);
     z-index: 0;
 }
 
 .login-page-wrapper .container {
     z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .login-card {
+        margin: 1rem;
+        padding: 1.5rem !important;
+    }
+    
+    .login-card .auth-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+    
+    .login-card h2 {
+        font-size: 1.5rem;
+    }
 }
 
 .login-card {
