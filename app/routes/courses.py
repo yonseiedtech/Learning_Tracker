@@ -1,11 +1,20 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost
+from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost, SubjectMember
 from app.forms import CourseForm, EnrollForm
 from datetime import datetime
 
 bp = Blueprint('courses', __name__, url_prefix='/courses')
+
+def has_course_access(course, user, roles=['instructor', 'assistant']):
+    if course.instructor_id == user.id:
+        return True
+    if course.subject_id:
+        member = SubjectMember.query.filter_by(subject_id=course.subject_id, user_id=user.id).first()
+        if member and member.role in roles:
+            return True
+    return False
 
 @bp.route('/')
 @login_required
@@ -45,12 +54,12 @@ def view(course_id):
     course = Course.query.get_or_404(course_id)
     
     if course.deleted_at:
-        if not (current_user.is_instructor() and course.instructor_id == current_user.id):
+        if not has_course_access(course, current_user):
             flash('해당 세션을 찾을 수 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
     
     if current_user.is_instructor():
-        if course.instructor_id != current_user.id:
+        if not has_course_access(course, current_user):
             flash('이 강좌에 접근 권한이 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         students = course.get_enrolled_students()
@@ -99,7 +108,7 @@ def view(course_id):
 @login_required
 def edit(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('이 강좌를 수정할 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
@@ -117,7 +126,7 @@ def edit(course_id):
 @login_required
 def delete(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('이 강좌를 삭제할 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
@@ -160,7 +169,7 @@ def enroll():
 @login_required
 def start_session(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('강사만 세션을 시작할 수 있습니다.', 'danger')
         return redirect(url_for('courses.view', course_id=course_id))
     
@@ -215,7 +224,7 @@ def live_mode(course_id):
     course = Course.query.get_or_404(course_id)
     
     if course.deleted_at:
-        if not (current_user.is_instructor() and course.instructor_id == current_user.id):
+        if not has_course_access(course, current_user):
             flash('해당 세션을 찾을 수 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
     
@@ -223,7 +232,7 @@ def live_mode(course_id):
     
     session = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
     if not session:
-        if current_user.is_instructor() and course.instructor_id == current_user.id:
+        if has_course_access(course, current_user):
             return redirect(url_for('courses.start_session', course_id=course_id))
         else:
             flash('현재 진행 중인 세션이 없습니다.', 'warning')
@@ -242,7 +251,7 @@ def live_mode(course_id):
     recent_messages = list(reversed(recent_messages))
     
     if current_user.is_instructor():
-        if course.instructor_id != current_user.id:
+        if not has_course_access(course, current_user):
             flash('접근 권한이 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         students = course.get_enrolled_students()
@@ -271,7 +280,7 @@ def live_mode(course_id):
 @login_required
 def regenerate_code(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         return jsonify({'error': '권한이 없습니다'}), 403
     
     course.invite_code = Course.generate_invite_code()
@@ -282,40 +291,76 @@ def regenerate_code(course_id):
 @login_required
 def settings(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('설정 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     if request.method == 'POST':
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
-        visibility = request.form.get('visibility', 'public')
-        prerequisite_id = request.form.get('prerequisite_course_id')
+        setting_type = request.form.get('setting_type', 'basic')
         
-        if start_date_str:
-            course.start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M')
-        else:
-            course.start_date = None
+        if setting_type == 'basic':
+            course.title = request.form.get('title', course.title)
+            course.description = request.form.get('description', course.description)
+            
+            week_num = request.form.get('week_number')
+            course.week_number = int(week_num) if week_num else None
+            
+            session_num = request.form.get('session_number')
+            course.session_number = int(session_num) if session_num else None
+            
+            start_date_str = request.form.get('start_date')
+            if start_date_str:
+                course.start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M')
+            else:
+                course.start_date = None
+            
+            end_date_str = request.form.get('end_date')
+            if end_date_str:
+                course.end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
+            else:
+                course.end_date = None
+            
+            attendance_start_str = request.form.get('attendance_start')
+            if attendance_start_str:
+                course.attendance_start = datetime.strptime(attendance_start_str, '%Y-%m-%dT%H:%M')
+            else:
+                course.attendance_start = None
+            
+            attendance_end_str = request.form.get('attendance_end')
+            if attendance_end_str:
+                course.attendance_end = datetime.strptime(attendance_end_str, '%Y-%m-%dT%H:%M')
+            else:
+                course.attendance_end = None
+            
+            course.late_allowed = 'late_allowed' in request.form
+            late_end_str = request.form.get('late_end')
+            if late_end_str and course.late_allowed:
+                course.late_end = datetime.strptime(late_end_str, '%Y-%m-%dT%H:%M')
+            else:
+                course.late_end = None
+            
+            db.session.commit()
+            flash('기본 설정이 저장되었습니다.', 'success')
         
-        if end_date_str:
-            course.end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
-        else:
-            course.end_date = None
+        elif setting_type == 'visibility':
+            visibility = request.form.get('visibility', 'public')
+            course.visibility = visibility
+            
+            prerequisite_id = request.form.get('prerequisite_course_id')
+            if prerequisite_id and prerequisite_id != '0':
+                course.prerequisite_course_id = int(prerequisite_id)
+            else:
+                course.prerequisite_course_id = None
+            
+            db.session.commit()
+            flash('공개 설정이 저장되었습니다.', 'success')
         
-        course.visibility = visibility
-        
-        if prerequisite_id and prerequisite_id != '0':
-            course.prerequisite_course_id = int(prerequisite_id)
-        else:
-            course.prerequisite_course_id = None
-        
-        db.session.commit()
-        flash('세션 설정이 저장되었습니다.', 'success')
-        return redirect(url_for('courses.view', course_id=course_id))
+        return redirect(url_for('courses.settings', course_id=course_id))
     
     other_courses = Course.query.filter(
         Course.instructor_id == current_user.id,
-        Course.id != course_id
+        Course.id != course_id,
+        Course.deleted_at.is_(None)
     ).all()
     
     return render_template('courses/settings.html', course=course, other_courses=other_courses)
@@ -324,7 +369,7 @@ def settings(course_id):
 @login_required
 def self_study_progress(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('접근 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
@@ -358,7 +403,7 @@ def create_session_post(course_id):
         flash('현재 진행 중인 세션이 없습니다.', 'danger')
         return redirect(url_for('courses.view', course_id=course_id))
     
-    if not current_user.is_instructor() or course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         flash('강사만 공지를 작성할 수 있습니다.', 'danger')
         return redirect(url_for('courses.live_mode', course_id=course_id))
     
@@ -388,7 +433,7 @@ def create_session_post(course_id):
 @login_required
 def set_live_status(course_id):
     course = Course.query.get_or_404(course_id)
-    if course.instructor_id != current_user.id:
+    if not has_course_access(course, current_user):
         return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
     
     session = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()

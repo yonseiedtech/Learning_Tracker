@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}주차 추가 - {{ subject.title }}{% endblock %}
+{% block title %}활동 추가 - {{ subject.title }}{% endblock %}
 
 {% block content %}
 <div class="mb-4">
@@ -8,34 +8,165 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('subjects.list_subjects') }}">과목 목록</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=subject.id) }}">{{ subject.title }}</a></li>
-            <li class="breadcrumb-item active">주차 추가</li>
+            <li class="breadcrumb-item active">활동 추가</li>
         </ol>
     </nav>
 </div>
 
 <div class="row justify-content-center">
-    <div class="col-lg-6">
+    <div class="col-lg-8">
         <div class="glass-card p-4">
             <h3 class="fw-bold mb-4">
-                <i class="bi bi-calendar-plus me-2 text-primary"></i>
-                {{ subject.courses.count() + 1 }}주차 세션 추가
+                <i class="bi bi-plus-circle me-2 text-primary"></i>
+                활동 추가
             </h3>
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 {{ form.hidden_tag() }}
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            {{ form.week_number.label(class="form-label fw-medium") }}
+                            {{ form.week_number(class="form-control", placeholder="예: 1") }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            {{ form.session_number.label(class="form-label fw-medium") }}
+                            {{ form.session_number(class="form-control", placeholder="예: 1") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.session_type.label(class="form-label fw-medium") }}
+                    {{ form.session_type(class="form-select", id="sessionType", onchange="toggleSessionFields()") }}
+                </div>
+                
                 <div class="mb-3">
                     {{ form.title.label(class="form-label fw-medium") }}
-                    {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="예: 변수와 자료형") }}
+                    {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="세션명을 입력하세요") }}
                     {% for error in form.title.errors %}
                     <div class="invalid-feedback">{{ error }}</div>
                     {% endfor %}
                 </div>
-                <div class="mb-4">
+                
+                <div class="mb-3">
                     {{ form.description.label(class="form-label fw-medium") }}
-                    {{ form.description(class="form-control", rows="4", placeholder="이번 주차 학습 내용을 입력하세요...") }}
+                    {{ form.description(class="form-control", rows="3", placeholder="세션 설명을 입력하세요...") }}
                 </div>
+                
+                <hr class="my-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-calendar3 me-2"></i>운영 기간</h5>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-medium">시작 일시</label>
+                        {{ form.start_date(class="form-control", type="datetime-local") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-medium">종료 일시</label>
+                        {{ form.end_date(class="form-control", type="datetime-local") }}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-medium">출석 시작</label>
+                        {{ form.attendance_start(class="form-control", type="datetime-local") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-medium">출석 마감</label>
+                        {{ form.attendance_end(class="form-control", type="datetime-local") }}
+                    </div>
+                </div>
+                
+                <div class="row align-items-end">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check">
+                            {{ form.late_allowed(class="form-check-input") }}
+                            {{ form.late_allowed.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3" id="lateEndField" style="display: none;">
+                        <label class="form-label fw-medium">지각 마감</label>
+                        {{ form.late_end(class="form-control", type="datetime-local") }}
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-gear me-2"></i>공개 설정</h5>
+                
+                <div class="mb-3">
+                    {{ form.visibility.label(class="form-label fw-medium") }}
+                    {{ form.visibility(class="form-select") }}
+                </div>
+                
+                <div id="videoFields" style="display: none;">
+                    <hr class="my-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-play-circle me-2"></i>동영상 설정</h5>
+                    
+                    <div class="mb-3">
+                        {{ form.video_url.label(class="form-label fw-medium") }}
+                        {{ form.video_url(class="form-control", placeholder="https://www.youtube.com/watch?v=...") }}
+                        <small class="text-muted">유튜브 URL을 입력하세요</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">또는 동영상 파일 업로드</label>
+                        <input type="file" name="video_file" class="form-control" accept=".mp4,.mov,.webm">
+                        <small class="text-muted">MP4, MOV, WebM 파일 (최대 500MB)</small>
+                    </div>
+                </div>
+                
+                <div id="materialFields" style="display: none;">
+                    <hr class="my-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-text me-2"></i>학습 자료 설정</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">학습 자료 파일</label>
+                        <input type="file" name="material_file" class="form-control" accept=".pdf,.hwp,.hwpx,.doc,.docx,.ppt,.pptx">
+                        <small class="text-muted">PDF, 한글(HWP), Word, PowerPoint 파일</small>
+                    </div>
+                </div>
+                
+                <div id="assignmentFields" style="display: none;">
+                    <hr class="my-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-clipboard-check me-2"></i>과제 설정</h5>
+                    
+                    <div class="mb-3">
+                        {{ form.assignment_description.label(class="form-label fw-medium") }}
+                        {{ form.assignment_description(class="form-control", rows="4", placeholder="과제 내용을 상세히 설명하세요...") }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">과제 제출 마감</label>
+                        {{ form.assignment_due_date(class="form-control", type="datetime-local") }}
+                    </div>
+                </div>
+                
+                <div id="quizFields" style="display: none;">
+                    <hr class="my-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-question-circle me-2"></i>퀴즈 설정</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.quiz_time_limit.label(class="form-label fw-medium") }}
+                            {{ form.quiz_time_limit(class="form-control", placeholder="예: 30") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.quiz_pass_score.label(class="form-label fw-medium") }}
+                            {{ form.quiz_pass_score(class="form-control", placeholder="예: 70") }}
+                        </div>
+                    </div>
+                    <p class="text-muted small"><i class="bi bi-info-circle me-1"></i>퀴즈 문항은 세션 생성 후 추가할 수 있습니다.</p>
+                </div>
+                
+                <hr class="my-4">
+                
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i class="bi bi-plus-lg me-1"></i>세션 추가
+                        <i class="bi bi-plus-lg me-1"></i>활동 추가
                     </button>
                     <a href="{{ url_for('subjects.view', subject_id=subject.id) }}" class="btn btn-outline-secondary">취소</a>
                 </div>
@@ -43,4 +174,21 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleSessionFields() {
+    const sessionType = document.getElementById('sessionType').value;
+    
+    document.getElementById('videoFields').style.display = sessionType === 'video' ? 'block' : 'none';
+    document.getElementById('materialFields').style.display = sessionType === 'material' ? 'block' : 'none';
+    document.getElementById('assignmentFields').style.display = sessionType === 'assignment' ? 'block' : 'none';
+    document.getElementById('quizFields').style.display = sessionType === 'quiz' ? 'block' : 'none';
+}
+
+document.getElementById('late_allowed').addEventListener('change', function() {
+    document.getElementById('lateEndField').style.display = this.checked ? 'block' : 'none';
+});
+
+toggleSessionFields();
+</script>
 {% endblock %}

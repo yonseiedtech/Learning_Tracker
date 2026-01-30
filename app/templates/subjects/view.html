@@ -66,17 +66,54 @@
 </div>
 
 {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
-<div class="glass-card p-4 mb-4">
-    <h5 class="fw-bold mb-3"><i class="bi bi-share me-2 text-primary"></i>과목 초대 코드</h5>
-    <p class="text-muted small mb-3">학생들에게 이 코드를 공유하면 과목의 모든 세션에 자동으로 등록됩니다.</p>
-    <div class="d-flex align-items-center gap-3">
-        <code class="fs-4 px-3 py-2 bg-light rounded" id="inviteCode">{{ subject.invite_code }}</code>
-        <button class="btn btn-outline-primary btn-sm" onclick="copyInviteCode()">
-            <i class="bi bi-clipboard"></i>
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" onclick="regenerateCode()">
-            <i class="bi bi-arrow-repeat"></i>
-        </button>
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-bold mb-3"><i class="bi bi-share me-2 text-primary"></i>과목 초대 코드</h5>
+            <p class="text-muted small mb-3">학생들에게 이 코드를 공유하면 과목의 모든 세션에 자동으로 등록됩니다.</p>
+            <div class="d-flex align-items-center gap-3">
+                <code class="fs-4 px-3 py-2 bg-light rounded" id="inviteCode">{{ subject.invite_code }}</code>
+                <button class="btn btn-outline-primary btn-sm" onclick="copyInviteCode()">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="regenerateCode()">
+                    <i class="bi bi-arrow-repeat"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-people me-2 text-primary"></i>등록 현황</h5>
+                <a href="{{ url_for('subjects.members', subject_id=subject.id) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-gear me-1"></i>사용자 관리
+                </a>
+            </div>
+            <div class="row text-center">
+                <div class="col-4">
+                    <div class="p-2">
+                        <i class="bi bi-mortarboard text-danger fs-4"></i>
+                        <div class="fw-bold fs-5">{{ subject.members.filter_by(role='instructor').count() }}</div>
+                        <small class="text-muted">강사</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2">
+                        <i class="bi bi-person-badge text-warning fs-4"></i>
+                        <div class="fw-bold fs-5">{{ subject.members.filter_by(role='assistant').count() }}</div>
+                        <small class="text-muted">조교</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2">
+                        <i class="bi bi-person text-primary fs-4"></i>
+                        <div class="fw-bold fs-5">{{ enrolled_count if enrolled_count is defined else subject.subject_enrollments.count() }}</div>
+                        <small class="text-muted">학습자</small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -86,7 +123,7 @@
         <h5 class="fw-bold mb-0"><i class="bi bi-calendar-week me-2 text-primary"></i>주차별 세션</h5>
         {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
         <a href="{{ url_for('subjects.add_course', subject_id=subject.id) }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>세션 추가
+            <i class="bi bi-plus-lg me-1"></i>활동 추가
         </a>
         {% endif %}
     </div>
@@ -96,10 +133,12 @@
         <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>주차</th>
+                    <th>주차/회차</th>
+                    <th>종류</th>
                     <th>세션명</th>
                     <th>체크포인트</th>
-                    <th>상태</th>
+                    <th>준비상태</th>
+                    <th>공개</th>
                     <th>작업</th>
                 </tr>
             </thead>
@@ -108,52 +147,72 @@
                 {% if not course.deleted_at %}
                 <tr class="{{ 'table-secondary' if course.visibility == 'private' else '' }}">
                     <td>
-                        <span class="badge bg-primary bg-opacity-10 text-primary fs-6">
-                            {{ course.week_number or '-' }}주차
+                        <span class="badge bg-primary bg-opacity-10 text-primary">
+                            {{ course.week_number or '-' }}주차{% if course.session_number %} {{ course.session_number }}회차{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% set type_icons = {'live_session': 'broadcast', 'video': 'play-circle', 'material': 'file-earmark-text', 'assignment': 'clipboard-check', 'quiz': 'question-circle'} %}
+                        {% set type_names = {'live_session': '라이브', 'video': '동영상', 'material': '자료', 'assignment': '과제', 'quiz': '퀴즈'} %}
+                        {% set type_colors = {'live_session': 'danger', 'video': 'info', 'material': 'success', 'assignment': 'warning', 'quiz': 'primary'} %}
+                        <span class="badge bg-{{ type_colors.get(course.session_type, 'secondary') }}">
+                            <i class="bi bi-{{ type_icons.get(course.session_type, 'circle') }} me-1"></i>{{ type_names.get(course.session_type, '세션') }}
                         </span>
                     </td>
                     <td>
                         <strong>{{ course.title }}</strong>
-                        {% if course.visibility == 'private' %}
-                        <span class="badge bg-warning text-dark ms-2"><i class="bi bi-eye-slash"></i></span>
-                        {% endif %}
                         {% if course.description %}
-                        <br><small class="text-muted">{{ course.description[:50] }}{% if course.description|length > 50 %}...{% endif %}</small>
+                        <br><small class="text-muted">{{ course.description[:40] }}{% if course.description|length > 40 %}...{% endif %}</small>
                         {% endif %}
                     </td>
                     <td>
-                        <span class="badge bg-secondary">{{ course.checkpoints.count() }}개</span>
+                        <span class="badge bg-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}개</span>
                     </td>
                     <td>
-                        {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
-                        {% if active_session %}
-                            {% if active_session.live_status == 'live' %}
-                            <span class="badge bg-danger"><i class="bi bi-broadcast me-1"></i>라이브 중</span>
-                            {% elif active_session.live_status == 'preparing' %}
-                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>준비중</span>
+                        {% if course.session_type == 'live_session' %}
+                            {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
+                            {% if active_session %}
+                                {% if active_session.live_status == 'live' %}
+                                <span class="badge bg-danger"><i class="bi bi-broadcast me-1"></i>라이브 중</span>
+                                {% elif active_session.live_status == 'preparing' %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>준비중</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="bi bi-stop-circle me-1"></i>종료</span>
+                                {% endif %}
                             {% else %}
-                            <span class="badge bg-secondary"><i class="bi bi-stop-circle me-1"></i>종료</span>
+                            <span class="badge bg-secondary">대기 중</span>
                             {% endif %}
+                        {% elif course.preparation_status == 'ready' %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>준비완료</span>
                         {% else %}
-                        <span class="badge bg-secondary">대기 중</span>
+                            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>미완료</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if course.visibility == 'public' %}
+                        <span class="badge bg-success"><i class="bi bi-globe me-1"></i>공개</span>
+                        {% elif course.visibility == 'private' %}
+                        <span class="badge bg-secondary"><i class="bi bi-lock me-1"></i>비공개</span>
+                        {% else %}
+                        <span class="badge bg-info"><i class="bi bi-calendar-check me-1"></i>기간</span>
                         {% endif %}
                     </td>
                     <td>
                         <div class="btn-group" role="group">
-                            <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary" title="보기">
-                                <i class="bi bi-eye"></i>
+                            <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary" title="세션 상세보기">
+                                <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                             {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
                             <form action="{{ url_for('subjects.toggle_course_visibility', course_id=course.id) }}" method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ '공개로 전환' if course.visibility == 'private' else '비공개로 전환' }}">
-                                    <i class="bi bi-{{ 'eye' if course.visibility == 'private' else 'eye-slash' }}"></i>
+                                    <i class="bi bi-{{ 'unlock' if course.visibility == 'private' else 'lock' }}"></i>
                                 </button>
                             </form>
                             <form action="{{ url_for('subjects.delete_course', course_id=course.id) }}" method="POST" class="d-inline" onsubmit="return confirm('정말 이 세션을 삭제하시겠습니까?');">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="세션 삭제">
-                                    <i class="bi bi-trash"></i>
+                                    <i class="bi bi-trash3"></i>
                                 </button>
                             </form>
                             {% endif %}

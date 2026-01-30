@@ -92,16 +92,39 @@ class Course(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     week_number = db.Column(db.Integer, nullable=True)
+    session_number = db.Column(db.Integer, nullable=True)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    session_type = db.Column(db.String(30), default='live_session')
+    
     start_date = db.Column(db.DateTime, nullable=True)
     end_date = db.Column(db.DateTime, nullable=True)
+    attendance_start = db.Column(db.DateTime, nullable=True)
+    attendance_end = db.Column(db.DateTime, nullable=True)
+    late_allowed = db.Column(db.Boolean, default=False)
+    late_end = db.Column(db.DateTime, nullable=True)
     visibility = db.Column(db.String(20), default='public')
     prerequisite_course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True)
+    
+    video_url = db.Column(db.Text, nullable=True)
+    video_file_path = db.Column(db.Text, nullable=True)
+    video_file_name = db.Column(db.String(255), nullable=True)
+    
+    material_file_path = db.Column(db.Text, nullable=True)
+    material_file_name = db.Column(db.String(255), nullable=True)
+    material_file_type = db.Column(db.String(50), nullable=True)
+    
+    assignment_description = db.Column(db.Text, nullable=True)
+    assignment_due_date = db.Column(db.DateTime, nullable=True)
+    
+    quiz_time_limit = db.Column(db.Integer, nullable=True)
+    quiz_pass_score = db.Column(db.Integer, nullable=True)
+    
+    preparation_status = db.Column(db.String(30), default='not_ready')
     
     prerequisite = db.relationship('Course', remote_side=[id], backref='dependent_courses')
     
@@ -503,3 +526,75 @@ class GuideAttachment(db.Model):
     file_type = db.Column(db.String(100))
     file_data = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SubjectMember(db.Model):
+    __tablename__ = 'subject_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    role = db.Column(db.String(30), nullable=False, default='student')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    subject = db.relationship('Subject', backref=db.backref('members', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('subject_memberships', lazy='dynamic'))
+    
+    __table_args__ = (db.UniqueConstraint('subject_id', 'user_id', name='unique_subject_member'),)
+    
+    @staticmethod
+    def get_role_display(role):
+        role_map = {
+            'instructor': '강사',
+            'assistant': '조교',
+            'student': '학습자'
+        }
+        return role_map.get(role, role)
+
+class QuizQuestion(db.Model):
+    __tablename__ = 'quiz_questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    question_type = db.Column(db.String(30), default='multiple_choice')
+    options = db.Column(db.Text)
+    correct_answer = db.Column(db.Text)
+    points = db.Column(db.Integer, default=1)
+    order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    course = db.relationship('Course', backref=db.backref('quiz_questions', lazy='dynamic'))
+
+class QuizAttempt(db.Model):
+    __tablename__ = 'quiz_attempts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    score = db.Column(db.Integer, default=0)
+    max_score = db.Column(db.Integer, default=0)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    answers = db.Column(db.Text)
+    
+    course = db.relationship('Course', backref=db.backref('quiz_attempts', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('quiz_attempts', lazy='dynamic'))
+
+class AssignmentSubmission(db.Model):
+    __tablename__ = 'assignment_submissions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text)
+    file_path = db.Column(db.Text, nullable=True)
+    file_name = db.Column(db.String(255), nullable=True)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    score = db.Column(db.Integer, nullable=True)
+    feedback = db.Column(db.Text, nullable=True)
+    graded_at = db.Column(db.DateTime, nullable=True)
+    graded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
+    course = db.relationship('Course', backref=db.backref('submissions', lazy='dynamic'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('submissions', lazy='dynamic'))
+    grader = db.relationship('User', foreign_keys=[graded_by])

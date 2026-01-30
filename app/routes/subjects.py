@@ -1,11 +1,21 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Subject, Course, Enrollment, SubjectEnrollment
+from app.models import Subject, Course, Enrollment, SubjectEnrollment, SubjectMember, User
 from app.forms import SubjectForm
 from datetime import datetime
 
 bp = Blueprint('subjects', __name__, url_prefix='/subjects')
+
+MAX_FILE_SIZE = 100 * 1024 * 1024
+
+def has_subject_access(subject, user, roles=['instructor', 'assistant']):
+    if subject.instructor_id == user.id:
+        return True
+    member = SubjectMember.query.filter_by(subject_id=subject.id, user_id=user.id).first()
+    if member and member.role in roles:
+        return True
+    return False
 
 @bp.route('/')
 @login_required
@@ -46,6 +56,14 @@ def create():
             invite_code=Subject.generate_invite_code()
         )
         db.session.add(subject)
+        db.session.flush()
+        
+        member = SubjectMember(
+            subject_id=subject.id,
+            user_id=current_user.id,
+            role='instructor'
+        )
+        db.session.add(member)
         db.session.commit()
         flash('과목이 생성되었습니다.', 'success')
         return redirect(url_for('subjects.view', subject_id=subject.id))
@@ -82,7 +100,7 @@ def view(subject_id):
 @login_required
 def edit(subject_id):
     subject = Subject.query.get_or_404(subject_id)
-    if subject.instructor_id != current_user.id:
+    if not has_subject_access(subject, current_user):
         flash('접근 권한이 없습니다.', 'danger')
         return redirect(url_for('subjects.list_subjects'))
     
@@ -99,30 +117,88 @@ def edit(subject_id):
 @login_required
 def add_course(subject_id):
     subject = Subject.query.get_or_404(subject_id)
-    if subject.instructor_id != current_user.id:
+    if not has_subject_access(subject, current_user):
         flash('접근 권한이 없습니다.', 'danger')
         return redirect(url_for('subjects.view', subject_id=subject_id))
     
     from app.forms import CourseForm
+    import base64
     
-    class WeekCourseForm(CourseForm):
-        pass
-    
-    form = WeekCourseForm()
+    form = CourseForm()
     
     if form.validate_on_submit():
-        next_week = subject.courses.count() + 1
+        week_num = form.week_number.data if form.week_number.data else subject.courses.count() + 1
+        
         course = Course(
             title=form.title.data,
             description=form.description.data,
             instructor_id=current_user.id,
             subject_id=subject.id,
-            week_number=next_week,
+            week_number=week_num,
+            session_number=form.session_number.data,
+            session_type=form.session_type.data,
+            visibility=form.visibility.data,
+            video_url=form.video_url.data if form.session_type.data == 'video' else None,
+            assignment_description=form.assignment_description.data if form.session_type.data == 'assignment' else None,
+            quiz_time_limit=form.quiz_time_limit.data if form.session_type.data == 'quiz' else None,
+            quiz_pass_score=form.quiz_pass_score.data if form.session_type.data == 'quiz' else None,
             invite_code=Course.generate_invite_code()
         )
+        
+        if form.start_date.data:
+            course.start_date = datetime.strptime(form.start_date.data, '%Y-%m-%dT%H:%M')
+        if form.end_date.data:
+            course.end_date = datetime.strptime(form.end_date.data, '%Y-%m-%dT%H:%M')
+        if form.attendance_start.data:
+            course.attendance_start = datetime.strptime(form.attendance_start.data, '%Y-%m-%dT%H:%M')
+        if form.attendance_end.data:
+            course.attendance_end = datetime.strptime(form.attendance_end.data, '%Y-%m-%dT%H:%M')
+        if form.late_allowed.data and form.late_end.data:
+            course.late_allowed = True
+            course.late_end = datetime.strptime(form.late_end.data, '%Y-%m-%dT%H:%M')
+        if form.assignment_due_date.data:
+            course.assignment_due_date = datetime.strptime(form.assignment_due_date.data, '%Y-%m-%dT%H:%M')
+        
+        if form.session_type.data == 'video' and 'video_file' in request.files:
+            video_file = request.files['video_file']
+            if video_file and video_file.filename:
+                file_content = video_file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    flash('파일 크기가 100MB를 초과합니다.', 'danger')
+                    return render_template('subjects/add_course.html', form=form, subject=subject)
+                course.video_file_name = video_file.filename
+                course.video_file_path = base64.b64encode(file_content).decode('utf-8')
+                course.preparation_status = 'ready'
+        elif form.session_type.data == 'video' and form.video_url.data:
+            course.preparation_status = 'ready'
+        
+        if form.session_type.data == 'material' and 'material_file' in request.files:
+            material_file = request.files['material_file']
+            if material_file and material_file.filename:
+                file_content = material_file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    flash('파일 크기가 100MB를 초과합니다.', 'danger')
+                    return render_template('subjects/add_course.html', form=form, subject=subject)
+                course.material_file_name = material_file.filename
+                ext = material_file.filename.rsplit('.', 1)[-1].lower() if '.' in material_file.filename else ''
+                course.material_file_type = ext
+                course.material_file_path = base64.b64encode(file_content).decode('utf-8')
+                course.preparation_status = 'ready'
+        
+        if form.session_type.data == 'live_session':
+            course.preparation_status = 'ready'
+        
         db.session.add(course)
         db.session.commit()
-        flash(f'{next_week}주차 세션이 추가되었습니다.', 'success')
+        
+        session_type_names = {
+            'live_session': '라이브 세션',
+            'video': '동영상 시청',
+            'material': '학습 자료',
+            'assignment': '과제 제출',
+            'quiz': '퀴즈'
+        }
+        flash(f'{session_type_names.get(form.session_type.data, "세션")}이(가) 추가되었습니다.', 'success')
         return redirect(url_for('subjects.view', subject_id=subject.id))
     
     return render_template('subjects/add_course.html', form=form, subject=subject)
@@ -131,7 +207,7 @@ def add_course(subject_id):
 @login_required
 def regenerate_code(subject_id):
     subject = Subject.query.get_or_404(subject_id)
-    if subject.instructor_id != current_user.id:
+    if not has_subject_access(subject, current_user):
         return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
     
     subject.invite_code = Subject.generate_invite_code()
@@ -262,7 +338,7 @@ def enroll_by_code():
 @login_required
 def delete_subject(subject_id):
     subject = Subject.query.get_or_404(subject_id)
-    if subject.instructor_id != current_user.id:
+    if not has_subject_access(subject, current_user):
         flash('접근 권한이 없습니다.', 'danger')
         return redirect(url_for('subjects.list_subjects'))
     
@@ -276,7 +352,7 @@ def delete_subject(subject_id):
 @login_required
 def toggle_subject_visibility(subject_id):
     subject = Subject.query.get_or_404(subject_id)
-    if subject.instructor_id != current_user.id:
+    if not has_subject_access(subject, current_user):
         flash('접근 권한이 없습니다.', 'danger')
         return redirect(url_for('subjects.view', subject_id=subject_id))
     
@@ -325,3 +401,112 @@ def toggle_course_visibility(course_id):
     if course.subject_id:
         return redirect(url_for('subjects.view', subject_id=course.subject_id))
     return redirect(url_for('courses.view', course_id=course_id))
+
+
+@bp.route('/<int:subject_id>/members')
+@login_required
+def members(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    members_list = SubjectMember.query.filter_by(subject_id=subject_id).all()
+    
+    member_data = {
+        'instructors': [],
+        'assistants': [],
+        'students': []
+    }
+    
+    for member in members_list:
+        user = member.user
+        data = {'member': member, 'user': user}
+        if member.role == 'instructor':
+            member_data['instructors'].append(data)
+        elif member.role == 'assistant':
+            member_data['assistants'].append(data)
+        else:
+            member_data['students'].append(data)
+    
+    enrolled_students = SubjectEnrollment.query.filter_by(subject_id=subject_id).all()
+    student_users = [e.user for e in enrolled_students]
+    
+    return render_template('subjects/members.html', 
+                          subject=subject, 
+                          member_data=member_data,
+                          enrolled_students=student_users)
+
+
+@bp.route('/<int:subject_id>/members/add', methods=['POST'])
+@login_required
+def add_member(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
+    
+    email = request.form.get('email')
+    role = request.form.get('role', 'student')
+    
+    if role not in ['instructor', 'assistant', 'student']:
+        flash('잘못된 역할입니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('해당 이메일의 사용자를 찾을 수 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    existing = SubjectMember.query.filter_by(subject_id=subject_id, user_id=user.id).first()
+    if existing:
+        existing.role = role
+        db.session.commit()
+        flash(f'{user.email}의 역할이 {SubjectMember.get_role_display(role)}(으)로 변경되었습니다.', 'success')
+    else:
+        member = SubjectMember(subject_id=subject_id, user_id=user.id, role=role)
+        db.session.add(member)
+        db.session.commit()
+        flash(f'{user.email}이(가) {SubjectMember.get_role_display(role)}(으)로 추가되었습니다.', 'success')
+    
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/members/<int:member_id>/remove', methods=['POST'])
+@login_required
+def remove_member(subject_id, member_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    member = SubjectMember.query.get_or_404(member_id)
+    if member.subject_id != subject_id:
+        flash('잘못된 요청입니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    user_email = member.user.email
+    db.session.delete(member)
+    db.session.commit()
+    flash(f'{user_email}이(가) 역할에서 제외되었습니다.', 'success')
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/members/<int:member_id>/change-role', methods=['POST'])
+@login_required
+def change_member_role(subject_id, member_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
+    
+    member = SubjectMember.query.get_or_404(member_id)
+    if member.subject_id != subject_id:
+        return jsonify({'success': False, 'message': '잘못된 요청입니다.'}), 400
+    
+    new_role = request.form.get('role')
+    if new_role not in ['instructor', 'assistant', 'student']:
+        return jsonify({'success': False, 'message': '잘못된 역할입니다.'}), 400
+    
+    member.role = new_role
+    db.session.commit()
+    flash(f'{member.user.email}의 역할이 {SubjectMember.get_role_display(new_role)}(으)로 변경되었습니다.', 'success')
+    return redirect(url_for('subjects.members', subject_id=subject_id))

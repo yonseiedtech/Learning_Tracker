@@ -39,8 +39,34 @@ class ResetPasswordForm(FlaskForm):
     submit = SubmitField('비밀번호 변경')
 
 class CourseForm(FlaskForm):
-    title = StringField('강좌명', validators=[DataRequired(message='강좌명을 입력하세요'), Length(max=200)])
+    title = StringField('세션명', validators=[DataRequired(message='세션명을 입력하세요'), Length(max=200)])
     description = TextAreaField('설명', validators=[Optional()])
+    week_number = IntegerField('주차', validators=[Optional()])
+    session_number = IntegerField('회차', validators=[Optional()])
+    session_type = SelectField('세션 종류', choices=[
+        ('live_session', '라이브 세션'),
+        ('video', '동영상 시청'),
+        ('material', '학습 자료'),
+        ('assignment', '과제 제출'),
+        ('quiz', '퀴즈')
+    ], default='live_session')
+    start_date = StringField('시작 일시', validators=[Optional()])
+    end_date = StringField('종료 일시', validators=[Optional()])
+    attendance_start = StringField('출석 시작', validators=[Optional()])
+    attendance_end = StringField('출석 마감', validators=[Optional()])
+    late_allowed = BooleanField('지각 허용')
+    late_end = StringField('지각 마감', validators=[Optional()])
+    visibility = SelectField('공개 설정', choices=[
+        ('public', '공개'),
+        ('private', '비공개'),
+        ('date_based', '기간 기반'),
+        ('prerequisite', '선행 세션 완료')
+    ], default='public')
+    video_url = StringField('동영상 URL (유튜브)', validators=[Optional()])
+    assignment_description = TextAreaField('과제 설명', validators=[Optional()])
+    assignment_due_date = StringField('과제 제출 마감', validators=[Optional()])
+    quiz_time_limit = IntegerField('퀴즈 제한 시간 (분)', validators=[Optional()])
+    quiz_pass_score = IntegerField('퀴즈 합격 점수', validators=[Optional()])
     submit = SubmitField('저장')
 
 class EnrollForm(FlaskForm):

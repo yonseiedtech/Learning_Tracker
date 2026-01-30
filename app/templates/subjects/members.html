@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}사용자 관리 - {{ subject.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('subjects.list_subjects') }}">과목 목록</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=subject.id) }}">{{ subject.title }}</a></li>
+            <li class="breadcrumb-item active">사용자 관리</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold"><i class="bi bi-people me-2 text-primary"></i>사용자 관리</h2>
+    <button class="btn btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+        <i class="bi bi-person-plus me-1"></i>사용자 추가
+    </button>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-mortarboard text-danger me-2"></i>강사</h5>
+                <span class="badge bg-danger">{{ member_data.instructors|length }}명</span>
+            </div>
+            {% if member_data.instructors %}
+            <ul class="list-group list-group-flush">
+                {% for item in member_data.instructors %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                    <div>
+                        <strong>{{ item.user.full_name or item.user.username }}</strong>
+                        <br><small class="text-muted">{{ item.user.email }}</small>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form action="{{ url_for('subjects.change_member_role', subject_id=subject.id, member_id=item.member.id) }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="role" value="assistant">
+                                    <button type="submit" class="dropdown-item">조교로 변경</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form action="{{ url_for('subjects.remove_member', subject_id=subject.id, member_id=item.member.id) }}" method="POST" onsubmit="return confirm('정말 제외하시겠습니까?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item text-danger">제외</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted text-center py-3 mb-0">등록된 강사가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-person-badge text-warning me-2"></i>조교</h5>
+                <span class="badge bg-warning text-dark">{{ member_data.assistants|length }}명</span>
+            </div>
+            {% if member_data.assistants %}
+            <ul class="list-group list-group-flush">
+                {% for item in member_data.assistants %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                    <div>
+                        <strong>{{ item.user.full_name or item.user.username }}</strong>
+                        <br><small class="text-muted">{{ item.user.email }}</small>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form action="{{ url_for('subjects.change_member_role', subject_id=subject.id, member_id=item.member.id) }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="role" value="instructor">
+                                    <button type="submit" class="dropdown-item">강사로 변경</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form action="{{ url_for('subjects.remove_member', subject_id=subject.id, member_id=item.member.id) }}" method="POST" onsubmit="return confirm('정말 제외하시겠습니까?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item text-danger">제외</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted text-center py-3 mb-0">등록된 조교가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-person text-primary me-2"></i>학습자</h5>
+                <span class="badge bg-primary">{{ enrolled_students|length }}명</span>
+            </div>
+            {% if enrolled_students %}
+            <div style="max-height: 400px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for student in enrolled_students %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <strong>{{ student.full_name or student.username }}</strong>
+                            <br><small class="text-muted">{{ student.email }}</small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3 mb-0">등록된 학습자가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>사용자 추가</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('subjects.add_member', subject_id=subject.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">이메일</label>
+                        <input type="email" class="form-control" id="email" name="email" required placeholder="user@example.com">
+                        <div class="form-text">등록할 사용자의 이메일을 입력하세요.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">역할</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_instructor" value="instructor">
+                            <label class="form-check-label" for="role_instructor">
+                                <i class="bi bi-mortarboard text-danger me-1"></i>강사
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_assistant" value="assistant">
+                            <label class="form-check-label" for="role_assistant">
+                                <i class="bi bi-person-badge text-warning me-1"></i>조교
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_student" value="student" checked>
+                            <label class="form-check-label" for="role_student">
+                                <i class="bi bi-person text-primary me-1"></i>학습자
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary">추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
