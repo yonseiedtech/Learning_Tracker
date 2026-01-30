@@ -3,83 +3,426 @@
 {% block title %}회원가입 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-5">
-    <div class="col-md-6 col-lg-5">
-        <div class="glass-card p-4 p-md-5">
-            <div class="text-center mb-4">
-                <div class="auth-icon auth-icon-register mb-3">
-                    <i class="bi bi-person-plus"></i>
-                </div>
-                <h2 class="fw-bold">회원가입</h2>
-                <p class="text-muted">새로운 계정을 만드세요</p>
+<style>
+.auth-page {
+    background: #050508;
+    min-height: 100vh;
+    margin: -2rem calc(-50vw + 50%);
+    margin-top: -2rem;
+    padding: 0;
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.auth-page::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120%;
+    height: 80%;
+    background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, rgba(59, 130, 246, 0.06) 40%, transparent 70%);
+    pointer-events: none;
+}
+
+.auth-page::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    height: 50%;
+    background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem;
+    position: relative;
+    z-index: 10;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-card {
+    background: rgba(15, 15, 20, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 24px;
+    padding: 2.5rem 2.5rem;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+}
+
+.auth-logo {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.3);
+}
+
+.auth-title {
+    color: #ffffff;
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+}
+
+.auth-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.auth-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.auth-input-wrapper {
+    position: relative;
+}
+
+.auth-input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1.1rem;
+    transition: color 0.3s ease;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 0.9rem 1rem 0.9rem 3rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.auth-input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.auth-input:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.auth-input:focus + .auth-input-icon,
+.auth-input-wrapper:focus-within .auth-input-icon {
+    color: #8b5cf6;
+}
+
+.auth-role-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.auth-role-option {
+    position: relative;
+}
+
+.auth-role-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.auth-role-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.25rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.auth-role-label:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.auth-role-option input:checked + .auth-role-label {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.auth-role-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.auth-role-option input:checked + .auth-role-label .auth-role-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    color: #ffffff;
+}
+
+.auth-role-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border: none;
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+    margin-top: 0.5rem;
+}
+
+.auth-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4);
+}
+
+.auth-btn:active {
+    transform: translateY(0);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.95rem;
+}
+
+.auth-footer a {
+    color: #8b5cf6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.auth-footer a:hover {
+    color: #a78bfa;
+}
+
+.auth-back {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    transition: color 0.3s ease;
+}
+
+.auth-back:hover {
+    color: #ffffff;
+}
+
+.error-message {
+    color: #f87171;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.flash-alert {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    color: #f87171;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.auth-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 540px) {
+    .auth-container {
+        padding: 1rem;
+    }
+    
+    .auth-card {
+        padding: 2rem 1.5rem;
+        border-radius: 20px;
+    }
+    
+    .auth-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="auth-page">
+    <a href="{{ url_for('main.index') }}" class="auth-back">
+        <i class="bi bi-arrow-left"></i>
+        홈으로
+    </a>
+    
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <i class="bi bi-person-plus-fill"></i>
             </div>
+            <h1 class="auth-title">회원가입</h1>
+            <p class="auth-subtitle">새로운 계정을 만들어 학습을 시작하세요</p>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-alert">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
             <form method="POST">
                 {{ form.hidden_tag() }}
-                <div class="mb-3">
-                    <label class="form-label fw-medium">사용자명</label>
-                    <div class="input-group input-group-modern">
-                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        {{ form.username(class="form-control", placeholder="사용자명을 입력하세요") }}
+                
+                <div class="auth-form-row">
+                    <div class="auth-form-group">
+                        <label class="auth-label">사용자명</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.username(class="auth-input", placeholder="사용자명", style="padding-left: 1rem;") }}
+                        </div>
+                        {% for error in form.username.errors %}
+                            <div class="error-message">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                    {% for error in form.username.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-medium">이메일</label>
-                    <div class="input-group input-group-modern">
-                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        {{ form.email(class="form-control", placeholder="이메일 주소를 입력하세요") }}
+                    
+                    <div class="auth-form-group">
+                        <label class="auth-label">이메일</label>
+                        <div class="auth-input-wrapper">
+                            {{ form.email(class="auth-input", placeholder="이메일 주소", style="padding-left: 1rem;") }}
+                        </div>
+                        {% for error in form.email.errors %}
+                            <div class="error-message">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                    {% for error in form.email.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-medium">역할</label>
-                    <div class="role-select">
-                        <div class="form-check form-check-inline role-option">
-                            <input class="form-check-input" type="radio" name="role" id="roleStudent" value="student" checked>
-                            <label class="form-check-label" for="roleStudent">
-                                <i class="bi bi-mortarboard me-1"></i>학생
+                
+                <div class="auth-form-group">
+                    <label class="auth-label">역할 선택</label>
+                    <div class="auth-role-group">
+                        <div class="auth-role-option">
+                            <input type="radio" name="role" id="roleStudent" value="student" checked>
+                            <label class="auth-role-label" for="roleStudent">
+                                <div class="auth-role-icon">
+                                    <i class="bi bi-mortarboard"></i>
+                                </div>
+                                <span class="auth-role-text">학생</span>
                             </label>
                         </div>
-                        <div class="form-check form-check-inline role-option">
-                            <input class="form-check-input" type="radio" name="role" id="roleInstructor" value="instructor">
-                            <label class="form-check-label" for="roleInstructor">
-                                <i class="bi bi-person-workspace me-1"></i>강사
+                        <div class="auth-role-option">
+                            <input type="radio" name="role" id="roleInstructor" value="instructor">
+                            <label class="auth-role-label" for="roleInstructor">
+                                <div class="auth-role-icon">
+                                    <i class="bi bi-person-workspace"></i>
+                                </div>
+                                <span class="auth-role-text">강사</span>
                             </label>
                         </div>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-medium">비밀번호</label>
-                    <div class="input-group input-group-modern">
-                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        {{ form.password(class="form-control", placeholder="비밀번호를 입력하세요") }}
+                
+                <div class="auth-form-group">
+                    <label class="auth-label">비밀번호</label>
+                    <div class="auth-input-wrapper">
+                        {{ form.password(class="auth-input", placeholder="비밀번호를 입력하세요") }}
+                        <i class="bi bi-lock auth-input-icon"></i>
                     </div>
                     {% for error in form.password.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
+                        <div class="error-message">{{ error }}</div>
                     {% endfor %}
                 </div>
-                <div class="mb-4">
-                    <label class="form-label fw-medium">비밀번호 확인</label>
-                    <div class="input-group input-group-modern">
-                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                        {{ form.confirm_password(class="form-control", placeholder="비밀번호를 다시 입력하세요") }}
+                
+                <div class="auth-form-group">
+                    <label class="auth-label">비밀번호 확인</label>
+                    <div class="auth-input-wrapper">
+                        {{ form.confirm_password(class="auth-input", placeholder="비밀번호를 다시 입력하세요") }}
+                        <i class="bi bi-shield-lock auth-input-icon"></i>
                     </div>
                     {% for error in form.confirm_password.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
+                        <div class="error-message">{{ error }}</div>
                     {% endfor %}
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-medium">
-                    <i class="bi bi-person-plus me-2"></i>회원가입
+                
+                <button type="submit" class="auth-btn">
+                    <i class="bi bi-person-plus"></i>
+                    회원가입
                 </button>
             </form>
-            <div class="text-center mt-4">
-                <p class="text-muted mb-0">
-                    이미 계정이 있으신가요? <a href="{{ url_for('auth.login') }}" class="text-primary fw-medium">로그인</a>
-                </p>
+            
+            <div class="auth-footer">
+                이미 계정이 있으신가요? <a href="{{ url_for('auth.login') }}">로그인</a>
             </div>
         </div>
     </div>
