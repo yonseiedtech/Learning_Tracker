@@ -40,16 +40,21 @@ def create_post(course_id):
             flash('제목과 내용을 모두 입력해주세요.', 'danger')
             return render_template('forum/create.html', course=course)
         
-        post = ForumPost(
-            course_id=course_id,
-            user_id=current_user.id,
-            title=title,
-            content=content
-        )
-        db.session.add(post)
-        db.session.commit()
-        flash('게시글이 작성되었습니다.', 'success')
-        return redirect(url_for('forum.view_post', post_id=post.id))
+        try:
+            post = ForumPost(
+                course_id=course_id,
+                user_id=current_user.id,
+                title=title,
+                content=content
+            )
+            db.session.add(post)
+            db.session.commit()
+            flash('게시글이 작성되었습니다.', 'success')
+            return redirect(url_for('forum.view_post', post_id=post.id))
+        except Exception as e:
+            db.session.rollback()
+            flash('게시글 작성 중 오류가 발생했습니다.', 'danger')
+            return render_template('forum/create.html', course=course)
     
     return render_template('forum/create.html', course=course)
 

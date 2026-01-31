@@ -233,8 +233,8 @@ class Enrollment(db.Model):
     __tablename__ = 'enrollments'
     
     id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_enrollment'),)
@@ -243,7 +243,7 @@ class Checkpoint(db.Model):
     __tablename__ = 'checkpoints'
     
     id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     order = db.Column(db.Integer, nullable=False, default=0)
@@ -261,8 +261,8 @@ class Progress(db.Model):
     __tablename__ = 'progress'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    checkpoint_id = db.Column(db.Integer, db.ForeignKey('checkpoints.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    checkpoint_id = db.Column(db.Integer, db.ForeignKey('checkpoints.id'), nullable=False, index=True)
     mode = db.Column(db.String(20), nullable=False, default='self_paced')
     started_at = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
@@ -297,7 +297,7 @@ class ActiveSession(db.Model):
     __tablename__ = 'active_sessions'
     
     id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
     mode = db.Column(db.String(20), nullable=False, default='live')
     session_type = db.Column(db.String(20), nullable=False, default='immediate')
     live_status = db.Column(db.String(20), default='preparing')
@@ -714,12 +714,12 @@ class Notification(db.Model):
     __tablename__ = 'notifications'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    type = db.Column(db.String(50), nullable=False)  # enrollment_invite, enrollment_approved, etc.
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    type = db.Column(db.String(50), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text)
-    data = db.Column(db.JSON)  # Additional data like subject_id, enrollment_id, etc.
-    is_read = db.Column(db.Boolean, default=False)
+    data = db.Column(db.JSON)
+    is_read = db.Column(db.Boolean, default=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))

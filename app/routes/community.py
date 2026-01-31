@@ -109,17 +109,21 @@ def create_qna():
     subjects = Subject.query.all()
     
     if form.validate_on_submit():
-        post = QnAPost(
-            user_id=current_user.id,
-            title=form.title.data,
-            content=form.content.data,
-            subject_id=request.form.get('subject_id') or None,
-            course_id=request.form.get('course_id') or None
-        )
-        db.session.add(post)
-        db.session.commit()
-        flash('질문이 등록되었습니다.', 'success')
-        return redirect(url_for('community.qna_detail', post_id=post.id))
+        try:
+            post = QnAPost(
+                user_id=current_user.id,
+                title=form.title.data,
+                content=form.content.data,
+                subject_id=request.form.get('subject_id') or None,
+                course_id=request.form.get('course_id') or None
+            )
+            db.session.add(post)
+            db.session.commit()
+            flash('질문이 등록되었습니다.', 'success')
+            return redirect(url_for('community.qna_detail', post_id=post.id))
+        except Exception as e:
+            db.session.rollback()
+            flash('질문 등록 중 오류가 발생했습니다.', 'danger')
     
     return render_template('community/qna_form.html', form=form, subjects=subjects)
 
@@ -208,29 +212,33 @@ def create_study_group():
     form = StudyGroupForm()
     
     if form.validate_on_submit():
-        group = StudyGroup(
-            creator_id=current_user.id,
-            title=form.title.data,
-            description=form.description.data,
-            category=form.category.data,
-            max_members=form.max_members.data,
-            meeting_type=form.meeting_type.data,
-            meeting_schedule=form.meeting_schedule.data,
-            tags=form.tags.data
-        )
-        db.session.add(group)
-        db.session.commit()
-        
-        member = StudyGroupMember(
-            group_id=group.id,
-            user_id=current_user.id,
-            status='approved'
-        )
-        db.session.add(member)
-        db.session.commit()
-        
-        flash('스터디가 생성되었습니다.', 'success')
-        return redirect(url_for('community.study_group_detail', group_id=group.id))
+        try:
+            group = StudyGroup(
+                creator_id=current_user.id,
+                title=form.title.data,
+                description=form.description.data,
+                category=form.category.data,
+                max_members=form.max_members.data,
+                meeting_type=form.meeting_type.data,
+                meeting_schedule=form.meeting_schedule.data,
+                tags=form.tags.data
+            )
+            db.session.add(group)
+            db.session.commit()
+            
+            member = StudyGroupMember(
+                group_id=group.id,
+                user_id=current_user.id,
+                status='approved'
+            )
+            db.session.add(member)
+            db.session.commit()
+            
+            flash('스터디가 생성되었습니다.', 'success')
+            return redirect(url_for('community.study_group_detail', group_id=group.id))
+        except Exception as e:
+            db.session.rollback()
+            flash('스터디 생성 중 오류가 발생했습니다.', 'danger')
     
     return render_template('community/study_group_form.html', form=form)
 

@@ -90,9 +90,8 @@ def dashboard():
         completion_rate = round((total_completed / total_checkpoints * 100) if total_checkpoints > 0 else 0)
         
         total_minutes = db.session.query(func.sum(Progress.duration_seconds)).filter(
-            Progress.user_id == current_user.id,
-            Progress.duration_seconds != None
-        ).scalar() or 0
+            Progress.user_id == current_user.id
+        ).filter(Progress.duration_seconds != None).scalar() or 0
         total_hours = round(total_minutes / 3600, 1)
         
         seven_days_ago = datetime.utcnow() - timedelta(days=7)

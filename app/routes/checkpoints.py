@@ -62,9 +62,13 @@ def delete(checkpoint_id):
         flash('권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
-    checkpoint.deleted_at = datetime.utcnow()
-    db.session.commit()
-    flash('체크포인트가 삭제되었습니다!', 'success')
+    try:
+        checkpoint.deleted_at = datetime.utcnow()
+        db.session.commit()
+        flash('체크포인트가 삭제되었습니다!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('체크포인트 삭제 중 오류가 발생했습니다.', 'danger')
     return redirect(url_for('courses.view', course_id=course.id))
 
 
