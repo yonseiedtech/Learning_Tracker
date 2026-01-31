@@ -58,6 +58,15 @@ def view(course_id):
             flash('해당 세션을 찾을 수 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
     
+    if course.session_type == 'video':
+        return redirect(url_for('sessions.video_session', course_id=course_id))
+    elif course.session_type == 'material':
+        return redirect(url_for('sessions.material_session', course_id=course_id))
+    elif course.session_type == 'assignment':
+        return redirect(url_for('sessions.assignment_session', course_id=course_id))
+    elif course.session_type == 'quiz':
+        return redirect(url_for('sessions.quiz_session', course_id=course_id))
+    
     if current_user.is_instructor():
         if not has_course_access(course, current_user):
             flash('이 강좌에 접근 권한이 없습니다.', 'danger')

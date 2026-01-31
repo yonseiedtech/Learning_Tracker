@@ -42,10 +42,18 @@ The application is built with a Flask factory pattern, using SQLAlchemy for ORM 
     - User account settings for profile management (image, nickname, personal info), password changes, and instructor verification requests.
 - **Course & Session Management**:
     - Creation, deletion (soft delete), visibility toggling (public/private).
-    - Diverse session types: `live_session`, `video`, `material`, `assignment`, `quiz`.
+    - Diverse session types with dedicated UIs:
+      - `live_session`: Real-time synchronized learning with checkpoints
+      - `video`: Video player with watch log tracking (auto-complete at 80% for uploads, manual completion with page time tracking for YouTube)
+      - `material`: Learning materials with file download and page time tracking
+      - `assignment`: Assignment submission with file upload and grading workflow
+      - `quiz`: Timed quizzes with multiple choice, true/false, and short answer questions
     - File uploads (base64 storage, 100MB limit) for video/material sessions.
     - Attendance tracking with configurable periods and tardiness allowances.
     - `LiveStatus` (`preparing`, `live`, `ended`) for real-time session state management.
+    - `SessionCompletion` model for tracking manual completion across all non-live session types.
+    - `VideoWatchLog` model for tracking video viewing progress and auto-completion.
+    - `PageTimeLog` model for tracking time spent on pages (YouTube videos, materials).
 - **Checkpoint System**:
     - Sequential learning objectives with estimated completion times.
     - AI-powered generation of checkpoints from PPT, PDF, video, and audio content using Gemini AI.

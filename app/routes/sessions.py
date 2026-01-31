@@ -237,7 +237,8 @@ def assignment_session(course_id):
                          completion=completion,
                          submission=submission,
                          is_instructor=is_instructor,
-                         all_submissions=all_submissions)
+                         all_submissions=all_submissions,
+                         now=datetime.utcnow())
 
 @bp.route('/<int:course_id>/assignment/submit', methods=['POST'])
 @login_required

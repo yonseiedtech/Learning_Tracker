@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import User, Course, Checkpoint, Enrollment, Progress, Subject, SubjectEnrollment, SubjectMember, Organization
+from app.models import User, Course, Checkpoint, Enrollment, Progress, Subject, SubjectEnrollment, SubjectMember, Organization, QuizQuestion
 from datetime import datetime, timedelta
 import random
 
@@ -177,9 +177,60 @@ def seed_database():
             invite_code='PY1WK003'
         )
         
+        course4 = Course(
+            title='4주차: 학습 자료 - Python 문법 정리',
+            description='Python 기본 문법을 정리한 학습 자료입니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='material',
+            week_number=4,
+            invite_code='PY1WK004',
+            assignment_description='<h5>Python 기본 문법 정리</h5><ul><li>변수와 데이터 타입</li><li>연산자</li><li>조건문과 반복문</li><li>함수</li></ul><p>위 내용을 학습하고 완료 버튼을 눌러주세요.</p>'
+        )
+        
+        course5 = Course(
+            title='5주차: 과제 - 계산기 프로그램',
+            description='간단한 계산기 프로그램을 작성하는 과제입니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='assignment',
+            week_number=5,
+            invite_code='PY1WK005',
+            assignment_description='<h5>과제: 계산기 프로그램 만들기</h5><p>다음 요구사항을 충족하는 계산기 프로그램을 작성하세요:</p><ol><li>덧셈, 뺄셈, 곱셈, 나눗셈 기능</li><li>사용자 입력 받기</li><li>결과 출력</li></ol>',
+            assignment_due_date=datetime.utcnow() + timedelta(days=7)
+        )
+        
+        course6 = Course(
+            title='6주차: 퀴즈 - Python 기초 테스트',
+            description='지금까지 배운 내용을 확인하는 퀴즈입니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='quiz',
+            week_number=6,
+            invite_code='PY1WK006',
+            quiz_time_limit=15,
+            quiz_pass_score=60
+        )
+        
+        course7 = Course(
+            title='유튜브 강의: Python 소개',
+            description='YouTube에서 Python 소개 영상을 시청합니다.',
+            instructor_id=instructor1.id,
+            subject_id=subject1.id,
+            session_type='video',
+            week_number=1,
+            session_number=2,
+            invite_code='PY1YT001',
+            video_url='https://www.youtube.com/watch?v=Y8Tko2YC5hA'
+        )
+        
         db.session.add(course1)
         db.session.add(course2)
         db.session.add(course3)
+        db.session.add(course4)
+        db.session.add(course5)
+        db.session.add(course6)
+        db.session.add(course7)
         db.session.commit()
         
         print("Creating checkpoints...")
@@ -201,12 +252,36 @@ def seed_database():
         
         db.session.commit()
         
+        print("Creating quiz questions...")
+        quiz_questions = [
+            ('Python에서 변수를 선언할 때 사용하는 키워드는?', 'short_answer', None, 'x = 10 처럼 직접 할당', 10),
+            ('print() 함수의 역할은?', 'multiple_choice', '화면에 출력\n파일 저장\n데이터 삭제\n변수 선언', '화면에 출력', 10),
+            ('Python은 인터프리터 언어이다.', 'true_false', None, 'true', 10),
+            ('리스트와 튜플의 차이점은 무엇인가?', 'short_answer', None, '리스트는 수정 가능, 튜플은 수정 불가', 20),
+            ('for문에서 range(5)의 출력 범위는?', 'multiple_choice', '0부터 4까지\n1부터 5까지\n0부터 5까지\n1부터 4까지', '0부터 4까지', 10),
+        ]
+        
+        for i, (question, q_type, options, answer, points) in enumerate(quiz_questions):
+            q = QuizQuestion(
+                course_id=course6.id,
+                question_text=question,
+                question_type=q_type,
+                options=options,
+                correct_answer=answer,
+                points=points,
+                order=i + 1
+            )
+            db.session.add(q)
+        
+        db.session.commit()
+        
         print("Creating enrollments...")
         for student in students[:5]:
             enrollment = SubjectEnrollment(subject_id=subject1.id, user_id=student.id)
             db.session.add(enrollment)
-            course_enroll = Enrollment(course_id=course1.id, user_id=student.id)
-            db.session.add(course_enroll)
+            for course in [course1, course2, course3, course4, course5, course6, course7]:
+                course_enroll = Enrollment(course_id=course.id, user_id=student.id)
+                db.session.add(course_enroll)
         
         db.session.commit()
         

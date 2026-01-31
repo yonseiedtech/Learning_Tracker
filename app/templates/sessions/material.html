@@ -7,7 +7,7 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         {% if course.subject %}
-        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.title }}</a></li>
         {% endif %}
         <li class="breadcrumb-item active">{{ course.title }}</li>
     </ol>

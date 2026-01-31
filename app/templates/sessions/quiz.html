@@ -7,7 +7,7 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
         {% if course.subject %}
-        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.title }}</a></li>
         {% endif %}
         <li class="breadcrumb-item active">{{ course.title }}</li>
     </ol>
@@ -104,7 +104,7 @@
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <h6 class="fw-bold mb-0">
                                 <span class="badge bg-purple me-2">{{ loop.index }}</span>
-                                {{ q.question }}
+                                {{ q.question_text }}
                             </h6>
                             <span class="badge bg-light text-dark">{{ q.points }}점</span>
                         </div>
@@ -158,7 +158,7 @@
             {% for q in questions %}
             <div class="question-card p-3 mb-2 rounded-3" style="background: rgba(255,255,255,0.7);">
                 <div class="d-flex justify-content-between">
-                    <span><strong>{{ loop.index }}.</strong> {{ q.question }}</span>
+                    <span><strong>{{ loop.index }}.</strong> {{ q.question_text }}</span>
                     <span class="badge bg-primary">{{ q.points }}점</span>
                 </div>
                 <small class="text-muted">정답: {{ q.correct_answer }}</small>
