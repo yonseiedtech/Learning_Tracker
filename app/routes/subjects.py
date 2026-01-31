@@ -4,6 +4,8 @@ from app import db
 from app.models import Subject, Course, Enrollment, SubjectEnrollment, SubjectMember, User
 from app.forms import SubjectForm
 from datetime import datetime
+import io
+from openpyxl import Workbook, load_workbook
 
 bp = Blueprint('subjects', __name__, url_prefix='/subjects')
 
@@ -461,12 +463,34 @@ def add_member(subject_id):
     if existing:
         existing.role = role
         db.session.commit()
-        flash(f'{user.email}의 역할이 {SubjectMember.get_role_display(role)}(으)로 변경되었습니다.', 'success')
+        flash(f'{user.display_name}의 역할이 {SubjectMember.get_role_display(role)}(으)로 변경되었습니다.', 'success')
     else:
         member = SubjectMember(subject_id=subject_id, user_id=user.id, role=role)
         db.session.add(member)
+        
+        subject_enrollment = SubjectEnrollment.query.filter_by(
+            subject_id=subject_id, user_id=user.id
+        ).first()
+        if not subject_enrollment:
+            subject_enrollment = SubjectEnrollment(subject_id=subject_id, user_id=user.id)
+            db.session.add(subject_enrollment)
+        
+        if role == 'student':
+            courses = Course.query.filter_by(subject_id=subject_id, deleted_at=None).filter(
+                Course.visibility != 'private'
+            ).all()
+            enrolled_count = 0
+            for course in courses:
+                existing_enrollment = Enrollment.query.filter_by(
+                    course_id=course.id, user_id=user.id
+                ).first()
+                if not existing_enrollment:
+                    enrollment = Enrollment(course_id=course.id, user_id=user.id)
+                    db.session.add(enrollment)
+                    enrolled_count += 1
+        
         db.session.commit()
-        flash(f'{user.email}이(가) {SubjectMember.get_role_display(role)}(으)로 추가되었습니다.', 'success')
+        flash(f'{user.display_name}이(가) {SubjectMember.get_role_display(role)}(으)로 추가되었습니다.', 'success')
     
     return redirect(url_for('subjects.members', subject_id=subject_id))
 
@@ -509,4 +533,182 @@ def change_member_role(subject_id, member_id):
     member.role = new_role
     db.session.commit()
     flash(f'{member.user.email}의 역할이 {SubjectMember.get_role_display(new_role)}(으)로 변경되었습니다.', 'success')
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/members/excel-template')
+@login_required
+def download_member_template(subject_id):
+    from flask import Response
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '사용자 등록'
+    
+    ws['A1'] = '이메일 (필수)'
+    ws['B1'] = '역할 (선택: instructor/assistant/student)'
+    ws['C1'] = '이름 (신규 사용자시 필수)'
+    
+    from openpyxl.styles import Font, PatternFill
+    header_font = Font(bold=True)
+    header_fill = PatternFill(start_color='E0E0E0', end_color='E0E0E0', fill_type='solid')
+    for col in ['A', 'B', 'C']:
+        ws[f'{col}1'].font = header_font
+        ws[f'{col}1'].fill = header_fill
+        ws.column_dimensions[col].width = 40
+    
+    example_font = Font(italic=True, color='888888')
+    ws['A2'] = '(예시) example@email.com'
+    ws['B2'] = '(예시) student'
+    ws['C2'] = '(예시) 홍길동'
+    for col in ['A', 'B', 'C']:
+        ws[f'{col}2'].font = example_font
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return Response(
+        output.getvalue(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment;filename=member_template_{subject_id}.xlsx'}
+    )
+
+
+@bp.route('/<int:subject_id>/members/upload-excel', methods=['POST'])
+@login_required
+def upload_members_excel(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    if 'excel_file' not in request.files:
+        flash('파일을 선택해주세요.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    file = request.files['excel_file']
+    if file.filename == '':
+        flash('파일을 선택해주세요.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        flash('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    try:
+        wb = load_workbook(file)
+        ws = wb.active
+        
+        added_count = 0
+        updated_count = 0
+        skipped_count = 0
+        error_messages = []
+        
+        for row_num, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
+            if not row or not row[0]:
+                continue
+                
+            email = str(row[0]).strip()
+            role = str(row[1]).strip().lower() if row[1] else 'student'
+            name = str(row[2]).strip() if len(row) > 2 and row[2] else None
+            
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                skipped_count += 1
+                error_messages.append(f'행 {row_num}: {email} - 잘못된 이메일 형식')
+                continue
+            
+            if role not in ['instructor', 'assistant', 'student']:
+                role = 'student'
+            
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                if not name:
+                    skipped_count += 1
+                    error_messages.append(f'행 {row_num}: {email} - 등록되지 않은 사용자 (신규 등록시 이름 필수)')
+                    continue
+                
+                import secrets
+                username = email.split('@')[0]
+                base_username = username
+                counter = 1
+                while User.query.filter_by(username=username).first():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                
+                temp_password = secrets.token_urlsafe(8)
+                user = User(
+                    username=username,
+                    email=email,
+                    full_name=name,
+                    role='student' if role == 'student' else 'instructor'
+                )
+                user.set_password(temp_password)
+                db.session.add(user)
+                db.session.flush()
+                error_messages.append(f'행 {row_num}: {email} - 신규 사용자 생성 (임시 비밀번호: {temp_password})')
+            
+            existing = SubjectMember.query.filter_by(subject_id=subject_id, user_id=user.id).first()
+            if existing:
+                if existing.role != role:
+                    existing.role = role
+                    updated_count += 1
+                else:
+                    skipped_count += 1
+            else:
+                member = SubjectMember(subject_id=subject_id, user_id=user.id, role=role)
+                db.session.add(member)
+                
+                subject_enrollment = SubjectEnrollment.query.filter_by(
+                    subject_id=subject_id, user_id=user.id
+                ).first()
+                if not subject_enrollment:
+                    subject_enrollment = SubjectEnrollment(subject_id=subject_id, user_id=user.id)
+                    db.session.add(subject_enrollment)
+                
+                if role == 'student':
+                    courses = Course.query.filter_by(subject_id=subject_id, deleted_at=None).filter(
+                        Course.visibility != 'private'
+                    ).all()
+                    for course in courses:
+                        existing_enrollment = Enrollment.query.filter_by(
+                            course_id=course.id, user_id=user.id
+                        ).first()
+                        if not existing_enrollment:
+                            enrollment = Enrollment(course_id=course.id, user_id=user.id)
+                            db.session.add(enrollment)
+                
+                added_count += 1
+        
+        db.session.commit()
+        
+        message_parts = []
+        if added_count > 0:
+            message_parts.append(f'{added_count}명 추가')
+        if updated_count > 0:
+            message_parts.append(f'{updated_count}명 역할 변경')
+        if skipped_count > 0:
+            message_parts.append(f'{skipped_count}명 건너뜀')
+        
+        if message_parts:
+            flash(f'엑셀 업로드 완료: {", ".join(message_parts)}', 'success')
+        else:
+            flash('처리할 데이터가 없습니다.', 'info')
+        
+        if error_messages and len(error_messages) <= 5:
+            for msg in error_messages:
+                flash(msg, 'warning')
+        elif error_messages:
+            flash(f'{len(error_messages)}개의 행에서 오류가 발생했습니다.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'파일 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
+    
     return redirect(url_for('subjects.members', subject_id=subject_id))

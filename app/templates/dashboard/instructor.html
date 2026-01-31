@@ -178,9 +178,11 @@
                     <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm flex-fill rounded-pill">
                         <i class="bi bi-eye me-1"></i>관리
                     </a>
+                    {% if course.session_type == 'live_session' %}
                     <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success btn-sm flex-fill rounded-pill">
                         <i class="bi bi-broadcast me-1"></i>라이브
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
