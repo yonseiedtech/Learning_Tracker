@@ -32,11 +32,14 @@ def dashboard():
         from sqlalchemy import union
         
         course_student_ids = db.session.query(Enrollment.user_id).join(Course).filter(
-            Course.instructor_id == current_user.id
+            Course.instructor_id == current_user.id,
+            Course.deleted_at.is_(None),
+            Course.subject_id.is_(None)
         )
         
         subject_student_ids = db.session.query(SubjectEnrollment.user_id).join(Subject).filter(
             Subject.instructor_id == current_user.id,
+            Subject.deleted_at.is_(None),
             SubjectEnrollment.status == 'approved'
         )
         
