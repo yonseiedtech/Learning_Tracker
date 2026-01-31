@@ -131,6 +131,7 @@
             </div>
             {% endif %}
             
+            {% if not is_instructor %}
             <div class="d-grid gap-2">
                 {% if completion %}
                 <button class="btn btn-outline-secondary rounded-pill" onclick="toggleCompletion(false)">
