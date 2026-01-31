@@ -33,7 +33,7 @@ def list_courses():
         enrolled_course_ids = [e.course_id for e in enrollments]
         enrolled_courses = [e.course for e in enrollments 
                           if not e.course.deleted_at 
-                          and e.course.subject_id is None]
+                          and not e.course.subject_id]
         
         public_courses = Course.query.filter(
             Course.deleted_at.is_(None),

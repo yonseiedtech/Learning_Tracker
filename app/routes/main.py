@@ -68,7 +68,7 @@ def dashboard():
         )
     else:
         enrollments = Enrollment.query.filter_by(user_id=current_user.id).all()
-        courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private' and e.course.subject_id is None]
+        courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private' and not e.course.subject_id]
         
         subject_enrollments = SubjectEnrollment.query.filter_by(
             user_id=current_user.id,
