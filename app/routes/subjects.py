@@ -1009,6 +1009,46 @@ def admin_reject_enrollment(subject_id, user_id):
     return redirect(url_for('subjects.members', subject_id=subject_id))
 
 
+@bp.route('/<int:subject_id>/change-enrollment-status/<int:user_id>', methods=['POST'])
+@login_required
+def change_enrollment_status(subject_id, user_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=user_id
+    ).first()
+    
+    if not enrollment:
+        flash('등록 정보를 찾을 수 없습니다.', 'warning')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    new_status = request.form.get('status')
+    new_role = request.form.get('role')
+    
+    user = User.query.get(user_id)
+    
+    if new_status and new_status in ['approved', 'pending', 'rejected']:
+        old_status = enrollment.status
+        enrollment.status = new_status
+        if new_status == 'rejected':
+            enrollment.rejected_at = datetime.utcnow()
+        elif new_status == 'approved' and old_status != 'approved':
+            enrollment.rejected_at = None
+        flash(f'{user.display_name}의 상태가 변경되었습니다.', 'success')
+    
+    if new_role and new_role in ['student', 'ta', 'auditor']:
+        enrollment.role = new_role
+        flash(f'{user.display_name}의 역할이 변경되었습니다.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
 @bp.route('/my-pending-enrollments')
 @login_required
 def my_pending_enrollments():
