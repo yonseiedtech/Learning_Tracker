@@ -86,7 +86,7 @@ def view(subject_id):
             flash('해당 과목은 비공개 상태입니다.', 'warning')
             return redirect(url_for('subjects.list_subjects'))
     
-    courses = subject.courses.filter(Course.deleted_at.is_(None)).order_by(Course.week_number.asc().nullslast(), Course.created_at.asc()).all()
+    courses = subject.courses.filter(Course.deleted_at.is_(None)).order_by(Course.order_number.asc().nullslast(), Course.week_number.asc().nullslast(), Course.created_at.asc()).all()
     
     is_enrolled = False
     if not current_user.is_instructor():
@@ -129,15 +129,14 @@ def add_course(subject_id):
     form = CourseForm()
     
     if form.validate_on_submit():
-        week_num = form.week_number.data if form.week_number.data else subject.courses.count() + 1
+        order_num = form.order_number.data if form.order_number.data else subject.courses.count() + 1
         
         course = Course(
             title=form.title.data,
             description=form.description.data,
             instructor_id=current_user.id,
             subject_id=subject.id,
-            week_number=week_num,
-            session_number=form.session_number.data,
+            order_number=order_num,
             session_type=form.session_type.data,
             visibility=form.visibility.data,
             video_url=form.video_url.data if form.session_type.data == 'video_external' else None,
@@ -160,6 +159,10 @@ def add_course(subject_id):
             course.late_end = datetime.strptime(form.late_end.data, '%Y-%m-%dT%H:%M')
         if form.assignment_due_date.data:
             course.assignment_due_date = datetime.strptime(form.assignment_due_date.data, '%Y-%m-%dT%H:%M')
+        
+        prereq_id = request.form.get('prerequisite_course_id')
+        if prereq_id and form.visibility.data == 'prerequisite':
+            course.prerequisite_course_id = int(prereq_id)
         
         if form.session_type.data == 'video' and 'video_file' in request.files:
             video_file = request.files['video_file']
@@ -419,8 +422,7 @@ def get_course(course_id):
             'title': course.title,
             'description': course.description or '',
             'session_type': course.session_type,
-            'week_number': course.week_number,
-            'session_number': course.session_number,
+            'order_number': course.order_number or course.week_number or 1,
             'visibility': course.visibility,
             'video_url': course.video_url or '',
             'video_file_name': course.video_file_name or '',
@@ -453,8 +455,8 @@ def update_course(course_id):
         
         course.title = data.get('title', course.title)
         course.description = data.get('description', course.description)
-        course.week_number = int(data.get('week_number', course.week_number or 1))
-        course.session_number = int(data.get('session_number', course.session_number or 1)) if data.get('session_number') else None
+        if data.get('order_number'):
+            course.order_number = int(data.get('order_number'))
         course.visibility = data.get('visibility', course.visibility)
         
         if course.session_type == 'video_external':

@@ -26,14 +26,9 @@
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            {{ form.week_number.label(class="form-label fw-medium") }}
-                            {{ form.week_number(class="form-control", placeholder="예: 1") }}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            {{ form.session_number.label(class="form-label fw-medium") }}
-                            {{ form.session_number(class="form-control", placeholder="예: 1") }}
+                            {{ form.order_number.label(class="form-label fw-medium") }}
+                            {{ form.order_number(class="form-control", placeholder="예: 1") }}
+                            <small class="text-muted">세션의 표시 순서를 지정합니다</small>
                         </div>
                     </div>
                 </div>
@@ -70,14 +65,21 @@
                     </div>
                 </div>
                 
-                <div class="row">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="syncAttendance" onchange="toggleSyncAttendance()">
+                    <label class="form-check-label" for="syncAttendance">
+                        출석 기간을 운영 기간과 동일하게 설정
+                    </label>
+                </div>
+                
+                <div class="row" id="attendanceDateFields">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-medium">출석 시작</label>
-                        {{ form.attendance_start(class="form-control", type="datetime-local") }}
+                        {{ form.attendance_start(class="form-control", type="datetime-local", id="attendance_start") }}
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-medium">출석 마감</label>
-                        {{ form.attendance_end(class="form-control", type="datetime-local") }}
+                        {{ form.attendance_end(class="form-control", type="datetime-local", id="attendance_end") }}
                     </div>
                 </div>
                 
@@ -99,7 +101,35 @@
                 
                 <div class="mb-3">
                     {{ form.visibility.label(class="form-label fw-medium") }}
-                    {{ form.visibility(class="form-select") }}
+                    {{ form.visibility(class="form-select", id="visibilitySelect", onchange="toggleVisibilityFields()") }}
+                </div>
+                
+                <div id="dateBasedFields" class="visibility-fields p-3 rounded-3 mb-3" style="display: none; background: rgba(59, 130, 246, 0.1);">
+                    <div class="alert alert-info mb-3 py-2">
+                        <i class="bi bi-calendar-range me-1"></i>
+                        위에서 설정한 운영 기간(시작/종료 일시) 동안에만 학생들이 접근할 수 있습니다.
+                    </div>
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        운영 기간을 먼저 설정해주세요. 해당 기간 외에는 학생에게 세션이 잠금 처리됩니다.
+                    </small>
+                </div>
+                
+                <div id="prerequisiteFields" class="visibility-fields p-3 rounded-3 mb-3" style="display: none; background: rgba(245, 158, 11, 0.1);">
+                    <div class="alert alert-warning mb-3 py-2">
+                        <i class="bi bi-diagram-3 me-1"></i>
+                        선행 세션을 완료해야 이 세션에 접근할 수 있습니다.
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-medium">선행 세션 선택</label>
+                        <select class="form-select" id="prerequisite_course_id" name="prerequisite_course_id">
+                            <option value="">선행 세션 없음</option>
+                            {% for course in subject.courses if course.id != form.data.get('id') and not course.deleted_at %}
+                            <option value="{{ course.id }}">{{ course.order_number or course.week_number or loop.index }}. {{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">학생이 이 세션에 접근하기 전에 완료해야 하는 세션입니다.</small>
+                    </div>
                 </div>
                 
                 <div id="videoFields" style="display: none;">
@@ -185,10 +215,55 @@ function toggleSessionFields() {
     document.getElementById('quizFields').style.display = sessionType === 'quiz' ? 'block' : 'none';
 }
 
+function toggleVisibilityFields() {
+    const visibility = document.getElementById('visibilitySelect').value;
+    
+    document.querySelectorAll('.visibility-fields').forEach(el => el.style.display = 'none');
+    
+    if (visibility === 'date_based') {
+        document.getElementById('dateBasedFields').style.display = 'block';
+    } else if (visibility === 'prerequisite') {
+        document.getElementById('prerequisiteFields').style.display = 'block';
+    }
+}
+
+function toggleSyncAttendance() {
+    const syncCheckbox = document.getElementById('syncAttendance');
+    const attendanceFields = document.getElementById('attendanceDateFields');
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    const attendanceStart = document.getElementById('attendance_start');
+    const attendanceEnd = document.getElementById('attendance_end');
+    
+    if (syncCheckbox.checked) {
+        attendanceFields.style.opacity = '0.5';
+        attendanceStart.readOnly = true;
+        attendanceEnd.readOnly = true;
+        attendanceStart.value = startDate.value;
+        attendanceEnd.value = endDate.value;
+        
+        startDate.addEventListener('change', syncDates);
+        endDate.addEventListener('change', syncDates);
+    } else {
+        attendanceFields.style.opacity = '1';
+        attendanceStart.readOnly = false;
+        attendanceEnd.readOnly = false;
+        
+        startDate.removeEventListener('change', syncDates);
+        endDate.removeEventListener('change', syncDates);
+    }
+}
+
+function syncDates() {
+    document.getElementById('attendance_start').value = document.getElementById('start_date').value;
+    document.getElementById('attendance_end').value = document.getElementById('end_date').value;
+}
+
 document.getElementById('late_allowed').addEventListener('change', function() {
     document.getElementById('lateEndField').style.display = this.checked ? 'block' : 'none';
 });
 
 toggleSessionFields();
+toggleVisibilityFields();
 </script>
 {% endblock %}

@@ -141,8 +141,9 @@ class Course(db.Model):
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    week_number = db.Column(db.Integer, nullable=True)
-    session_number = db.Column(db.Integer, nullable=True)
+    week_number = db.Column(db.Integer, nullable=True)  # deprecated, use order_number
+    session_number = db.Column(db.Integer, nullable=True)  # deprecated, use order_number
+    order_number = db.Column(db.Integer, nullable=True)
     instructor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     invite_code = db.Column(db.String(10), unique=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)

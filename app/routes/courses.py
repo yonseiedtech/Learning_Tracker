@@ -357,11 +357,8 @@ def settings(course_id):
             course.title = request.form.get('title', course.title)
             course.description = request.form.get('description', course.description)
             
-            week_num = request.form.get('week_number')
-            course.week_number = int(week_num) if week_num else None
-            
-            session_num = request.form.get('session_number')
-            course.session_number = int(session_num) if session_num else None
+            order_num = request.form.get('order_number')
+            course.order_number = int(order_num) if order_num else None
             
             start_date_str = request.form.get('start_date')
             if start_date_str:

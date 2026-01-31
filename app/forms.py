@@ -41,8 +41,7 @@ class ResetPasswordForm(FlaskForm):
 class CourseForm(FlaskForm):
     title = StringField('세션명', validators=[DataRequired(message='세션명을 입력하세요'), Length(max=200)])
     description = TextAreaField('설명', validators=[Optional()])
-    week_number = IntegerField('주차', validators=[Optional()])
-    session_number = IntegerField('회차', validators=[Optional()])
+    order_number = IntegerField('순서', validators=[Optional()])
     session_type = SelectField('세션 종류', choices=[
         ('live_session', '라이브 세션'),
         ('video', '동영상 (일반)'),
