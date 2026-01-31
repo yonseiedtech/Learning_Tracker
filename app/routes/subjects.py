@@ -96,7 +96,10 @@ def view(subject_id):
         ).first()
         is_enrolled = subject_enrollment is not None
     
-    return render_template('subjects/view.html', subject=subject, courses=courses, is_enrolled=is_enrolled)
+    enrolled_count = SubjectEnrollment.query.filter_by(subject_id=subject_id, status='approved').count()
+    pending_count = SubjectEnrollment.query.filter_by(subject_id=subject_id, status='pending').count()
+    
+    return render_template('subjects/view.html', subject=subject, courses=courses, is_enrolled=is_enrolled, enrolled_count=enrolled_count, pending_count=pending_count)
 
 @bp.route('/<int:subject_id>/edit', methods=['GET', 'POST'])
 @login_required
