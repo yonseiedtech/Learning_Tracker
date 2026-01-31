@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost, SubjectMember
+from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost, SubjectMember, User, Notification
 from app.forms import CourseForm, EnrollForm
 from datetime import datetime
 
@@ -506,3 +506,148 @@ def set_live_status(course_id):
         'status': status,
         'status_display': session.get_live_status_display()
     })
+
+
+
+@bp.route('/<int:course_id>/members')
+@login_required
+def members(course_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.view', course_id=course_id))
+    
+    enrollments = Enrollment.query.filter_by(course_id=course_id).all()
+    
+    enrollment_data = {
+        'approved': [],
+        'pending': [],
+        'rejected': []
+    }
+    
+    for enrollment in enrollments:
+        user = User.query.get(enrollment.user_id)
+        if user:
+            item = {'user': user, 'enrollment': enrollment}
+            status = enrollment.status if hasattr(enrollment, 'status') and enrollment.status else 'approved'
+            if status in enrollment_data:
+                enrollment_data[status].append(item)
+            else:
+                enrollment_data['approved'].append(item)
+    
+    return render_template('courses/members.html', course=course, enrollment_data=enrollment_data)
+
+
+@bp.route('/<int:course_id>/members/add', methods=['POST'])
+@login_required
+def add_course_member(course_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    email = request.form.get('email', '').strip()
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        flash('해당 이메일로 등록된 사용자가 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    existing = Enrollment.query.filter_by(course_id=course_id, user_id=user.id).first()
+    if existing:
+        flash('이미 등록된 사용자입니다.', 'warning')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment = Enrollment(course_id=course_id, user_id=user.id, status='approved')
+    db.session.add(enrollment)
+    db.session.commit()
+    
+    flash(f'{user.display_name}님이 등록되었습니다.', 'success')
+    return redirect(url_for('courses.members', course_id=course_id))
+
+
+@bp.route('/<int:course_id>/members/change-status/<int:user_id>', methods=['POST'])
+@login_required
+def change_course_enrollment_status(course_id, user_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment = Enrollment.query.filter_by(course_id=course_id, user_id=user_id).first()
+    if not enrollment:
+        flash('등록 정보를 찾을 수 없습니다.', 'warning')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    new_status = request.form.get('status')
+    user = User.query.get(user_id)
+    
+    if new_status and new_status in ['approved', 'pending', 'rejected']:
+        enrollment.status = new_status
+        flash(f'{user.display_name}의 상태가 변경되었습니다.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('courses.members', course_id=course_id))
+
+
+@bp.route('/<int:course_id>/members/remove/<int:user_id>', methods=['POST'])
+@login_required
+def remove_course_member(course_id, user_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment = Enrollment.query.filter_by(course_id=course_id, user_id=user_id).first()
+    if not enrollment:
+        flash('등록 정보를 찾을 수 없습니다.', 'warning')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    user = User.query.get(user_id)
+    db.session.delete(enrollment)
+    db.session.commit()
+    
+    flash(f'{user.display_name}님이 제외되었습니다.', 'info')
+    return redirect(url_for('courses.members', course_id=course_id))
+
+
+@bp.route('/<int:course_id>/members/approve/<int:user_id>', methods=['POST'])
+@login_required
+def approve_course_enrollment(course_id, user_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment = Enrollment.query.filter_by(course_id=course_id, user_id=user_id, status='pending').first()
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment.status = 'approved'
+    db.session.commit()
+    
+    user = User.query.get(user_id)
+    flash(f'{user.display_name}의 등록 신청을 승인했습니다.', 'success')
+    return redirect(url_for('courses.members', course_id=course_id))
+
+
+@bp.route('/<int:course_id>/members/reject/<int:user_id>', methods=['POST'])
+@login_required
+def reject_course_enrollment(course_id, user_id):
+    course = Course.query.get_or_404(course_id)
+    if not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment = Enrollment.query.filter_by(course_id=course_id, user_id=user_id, status='pending').first()
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('courses.members', course_id=course_id))
+    
+    enrollment.status = 'rejected'
+    db.session.commit()
+    
+    user = User.query.get(user_id)
+    flash(f'{user.display_name}의 등록 신청을 거절했습니다.', 'info')
+    return redirect(url_for('courses.members', course_id=course_id))
