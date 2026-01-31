@@ -147,6 +147,46 @@
     </div>
     
     <div class="col-lg-4">
+        {% if not is_instructor %}
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-clock-history me-2 text-info"></i>학습 시간
+            </h5>
+            
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">총 학습 시간</span>
+                    <span class="fw-bold" id="total-time">
+                        {% if page_time %}
+                        {{ (page_time.total_seconds // 60)|int }}분 {{ page_time.total_seconds % 60 }}초
+                        {% else %}
+                        0분 0초
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="text-center p-4 rounded-3" style="background: rgba(245, 158, 11, 0.1);">
+                    <div class="fs-2 fw-bold text-warning" id="timer-display">00:00:00</div>
+                    <div id="timer-status" class="small text-muted mt-1">대기 중</div>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center" id="timer-controls">
+                    <button class="btn btn-success btn-sm rounded-pill px-3" id="btn-start" onclick="startTimer()">
+                        <i class="bi bi-play-fill me-1"></i>시작
+                    </button>
+                    <button class="btn btn-warning btn-sm rounded-pill px-3 d-none" id="btn-pause" onclick="pauseTimer()">
+                        <i class="bi bi-pause-fill me-1"></i>일시정지
+                    </button>
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 d-none" id="btn-resume" onclick="resumeTimer()">
+                        <i class="bi bi-play-circle me-1"></i>재개
+                    </button>
+                    <button class="btn btn-danger btn-sm rounded-pill px-3 d-none" id="btn-stop" onclick="stopTimer()">
+                        <i class="bi bi-stop-fill me-1"></i>중단
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="glass-card p-4 mb-4">
             <h5 class="fw-bold mb-3">
                 <i class="bi bi-info-circle me-2 text-warning"></i>제출 현황
@@ -215,6 +255,147 @@
 <script>
 const csrfToken = '{{ csrf_token() }}';
 const courseId = {{ course.id }};
+let timerSeconds = 0;
+let timerInterval = null;
+let timerState = 'stopped';
+let lastLoggedTime = 0;
+
+function formatTime(totalSeconds) {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+}
+
+function updateTimerDisplay() {
+    const display = document.getElementById('timer-display');
+    if (display) {
+        display.textContent = formatTime(timerSeconds);
+    }
+}
+
+function updateControls() {
+    const btnStart = document.getElementById('btn-start');
+    const btnPause = document.getElementById('btn-pause');
+    const btnResume = document.getElementById('btn-resume');
+    const btnStop = document.getElementById('btn-stop');
+    const status = document.getElementById('timer-status');
+    
+    if (!btnStart) return;
+    
+    btnStart.classList.add('d-none');
+    btnPause.classList.add('d-none');
+    btnResume.classList.add('d-none');
+    btnStop.classList.add('d-none');
+    
+    if (timerState === 'stopped') {
+        btnStart.classList.remove('d-none');
+        status.textContent = '대기 중';
+        status.className = 'small text-muted mt-1';
+    } else if (timerState === 'running') {
+        btnPause.classList.remove('d-none');
+        btnStop.classList.remove('d-none');
+        status.textContent = '학습 중...';
+        status.className = 'small text-success mt-1';
+    } else if (timerState === 'paused') {
+        btnResume.classList.remove('d-none');
+        btnStop.classList.remove('d-none');
+        status.textContent = '일시정지';
+        status.className = 'small text-warning mt-1';
+    }
+}
+
+function startTimer() {
+    timerState = 'running';
+    timerInterval = setInterval(function() {
+        timerSeconds++;
+        updateTimerDisplay();
+        
+        if (timerSeconds - lastLoggedTime >= 30) {
+            logPageTime(30);
+            lastLoggedTime = timerSeconds;
+        }
+    }, 1000);
+    updateControls();
+}
+
+function pauseTimer() {
+    timerState = 'paused';
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    const pendingSeconds = timerSeconds - lastLoggedTime;
+    if (pendingSeconds > 0) {
+        logPageTime(pendingSeconds);
+        lastLoggedTime = timerSeconds;
+    }
+    updateControls();
+}
+
+function resumeTimer() {
+    timerState = 'running';
+    timerInterval = setInterval(function() {
+        timerSeconds++;
+        updateTimerDisplay();
+        
+        if (timerSeconds - lastLoggedTime >= 30) {
+            logPageTime(30);
+            lastLoggedTime = timerSeconds;
+        }
+    }, 1000);
+    updateControls();
+}
+
+function stopTimer() {
+    timerState = 'stopped';
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    const pendingSeconds = timerSeconds - lastLoggedTime;
+    if (pendingSeconds > 0) {
+        logPageTime(pendingSeconds);
+    }
+    timerSeconds = 0;
+    lastLoggedTime = 0;
+    updateTimerDisplay();
+    updateControls();
+}
+
+async function logPageTime(seconds) {
+    try {
+        const response = await fetch(`/sessions/${courseId}/log-time`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ seconds: seconds })
+        });
+        const data = await response.json();
+        if (data.success) {
+            const totalMins = Math.floor(data.total_seconds / 60);
+            const totalSecs = data.total_seconds % 60;
+            const totalTimeEl = document.getElementById('total-time');
+            if (totalTimeEl) {
+                totalTimeEl.textContent = totalMins + '분 ' + totalSecs + '초';
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+window.addEventListener('beforeunload', function() {
+    if (timerState === 'running' || timerState === 'paused') {
+        const pendingSeconds = timerSeconds - lastLoggedTime;
+        if (pendingSeconds > 0) {
+            navigator.sendBeacon(`/sessions/${courseId}/log-time`, 
+                JSON.stringify({ seconds: pendingSeconds }));
+        }
+    }
+});
 
 async function toggleCompletion(markComplete) {
     try {
@@ -224,7 +405,10 @@ async function toggleCompletion(markComplete) {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
-            }
+            },
+            body: JSON.stringify({
+                time_spent_seconds: timerSeconds
+            })
         });
         
         const data = await response.json();

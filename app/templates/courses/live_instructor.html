@@ -434,7 +434,7 @@ const checkpointEstimates = {{ checkpoints|map(attribute='estimated_minutes')|li
 const studentIds = {{ students|map(attribute='id')|list|tojson }};
 const totalCheckpoints = {{ checkpoints|length }};
 const totalStudents = {{ students|length }};
-const sessionStartTime = new Date('{{ session.started_at.isoformat() }}');
+const sessionStartTime = new Date('{{ session.started_at.isoformat() }}Z');
 let currentCheckpointId = {{ session.current_checkpoint_id or 'null' }};
 
 let studentProgress = {};

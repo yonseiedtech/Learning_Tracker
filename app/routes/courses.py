@@ -58,7 +58,7 @@ def view(course_id):
             flash('해당 세션을 찾을 수 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
     
-    if course.session_type == 'video':
+    if course.session_type in ['video', 'video_external']:
         return redirect(url_for('sessions.video_session', course_id=course_id))
     elif course.session_type == 'material':
         return redirect(url_for('sessions.material_session', course_id=course_id))

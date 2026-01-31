@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}퀴즈 결과 - {{ course.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        {% if course.subject %}
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.title }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item"><a href="{{ url_for('sessions.quiz_session', course_id=course.id) }}">{{ course.title }}</a></li>
+        <li class="breadcrumb-item active">결과 보기</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-5 mb-4 text-center {% if passed %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
+            <div class="mb-3">
+                {% if passed %}
+                <i class="bi bi-trophy-fill text-success" style="font-size: 5rem;"></i>
+                <h2 class="fw-bold mt-3 text-success">축하합니다!</h2>
+                <p class="lead mb-0">퀴즈를 통과했습니다</p>
+                {% else %}
+                <i class="bi bi-emoji-frown text-danger" style="font-size: 5rem;"></i>
+                <h2 class="fw-bold mt-3 text-danger">아쉽네요!</h2>
+                <p class="lead mb-0">다시 도전해보세요</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-4"><i class="bi bi-bar-chart-line me-2 text-primary"></i>점수 분석</h5>
+            
+            <div class="row text-center mb-4">
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="p-3 rounded-3 h-100" style="background: rgba(13, 110, 253, 0.1);">
+                        <div class="fs-1 fw-bold text-primary">{{ attempt.score }}</div>
+                        <small class="text-muted">획득 점수</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="p-3 rounded-3 h-100" style="background: rgba(108, 117, 125, 0.1);">
+                        <div class="fs-1 fw-bold text-secondary">{{ attempt.max_score }}</div>
+                        <small class="text-muted">총점</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="p-3 rounded-3 h-100" style="background: rgba(40, 167, 69, 0.1);">
+                        <div class="fs-1 fw-bold text-success">{{ correct_count }}</div>
+                        <small class="text-muted">정답 수</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="p-3 rounded-3 h-100" style="background: {% if passed %}rgba(40, 167, 69, 0.1){% else %}rgba(220, 53, 69, 0.1){% endif %};">
+                        <div class="fs-1 fw-bold {% if passed %}text-success{% else %}text-danger{% endif %}">{{ ((attempt.score / attempt.max_score) * 100)|int }}%</div>
+                        <small class="text-muted">정답률</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">합격 점수</span>
+                        <span class="fw-bold">{{ course.quiz_pass_score or (attempt.max_score * 0.6)|int }}점</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">문제 수</span>
+                        <span class="fw-bold">{{ questions|length }}문제</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="progress mb-3" style="height: 30px; border-radius: 15px;">
+                <div class="progress-bar {% if passed %}bg-success{% else %}bg-danger{% endif %}" 
+                     role="progressbar" 
+                     style="width: {{ ((attempt.score / attempt.max_score) * 100)|int }}%;"
+                     aria-valuenow="{{ attempt.score }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="{{ attempt.max_score }}">
+                    {{ attempt.score }} / {{ attempt.max_score }}점
+                </div>
+            </div>
+        </div>
+        
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text me-2 text-info"></i>학습 가이드</h5>
+            <div class="alert {% if passed %}alert-success{% else %}alert-warning{% endif %} mb-0">
+                <i class="bi {% if passed %}bi-lightbulb{% else %}bi-book{% endif %} me-2"></i>
+                {{ comment }}
+            </div>
+        </div>
+        
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{{ url_for('sessions.quiz_session', course_id=course.id) }}" class="btn btn-primary btn-lg rounded-pill">
+                <i class="bi bi-arrow-repeat me-2"></i>다시 풀기
+            </a>
+            <a href="{{ url_for('subjects.view', subject_id=course.subject_id) if course.subject else url_for('main.dashboard') }}" 
+               class="btn btn-outline-secondary btn-lg rounded-pill">
+                <i class="bi bi-arrow-left me-2"></i>목록으로
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

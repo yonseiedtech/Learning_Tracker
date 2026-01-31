@@ -21,7 +21,11 @@
                     <i class="bi bi-play-circle text-primary me-2"></i>{{ course.title }}
                 </h4>
                 <span class="badge bg-primary bg-opacity-10 text-primary">
+                    {% if course.session_type == 'video_external' %}
+                    <i class="bi bi-youtube me-1"></i>외부영상
+                    {% else %}
                     <i class="bi bi-camera-video me-1"></i>동영상
+                    {% endif %}
                 </span>
             </div>
             

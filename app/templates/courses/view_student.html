@@ -74,7 +74,7 @@
                      data-paused="{{ 'true' if p and p.is_paused else 'false' }}"
                      data-completed="{{ 'true' if p and p.completed_at else 'false' }}"
                      data-elapsed="{{ p.get_elapsed_seconds() if p else 0 }}"
-                     data-started-at="{{ p.started_at.isoformat() if p and p.started_at and not p.is_paused else '' }}">
+                     data-started-at="{{ (p.started_at.isoformat() + 'Z') if p and p.started_at and not p.is_paused else '' }}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="d-flex align-items-start flex-grow-1">
                             <div class="checkpoint-status me-3" id="icon-{{ cp.id }}">

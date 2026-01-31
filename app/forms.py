@@ -45,7 +45,8 @@ class CourseForm(FlaskForm):
     session_number = IntegerField('회차', validators=[Optional()])
     session_type = SelectField('세션 종류', choices=[
         ('live_session', '라이브 세션'),
-        ('video', '동영상 시청'),
+        ('video', '동영상 (일반)'),
+        ('video_external', '동영상 (외부영상)'),
         ('material', '학습 자료'),
         ('assignment', '과제 제출'),
         ('quiz', '퀴즈')

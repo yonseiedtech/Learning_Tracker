@@ -36,7 +36,7 @@ def get_youtube_video_id(url):
 def video_session(course_id):
     course = Course.query.get_or_404(course_id)
     
-    if course.session_type != 'video':
+    if course.session_type not in ['video', 'video_external']:
         flash('동영상 세션이 아닙니다.', 'warning')
         return redirect(url_for('courses.view', course_id=course_id))
     
@@ -220,12 +220,18 @@ def assignment_session(course_id):
     if is_instructor:
         all_submissions = AssignmentSubmission.query.filter_by(course_id=course_id).all()
     
+    page_time = PageTimeLog.query.filter_by(
+        course_id=course_id,
+        user_id=current_user.id
+    ).first()
+    
     return render_template('sessions/assignment.html',
                          course=course,
                          completion=completion,
                          submission=submission,
                          is_instructor=is_instructor,
                          all_submissions=all_submissions,
+                         page_time=page_time,
                          now=datetime.utcnow())
 
 @bp.route('/<int:course_id>/assignment/submit', methods=['POST'])
@@ -401,8 +407,71 @@ def submit_quiz(course_id):
         'success': True,
         'score': score,
         'max_score': attempt.max_score,
-        'passed': passed
+        'passed': passed,
+        'attempt_id': attempt.id
     })
+
+@bp.route('/<int:course_id>/quiz/result/<int:attempt_id>')
+@login_required
+def quiz_result(course_id, attempt_id):
+    course = Course.query.get_or_404(course_id)
+    attempt = QuizAttempt.query.get_or_404(attempt_id)
+    
+    if attempt.course_id != course_id:
+        flash('잘못된 접근입니다.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    if attempt.user_id != current_user.id and not has_course_access(course, current_user):
+        flash('접근 권한이 없습니다.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    if not attempt.completed_at:
+        flash('아직 완료되지 않은 퀴즈입니다.', 'warning')
+        return redirect(url_for('sessions.quiz_session', course_id=course_id))
+    
+    questions = QuizQuestion.query.filter_by(course_id=course_id).all()
+    
+    import json
+    user_answers = json.loads(attempt.answers) if attempt.answers else {}
+    
+    correct_count = 0
+    question_results = []
+    for q in questions:
+        user_answer = user_answers.get(str(q.id), '')
+        is_correct = user_answer.strip().lower() == q.correct_answer.strip().lower()
+        if is_correct:
+            correct_count += 1
+        question_results.append({
+            'question': q,
+            'user_answer': user_answer,
+            'is_correct': is_correct
+        })
+    
+    passed = False
+    if course.quiz_pass_score:
+        passed = attempt.score >= course.quiz_pass_score
+    else:
+        passed = attempt.score >= (attempt.max_score * 0.6)
+    
+    if passed:
+        comment = "축하합니다! 퀴즈를 통과했습니다. 다음 학습으로 진행하세요."
+    else:
+        wrong_count = len(questions) - correct_count
+        if wrong_count <= len(questions) * 0.2:
+            comment = "조금만 더 노력하면 합격할 수 있습니다! 틀린 문제를 다시 확인해보세요."
+        elif wrong_count <= len(questions) * 0.5:
+            comment = "학습 내용을 한 번 더 복습하고 다시 도전해보세요. 핵심 개념 위주로 정리하면 도움이 됩니다."
+        else:
+            comment = "학습 자료를 처음부터 다시 꼼꼼하게 살펴보세요. 필요하다면 관련 보충 자료도 함께 학습해보세요."
+    
+    return render_template('sessions/quiz_result.html',
+                         course=course,
+                         attempt=attempt,
+                         questions=questions,
+                         question_results=question_results,
+                         correct_count=correct_count,
+                         passed=passed,
+                         comment=comment)
 
 @bp.route('/<int:course_id>/complete', methods=['POST'])
 @login_required
@@ -484,7 +553,7 @@ def log_page_time(course_id):
     auto_completed = False
     min_time = course.min_completion_time or 60
     
-    if course.session_type == 'video' and page_time.total_seconds >= min_time:
+    if course.session_type in ['video', 'video_external'] and page_time.total_seconds >= min_time:
         completion = SessionCompletion.query.filter_by(
             course_id=course_id,
             user_id=current_user.id

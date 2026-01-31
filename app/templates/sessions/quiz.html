@@ -91,13 +91,6 @@
             </div>
             
             <div id="quiz-section" {% if not attempt or attempt.completed_at %}style="display: none;"{% endif %}>
-                {% if course.quiz_time_limit %}
-                <div class="alert alert-warning d-flex align-items-center mb-4">
-                    <i class="bi bi-clock-fill me-2"></i>
-                    <span>남은 시간: <strong id="timer">{{ course.quiz_time_limit }}:00</strong></span>
-                </div>
-                {% endif %}
-                
                 <form id="quiz-form">
                     {% for q in questions %}
                     <div class="question-card p-4 mb-3 rounded-3" style="background: rgba(255,255,255,0.7); border-left: 4px solid #8b5cf6;">
@@ -216,6 +209,18 @@
     </div>
     
     <div class="col-lg-4">
+        {% if not is_instructor and course.quiz_time_limit %}
+        <div class="glass-card p-4 mb-4" id="timer-card" {% if not attempt or attempt.completed_at %}style="display: none;"{% endif %}>
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-clock me-2 text-danger"></i>남은 시간
+            </h5>
+            <div class="text-center p-3 rounded-3" style="background: rgba(220, 53, 69, 0.1);">
+                <div class="fs-1 fw-bold text-danger" id="timer">{{ course.quiz_time_limit }}:00</div>
+                <small class="text-muted">시간이 종료되면 자동 제출됩니다</small>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="glass-card p-4 mb-4">
             <h5 class="fw-bold mb-3">
                 <i class="bi bi-trophy me-2 text-warning"></i>퀴즈 현황
@@ -298,6 +303,8 @@ async function startQuiz() {
             document.getElementById('quiz-section').style.display = 'block';
             
             if (timeLimit > 0) {
+                const timerCard = document.getElementById('timer-card');
+                if (timerCard) timerCard.style.display = 'block';
                 startTimer();
             }
         }
@@ -356,7 +363,7 @@ async function submitQuiz() {
         
         const data = await response.json();
         if (data.success) {
-            location.reload();
+            window.location.href = `/sessions/${courseId}/quiz/result/${data.attempt_id}`;
         }
     } catch (error) {
         console.error('Error:', error);
@@ -382,5 +389,20 @@ async function toggleCompletion(markComplete) {
         console.error('Error:', error);
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% if attempt and not attempt.completed_at and course.quiz_time_limit %}
+    const startedAt = new Date('{{ attempt.started_at.isoformat() }}Z');
+    const now = new Date();
+    const elapsedSeconds = Math.floor((now - startedAt) / 1000);
+    remainingSeconds = Math.max(0, (timeLimit * 60) - elapsedSeconds);
+    
+    if (remainingSeconds > 0) {
+        startTimer();
+    } else {
+        submitQuiz();
+    }
+    {% endif %}
+});
 </script>
 {% endblock %}

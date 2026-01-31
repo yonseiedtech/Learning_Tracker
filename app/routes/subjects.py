@@ -140,7 +140,7 @@ def add_course(subject_id):
             session_number=form.session_number.data,
             session_type=form.session_type.data,
             visibility=form.visibility.data,
-            video_url=form.video_url.data if form.session_type.data == 'video' else None,
+            video_url=form.video_url.data if form.session_type.data == 'video_external' else None,
             assignment_description=form.assignment_description.data if form.session_type.data == 'assignment' else None,
             quiz_time_limit=form.quiz_time_limit.data if form.session_type.data == 'quiz' else None,
             quiz_pass_score=form.quiz_pass_score.data if form.session_type.data == 'quiz' else None,
@@ -171,7 +171,7 @@ def add_course(subject_id):
                 course.video_file_name = video_file.filename
                 course.video_file_path = base64.b64encode(file_content).decode('utf-8')
                 course.preparation_status = 'ready'
-        elif form.session_type.data == 'video' and form.video_url.data:
+        elif form.session_type.data == 'video_external' and form.video_url.data:
             course.preparation_status = 'ready'
         
         if form.session_type.data == 'material' and 'material_file' in request.files:

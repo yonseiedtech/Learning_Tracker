@@ -292,7 +292,7 @@
 <script>
 const courseId = {{ course.id }};
 const csrfToken = '{{ csrf_token() }}';
-const sessionStartTime = new Date('{{ session.started_at.isoformat() }}');
+const sessionStartTime = new Date('{{ session.started_at.isoformat() }}Z');
 let currentCheckpointId = {{ session.current_checkpoint_id or 'null' }};
 
 function updateClock() {
