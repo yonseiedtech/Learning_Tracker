@@ -59,13 +59,19 @@ def video_session(course_id):
     youtube_id = get_youtube_video_id(course.video_url) if course.video_url else None
     is_youtube = youtube_id is not None
     
+    page_time = PageTimeLog.query.filter_by(
+        course_id=course_id,
+        user_id=current_user.id
+    ).first()
+    
     return render_template('sessions/video.html',
                          course=course,
                          watch_log=watch_log,
                          completion=completion,
                          is_instructor=is_instructor,
                          is_youtube=is_youtube,
-                         youtube_id=youtube_id)
+                         youtube_id=youtube_id,
+                         page_time=page_time)
 
 @bp.route('/<int:course_id>/video/stream')
 @login_required
@@ -123,28 +129,10 @@ def log_video_watch(course_id):
     
     db.session.commit()
     
-    auto_completed = False
-    if watch_log.is_completed:
-        completion = SessionCompletion.query.filter_by(
-            course_id=course_id,
-            user_id=current_user.id
-        ).first()
-        if not completion:
-            completion = SessionCompletion(
-                course_id=course_id,
-                user_id=current_user.id,
-                completion_type='auto_video',
-                time_spent_seconds=watched_seconds
-            )
-            db.session.add(completion)
-            db.session.commit()
-            auto_completed = True
-    
     return jsonify({
         'success': True,
         'watch_percentage': watch_log.watch_percentage,
-        'is_completed': watch_log.is_completed,
-        'auto_completed': auto_completed
+        'watched_seconds': watch_log.watched_seconds
     })
 
 @bp.route('/<int:course_id>/material')
@@ -493,7 +481,28 @@ def log_page_time(course_id):
     
     db.session.commit()
     
+    auto_completed = False
+    min_time = course.min_completion_time or 60
+    
+    if course.session_type == 'video' and page_time.total_seconds >= min_time:
+        completion = SessionCompletion.query.filter_by(
+            course_id=course_id,
+            user_id=current_user.id
+        ).first()
+        if not completion:
+            completion = SessionCompletion(
+                course_id=course_id,
+                user_id=current_user.id,
+                completion_type='auto_time',
+                time_spent_seconds=page_time.total_seconds
+            )
+            db.session.add(completion)
+            db.session.commit()
+            auto_completed = True
+    
     return jsonify({
         'success': True,
-        'total_seconds': page_time.total_seconds
+        'total_seconds': page_time.total_seconds,
+        'auto_completed': auto_completed,
+        'min_completion_time': min_time
     })

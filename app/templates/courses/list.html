@@ -46,7 +46,7 @@
                     <td><span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollments.count() }}명</span></td>
                     <td><code class="text-primary">{{ course.invite_code }}</code></td>
                     {% else %}
-                    <td>{{ course.instructor.username }}</td>
+                    <td>{{ course.instructor.display_name }}</td>
                     {% endif %}
                     <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}개</span></td>
                     <td>

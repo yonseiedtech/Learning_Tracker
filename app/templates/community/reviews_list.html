@@ -30,7 +30,7 @@
             <h3>{{ review.title }}</h3>
             <p class="review-excerpt">{{ review.content[:100] }}...</p>
             <div class="review-meta">
-                <span>{{ review.user.username }}</span>
+                <span>{{ review.user.display_name }}</span>
                 <span><i class="bi bi-eye"></i> {{ review.views_count }} <i class="bi bi-heart"></i> {{ review.likes_count }}</span>
             </div>
         </a>

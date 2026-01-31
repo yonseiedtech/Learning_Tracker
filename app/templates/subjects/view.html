@@ -19,7 +19,7 @@
             {% if subject.description %}
             <p class="text-muted mb-2">{{ subject.description }}</p>
             {% endif %}
-            <small class="text-muted"><i class="bi bi-person me-1"></i>강사: {{ subject.instructor.username }}</small>
+            <small class="text-muted"><i class="bi bi-person me-1"></i>강사: {{ subject.instructor.display_name }}</small>
         </div>
         {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
         <div class="d-flex gap-2 flex-wrap align-items-center">

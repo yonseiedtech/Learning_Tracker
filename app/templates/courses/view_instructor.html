@@ -79,8 +79,8 @@
                 {% for student in students %}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <div class="avatar-sm me-2 bg-light text-primary">{{ student.username[0]|upper }}</div>
-                        <span>{{ student.username }}</span>
+                        <div class="avatar-sm me-2 bg-light text-primary">{{ student.initial }}</div>
+                        <span>{{ student.display_name }}</span>
                     </div>
                     <small class="text-muted">{{ student.email }}</small>
                 </div>

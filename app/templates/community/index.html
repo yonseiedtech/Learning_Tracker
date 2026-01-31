@@ -50,7 +50,7 @@
                 <h3>{{ review.title }}</h3>
                 <p class="review-excerpt">{{ review.content[:100] }}{% if review.content|length > 100 %}...{% endif %}</p>
                 <div class="review-meta">
-                    <span class="author">{{ review.user.username }}</span>
+                    <span class="author">{{ review.user.display_name }}</span>
                     <span class="stats">
                         <i class="bi bi-eye"></i> {{ review.views_count }}
                         <i class="bi bi-heart"></i> {{ review.likes_count }}
@@ -96,7 +96,7 @@
                 <div class="qna-content">
                     <h3>{{ post.title }}</h3>
                     <div class="qna-meta">
-                        <span>{{ post.user.username }}</span>
+                        <span>{{ post.user.display_name }}</span>
                         <span>{{ post.created_at.strftime('%Y-%m-%d') }}</span>
                         <span><i class="bi bi-eye"></i> {{ post.views_count }}</span>
                         <span><i class="bi bi-chat-dots"></i> {{ post.answers.count() }}</span>

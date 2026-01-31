@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.username }}님!</h2>
+        <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.display_name }}님!</h2>
         <p class="text-muted mb-0">오늘의 강의 현황을 확인하세요</p>
     </div>
     <div class="d-flex gap-2">
@@ -118,11 +118,11 @@
         {% for progress in recent_progress %}
         <div class="activity-item d-flex align-items-start mb-3">
             <div class="activity-avatar me-3">
-                <div class="avatar-circle">{{ progress.user.username[0]|upper }}</div>
+                <div class="avatar-circle">{{ progress.user.initial }}</div>
             </div>
             <div class="flex-grow-1">
                 <div class="d-flex justify-content-between">
-                    <strong class="small">{{ progress.user.username }}</strong>
+                    <strong class="small">{{ progress.user.display_name }}</strong>
                     <small class="text-muted">{{ progress.completed_at.strftime('%m/%d %H:%M') }}</small>
                 </div>
                 <p class="mb-0 small text-muted">

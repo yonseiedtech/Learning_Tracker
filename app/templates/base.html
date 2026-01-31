@@ -563,18 +563,18 @@
             {% if current_user.is_authenticated %}
             <div class="dropdown-wrapper" style="position: relative;">
                 <div class="user-menu-btn">
-                    <div class="user-avatar">{{ current_user.username[0]|upper }}</div>
+                    <div class="user-avatar">{{ current_user.initial }}</div>
                     <div class="user-info">
-                        <span class="user-name">{{ current_user.username }}</span>
+                        <span class="user-name">{{ current_user.display_name }}</span>
                         <span class="user-role">{{ '강사' if current_user.is_instructor() else '학생' }}</span>
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 0.8rem; color: var(--app-text-muted);"></i>
                 </div>
                 <div class="unified-dropdown">
                     <div class="dropdown-header">
-                        <div class="header-avatar">{{ current_user.username[0]|upper }}</div>
+                        <div class="header-avatar">{{ current_user.initial }}</div>
                         <div class="header-info">
-                            <span class="header-name">{{ current_user.username }}</span>
+                            <span class="header-name">{{ current_user.display_name }}</span>
                             <span class="header-role">{{ '강사' if current_user.is_instructor() else '학생' }}</span>
                         </div>
                     </div>

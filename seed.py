@@ -164,7 +164,8 @@ def seed_database():
             subject_id=subject1.id,
             session_type='video',
             week_number=2,
-            invite_code='PY1WK002'
+            invite_code='PY1WK002',
+            min_completion_time=60
         )
         
         course3 = Course(
@@ -221,7 +222,8 @@ def seed_database():
             week_number=1,
             session_number=2,
             invite_code='PY1YT001',
-            video_url='https://www.youtube.com/watch?v=Y8Tko2YC5hA'
+            video_url='https://www.youtube.com/watch?v=Y8Tko2YC5hA',
+            min_completion_time=120
         )
         
         db.session.add(course1)

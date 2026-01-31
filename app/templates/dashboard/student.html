@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="mb-4">
-    <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.username }}님!</h2>
+    <h2 class="fw-bold mb-1">안녕하세요, {{ current_user.display_name }}님!</h2>
     <p class="text-muted mb-0">오늘도 함께 성장해요</p>
 </div>
 
@@ -136,7 +136,7 @@
                 
                 <div class="d-flex align-items-center mb-3">
                     <i class="bi bi-person-circle me-2 text-muted"></i>
-                    <small class="text-muted">강사: {{ course.instructor.username }}</small>
+                    <small class="text-muted">강사: {{ course.instructor.display_name }}</small>
                 </div>
                 
                 <div class="d-flex gap-2 mb-3">

@@ -17,10 +17,10 @@
         <div class="glass-card p-4 mb-4">
             <div class="d-flex justify-content-between align-items-start mb-4">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="avatar-lg">{{ post.user.username[0]|upper }}</div>
+                    <div class="avatar-lg">{{ post.user.initial }}</div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
-                            <strong>{{ post.user.username }}</strong>
+                            <strong>{{ post.user.display_name }}</strong>
                             {% if post.user.role == 'instructor' %}
                             <span class="badge bg-primary bg-opacity-10 text-primary">강사</span>
                             {% endif %}
@@ -54,10 +54,10 @@
                 <div class="comment-item p-3 mb-2 rounded-3" style="background: rgba(255,255,255,0.5);">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="d-flex align-items-start gap-2">
-                            <div class="avatar-sm">{{ comment.user.username[0]|upper }}</div>
+                            <div class="avatar-sm">{{ comment.user.initial }}</div>
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
-                                    <strong class="small">{{ comment.user.username }}</strong>
+                                    <strong class="small">{{ comment.user.display_name }}</strong>
                                     {% if comment.user.role == 'instructor' %}
                                     <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
                                     {% endif %}

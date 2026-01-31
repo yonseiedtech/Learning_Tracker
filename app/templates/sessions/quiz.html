@@ -190,7 +190,7 @@
                     <tbody>
                         {% for att in all_attempts %}
                         <tr>
-                            <td>{{ att.user.username }}</td>
+                            <td>{{ att.user.display_name }}</td>
                             <td>
                                 <span class="fw-bold">{{ att.score }}</span> / {{ att.max_score }}
                             </td>

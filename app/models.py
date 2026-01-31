@@ -75,6 +75,21 @@ class User(db.Model, UserMixin):
     def is_system_admin(self):
         return self.role == 'system_admin'
     
+    @property
+    def display_name(self):
+        if self.nickname:
+            return self.nickname
+        if self.full_name:
+            return self.full_name
+        return self.username
+    
+    @property
+    def initial(self):
+        name = self.display_name
+        if name:
+            return name[0].upper()
+        return '?'
+    
     def can_access_subject(self, subject):
         if self.is_system_admin():
             return True
@@ -159,6 +174,8 @@ class Course(db.Model):
     
     quiz_time_limit = db.Column(db.Integer, nullable=True)
     quiz_pass_score = db.Column(db.Integer, nullable=True)
+    
+    min_completion_time = db.Column(db.Integer, nullable=True)
     
     preparation_status = db.Column(db.String(30), default='not_ready')
     

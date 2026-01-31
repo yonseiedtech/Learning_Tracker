@@ -20,7 +20,7 @@
             </div>
             <h1>{{ group.title }}</h1>
             <div class="article-meta">
-                <span><i class="bi bi-person-fill"></i> {{ group.creator.username }}</span>
+                <span><i class="bi bi-person-fill"></i> {{ group.creator.display_name }}</span>
                 <span><i class="bi bi-calendar"></i> {{ group.created_at.strftime('%Y년 %m월 %d일') }}</span>
             </div>
         </header>
@@ -89,9 +89,9 @@
         <div class="members-list">
             {% for member in members %}
             <div class="member-item">
-                <div class="member-avatar">{{ member.user.username[0]|upper }}</div>
+                <div class="member-avatar">{{ member.user.initial }}</div>
                 <div class="member-info">
-                    <span class="member-name">{{ member.user.username }}</span>
+                    <span class="member-name">{{ member.user.display_name }}</span>
                     {% if member.user.id == group.creator_id %}
                     <span class="leader-badge">스터디장</span>
                     {% endif %}
@@ -107,7 +107,7 @@
         <div class="pending-list">
             {% for member in pending_members %}
             <div class="pending-item">
-                <span>{{ member.user.username }}</span>
+                <span>{{ member.user.display_name }}</span>
                 <div class="pending-actions">
                     <form method="POST" action="{{ url_for('community.approve_member', group_id=group.id, member_id=member.id) }}" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

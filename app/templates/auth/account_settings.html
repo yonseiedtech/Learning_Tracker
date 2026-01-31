@@ -42,7 +42,7 @@
                             <img src="{{ current_user.profile_image }}" alt="Profile" class="avatar-preview">
                             {% else %}
                             <div class="avatar-placeholder">
-                                {{ current_user.username[0]|upper }}
+                                {{ current_user.initial }}
                             </div>
                             {% endif %}
                         </div>

@@ -69,7 +69,7 @@
             <div class="list-group list-group-modern">
                 {% for student in lagging_students %}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{{ student.username }}</span>
+                    <span>{{ student.display_name }}</span>
                     <span class="badge bg-warning text-dark">{{ student.progress_percent }}%</span>
                 </div>
                 {% endfor %}
@@ -84,7 +84,7 @@
                     {% for student in students|sort(attribute='progress_percent', reverse=true) %}
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">{{ student.username }}</span>
+                            <span class="fw-medium">{{ student.display_name }}</span>
                             <small class="text-muted">{{ student.completed_checkpoints }}/{{ student.total_checkpoints }}</small>
                         </div>
                         <div class="progress progress-modern">

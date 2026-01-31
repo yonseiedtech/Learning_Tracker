@@ -123,10 +123,10 @@
                 {% for msg in messages %}
                 <div class="chat-message mb-2 {% if msg.user.role == 'instructor' %}instructor-msg{% endif %}">
                     <div class="d-flex align-items-start gap-2">
-                        <div class="avatar-sm">{{ msg.user.username[0]|upper }}</div>
+                        <div class="avatar-sm">{{ msg.user.initial }}</div>
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center gap-2">
-                                <strong class="small">{{ msg.user.username }}</strong>
+                                <strong class="small">{{ msg.user.display_name }}</strong>
                                 {% if msg.user.role == 'instructor' %}
                                 <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px;">강사</span>
                                 {% endif %}
@@ -141,7 +141,7 @@
             <div class="mt-3">
                 <div class="mentions-dropdown d-none" id="mentionsDropdown">
                     {% for e in enrollments %}
-                    <div class="mention-item" onclick="insertMention('{{ e.user.username }}')">@{{ e.user.username }}</div>
+                    <div class="mention-item" onclick="insertMention('{{ e.user.display_name }}')">@{{ e.user.display_name }}</div>
                     {% endfor %}
                 </div>
                 <div class="input-group">

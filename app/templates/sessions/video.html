@@ -117,16 +117,13 @@
             </div>
             
             {% if not is_instructor %}
-            {% if is_youtube %}
             <div class="alert alert-info small mb-3">
                 <i class="bi bi-info-circle me-2"></i>
-                유튜브 영상은 시청 후 직접 완료 버튼을 눌러주세요.
-                <br><small class="text-muted">체류 시간: <span id="page-time">0</span>초</small>
-            </div>
-            {% else %}
-            <div class="alert alert-info small mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                영상을 80% 이상 시청하면 자동으로 완료 처리됩니다.
+                {% set min_time = course.min_completion_time or 60 %}
+                {% set min_minutes = (min_time // 60)|int %}
+                {% set min_seconds = min_time % 60 %}
+                페이지에 {{ min_minutes }}분 {{ min_seconds }}초 이상 체류하면 자동 완료됩니다.
+                <br><small class="text-muted">체류 시간: <span id="page-time">{{ page_time.total_seconds if page_time else 0 }}</span>초 / {{ min_time }}초</small>
             </div>
             {% endif %}
             
@@ -227,12 +224,6 @@ if (video) {
                 document.getElementById('watch-progress-bar').style.width = data.watch_percentage + '%';
                 document.getElementById('watch-percentage').textContent = data.watch_percentage.toFixed(1) + '%';
                 document.getElementById('watched-time').textContent = Math.floor(watchedSeconds / 60) + '분';
-                
-                if (data.auto_completed) {
-                    document.getElementById('completion-status').innerHTML = 
-                        '<span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>';
-                    showToast('동영상을 80% 이상 시청하여 자동 완료 처리되었습니다!', 'success');
-                }
             }
             isNewPlay = false;
         } catch (error) {
@@ -242,7 +233,11 @@ if (video) {
 }
 {% endif %}
 
-{% if is_youtube %}
+{% if not is_instructor %}
+const minCompletionTime = {{ course.min_completion_time or 60 }};
+const initialPageTime = {{ page_time.total_seconds if page_time else 0 }};
+pageTimeSeconds = initialPageTime;
+
 pageTimeInterval = setInterval(function() {
     pageTimeSeconds++;
     const pageTimeEl = document.getElementById('page-time');
@@ -250,15 +245,15 @@ pageTimeInterval = setInterval(function() {
         pageTimeEl.textContent = pageTimeSeconds;
     }
     
-    if (pageTimeSeconds - lastLoggedTime >= 30) {
-        logPageTime(30);
+    if (pageTimeSeconds - lastLoggedTime >= 10) {
+        logPageTime(pageTimeSeconds - lastLoggedTime);
         lastLoggedTime = pageTimeSeconds;
     }
 }, 1000);
 
 async function logPageTime(seconds) {
     try {
-        await fetch(`/sessions/${courseId}/log-time`, {
+        const response = await fetch(`/sessions/${courseId}/log-time`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -266,6 +261,13 @@ async function logPageTime(seconds) {
             },
             body: JSON.stringify({ seconds: seconds })
         });
+        
+        const data = await response.json();
+        if (data.success && data.auto_completed) {
+            document.getElementById('completion-status').innerHTML = 
+                '<span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>';
+            showToast('체류 시간 기준 자동 완료 처리되었습니다!', 'success');
+        }
     } catch (error) {
         console.error('Error:', error);
     }
