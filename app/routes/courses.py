@@ -19,12 +19,35 @@ def has_course_access(course, user, roles=['instructor', 'assistant']):
 @bp.route('/')
 @login_required
 def list_courses():
-    if current_user.is_instructor():
-        courses = Course.query.filter_by(instructor_id=current_user.id).filter(Course.deleted_at.is_(None)).all()
+    is_instructor = current_user.is_instructor()
+    
+    if is_instructor:
+        my_courses = Course.query.filter_by(instructor_id=current_user.id).filter(
+            Course.deleted_at.is_(None),
+            Course.subject_id.is_(None)
+        ).order_by(Course.created_at.desc()).all()
+        enrolled_courses = []
+        public_courses = []
     else:
         enrollments = Enrollment.query.filter_by(user_id=current_user.id).all()
-        courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private']
-    return render_template('courses/list.html', courses=courses)
+        enrolled_course_ids = [e.course_id for e in enrollments]
+        enrolled_courses = [e.course for e in enrollments 
+                          if not e.course.deleted_at 
+                          and e.course.subject_id is None]
+        
+        public_courses = Course.query.filter(
+            Course.deleted_at.is_(None),
+            Course.subject_id.is_(None),
+            Course.visibility == 'public',
+            ~Course.id.in_(enrolled_course_ids) if enrolled_course_ids else True
+        ).order_by(Course.created_at.desc()).all()
+        my_courses = []
+    
+    return render_template('courses/list.html', 
+                          my_courses=my_courses,
+                          enrolled_courses=enrolled_courses,
+                          public_courses=public_courses,
+                          is_instructor=is_instructor)
 
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -173,6 +196,29 @@ def enroll():
         return redirect(url_for('courses.view', course_id=course.id))
     
     return render_template('courses/enroll.html', form=form)
+
+@bp.route('/<int:course_id>/enroll', methods=['POST'])
+@login_required
+def enroll_course(course_id):
+    if current_user.is_instructor():
+        flash('강사는 수강 신청을 할 수 없습니다.', 'warning')
+        return redirect(url_for('courses.list_courses'))
+    
+    course = Course.query.get_or_404(course_id)
+    
+    if course.deleted_at or course.visibility == 'private':
+        flash('해당 세션에 등록할 수 없습니다.', 'danger')
+        return redirect(url_for('courses.list_courses'))
+    
+    if current_user.is_enrolled(course):
+        flash('이미 이 세션에 등록되어 있습니다.', 'warning')
+        return redirect(url_for('courses.view', course_id=course.id))
+    
+    enrollment = Enrollment(course_id=course.id, user_id=current_user.id)
+    db.session.add(enrollment)
+    db.session.commit()
+    flash(f'{course.title} 세션에 등록되었습니다!', 'success')
+    return redirect(url_for('courses.view', course_id=course.id))
 
 @bp.route('/<int:course_id>/start-session', methods=['GET', 'POST'])
 @login_required

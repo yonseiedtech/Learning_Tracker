@@ -1,77 +1,201 @@
 {% extends "base.html" %}
 
-{% block title %}내 강좌 - 학습 진도 트래커{% endblock %}
+{% block title %}세션 목록 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold mb-1">내 강좌</h2>
-        <p class="text-muted mb-0">{% if current_user.is_instructor() %}생성한 강좌를 관리하세요{% else %}수강 중인 강좌 목록입니다{% endif %}</p>
+<div class="page-container">
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold mb-1"><i class="bi bi-collection-play me-2 text-primary"></i>세션 목록</h2>
+                <p class="text-muted mb-0">{% if is_instructor %}생성한 독립 세션을 관리하세요{% else %}등록된 세션 및 공개 세션을 확인하세요{% endif %}</p>
+            </div>
+            {% if is_instructor %}
+            <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
+                <i class="bi bi-plus-lg me-2"></i>새 세션 만들기
+            </a>
+            {% endif %}
+        </div>
     </div>
-    {% if current_user.is_instructor() %}
-    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>강좌 만들기
-    </a>
-    {% else %}
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>수강 신청
-    </a>
+
+    {% if not is_instructor %}
+    <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-key me-2"></i>초대 코드로 세션 등록</h5>
+        <form action="{{ url_for('courses.enroll') }}" method="GET" class="d-flex gap-2">
+            <input type="text" name="code" class="form-control" placeholder="초대 코드 입력" style="max-width: 300px;">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-box-arrow-in-right me-1"></i>등록
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% macro session_type_badge(session_type) %}
+        {% if session_type == 'live_session' %}
+            <span class="badge" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><i class="bi bi-broadcast me-1"></i>라이브</span>
+        {% elif session_type == 'video' %}
+            <span class="badge" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);"><i class="bi bi-play-circle me-1"></i>영상</span>
+        {% elif session_type == 'video_external' %}
+            <span class="badge" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><i class="bi bi-youtube me-1"></i>YouTube</span>
+        {% elif session_type == 'material' %}
+            <span class="badge" style="background: linear-gradient(135deg, #14b8a6, #0d9488);"><i class="bi bi-file-text me-1"></i>학습자료</span>
+        {% elif session_type == 'assignment' %}
+            <span class="badge" style="background: linear-gradient(135deg, #f97316, #ea580c);"><i class="bi bi-pencil-square me-1"></i>과제</span>
+        {% elif session_type == 'quiz' %}
+            <span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"><i class="bi bi-question-circle me-1"></i>퀴즈</span>
+        {% else %}
+            <span class="badge bg-secondary"><i class="bi bi-collection me-1"></i>세션</span>
+        {% endif %}
+    {% endmacro %}
+
+    {% if is_instructor and my_courses %}
+    <h4 class="fw-bold mb-3"><i class="bi bi-folder me-2 text-primary"></i>내 세션</h4>
+    <div class="row g-4 mb-5">
+        {% for course in my_courses %}
+        <div class="col-md-6 col-lg-4">
+            <div class="glass-card p-4 h-100 border-start border-primary border-3">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        {{ session_type_badge(course.session_type) }}
+                        <h5 class="fw-bold mb-0 mt-2">{{ course.title }}</h5>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">
+                        {{ course.enrollments.count() }}명
+                    </span>
+                </div>
+                {% if course.description %}
+                <p class="text-muted small mb-3">{{ course.description[:80] }}{% if course.description|length > 80 %}...{% endif %}</p>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-key me-1"></i><code>{{ course.invite_code }}</code>
+                    </small>
+                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm">
+                        관리 <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if enrolled_courses %}
+    <h4 class="fw-bold mb-3"><i class="bi bi-bookmark-check me-2 text-success"></i>등록된 세션</h4>
+    <div class="row g-4 mb-5">
+        {% for course in enrolled_courses %}
+        <div class="col-md-6 col-lg-4">
+            <div class="glass-card p-4 h-100 border-start border-success border-3">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        {{ session_type_badge(course.session_type) }}
+                        <h5 class="fw-bold mb-0 mt-2">{{ course.title }}</h5>
+                    </div>
+                    <span class="badge bg-success bg-opacity-10 text-success">
+                        등록됨
+                    </span>
+                </div>
+                {% if course.description %}
+                <p class="text-muted small mb-3">{{ course.description[:80] }}{% if course.description|length > 80 %}...{% endif %}</p>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-person me-1"></i>{{ course.instructor.display_name }}
+                    </small>
+                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm">
+                        학습하기 <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not is_instructor and public_courses %}
+    <h4 class="fw-bold mb-3"><i class="bi bi-collection me-2 text-primary"></i>공개 세션</h4>
+    <div class="row g-4">
+        {% for course in public_courses %}
+        <div class="col-md-6 col-lg-4">
+            <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        {{ session_type_badge(course.session_type) }}
+                        <h5 class="fw-bold mb-0 mt-2">{{ course.title }}</h5>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">
+                        {{ course.enrollments.count() }}명 등록
+                    </span>
+                </div>
+                {% if course.description %}
+                <p class="text-muted small mb-3">{{ course.description[:80] }}{% if course.description|length > 80 %}...{% endif %}</p>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="bi bi-person me-1"></i>{{ course.instructor.display_name }}
+                    </small>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-secondary btn-sm">
+                            상세보기
+                        </a>
+                        <form action="{{ url_for('courses.enroll_course', course_id=course.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i>등록
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if (is_instructor and not my_courses) or (not is_instructor and not enrolled_courses and not public_courses) %}
+    <div class="glass-card p-5 text-center">
+        <i class="bi bi-collection-play display-1 text-muted mb-3"></i>
+        {% if is_instructor %}
+        <h5 class="fw-bold">아직 생성된 독립 세션이 없습니다</h5>
+        <p class="text-muted">새 세션을 만들어 1회차 강의나 세미나를 운영해보세요.</p>
+        <a href="{{ url_for('courses.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>첫 세션 만들기
+        </a>
+        {% else %}
+        <h5 class="fw-bold">등록된 세션이 없습니다</h5>
+        <p class="text-muted">위에서 초대 코드를 입력하거나, 공개 세션에서 원하는 세션을 등록해주세요.</p>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
 
-{% if courses %}
-<div class="glass-card">
-    <div class="table-responsive">
-        <table class="table table-modern mb-0">
-            <thead>
-                <tr>
-                    <th>강좌명</th>
-                    <th>설명</th>
-                    {% if current_user.is_instructor() %}
-                    <th>수강생</th>
-                    <th>초대 코드</th>
-                    {% else %}
-                    <th>강사</th>
-                    {% endif %}
-                    <th>체크포인트</th>
-                    <th>관리</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for course in courses %}
-                <tr>
-                    <td><strong>{{ course.title }}</strong></td>
-                    <td class="text-muted">{{ course.description[:50] if course.description else '-' }}{{ '...' if course.description and course.description|length > 50 else '' }}</td>
-                    {% if current_user.is_instructor() %}
-                    <td><span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollments.count() }}명</span></td>
-                    <td><code class="text-primary">{{ course.invite_code }}</code></td>
-                    {% else %}
-                    <td>{{ course.instructor.display_name }}</td>
-                    {% endif %}
-                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}개</span></td>
-                    <td>
-                        <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">보기</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% else %}
-<div class="glass-card text-center py-5">
-    <div class="empty-icon mb-4">
-        <i class="bi bi-journal-x"></i>
-    </div>
-    {% if current_user.is_instructor() %}
-    <h5 class="fw-bold mb-2">아직 생성한 강좌가 없습니다</h5>
-    <p class="text-muted mb-4">첫 번째 강좌를 만들어보세요!</p>
-    <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">강좌 만들기</a>
-    {% else %}
-    <h5 class="fw-bold mb-2">수강 중인 강좌가 없습니다</h5>
-    <p class="text-muted mb-4">초대 코드로 강좌에 등록하세요!</p>
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">수강 신청</a>
-    {% endif %}
-</div>
-{% endif %}
+<style>
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header h2 {
+    font-size: 1.75rem;
+}
+
+.glass-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.4em 0.8em;
+    border-radius: 8px;
+}
+</style>
 {% endblock %}

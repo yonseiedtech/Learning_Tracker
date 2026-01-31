@@ -169,6 +169,11 @@
                     <div id="timer-status" class="small text-muted mt-1">대기 중</div>
                 </div>
                 
+                <div id="pause-info" class="text-center small text-warning mt-2 d-none">
+                    <i class="bi bi-pause-circle me-1"></i>
+                    일시정지 경과: <span id="pause-elapsed">0분 0초</span>
+                </div>
+                
                 <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center" id="timer-controls">
                     <button class="btn btn-success btn-sm rounded-pill px-3" id="btn-start" onclick="startTimer()">
                         <i class="bi bi-play-fill me-1"></i>시작
@@ -180,7 +185,10 @@
                         <i class="bi bi-play-circle me-1"></i>재개
                     </button>
                     <button class="btn btn-danger btn-sm rounded-pill px-3 d-none" id="btn-stop" onclick="stopTimer()">
-                        <i class="bi bi-stop-fill me-1"></i>중단
+                        <i class="bi bi-stop-fill me-1"></i>종료
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-none" id="btn-reset" onclick="resetTimer()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>초기화
                     </button>
                 </div>
             </div>
@@ -259,12 +267,21 @@ let timerSeconds = 0;
 let timerInterval = null;
 let timerState = 'stopped';
 let lastLoggedTime = 0;
+let pauseStartTime = null;
+let pauseInterval = null;
+const AUTO_END_PAUSE_SECONDS = 30 * 60;
 
 function formatTime(totalSeconds) {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
     return String(hrs).padStart(2, '0') + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+}
+
+function formatPauseTime(totalSeconds) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return mins + '분 ' + secs + '초';
 }
 
 function updateTimerDisplay() {
@@ -274,12 +291,44 @@ function updateTimerDisplay() {
     }
 }
 
+function updatePauseElapsed() {
+    if (!pauseStartTime) return;
+    const elapsed = Math.floor((Date.now() - pauseStartTime) / 1000);
+    const pauseElapsedEl = document.getElementById('pause-elapsed');
+    if (pauseElapsedEl) {
+        pauseElapsedEl.textContent = formatPauseTime(elapsed);
+    }
+    if (elapsed >= AUTO_END_PAUSE_SECONDS) {
+        autoEndFromPause();
+    }
+}
+
+function autoEndFromPause() {
+    if (pauseInterval) {
+        clearInterval(pauseInterval);
+        pauseInterval = null;
+    }
+    const pendingSeconds = timerSeconds - lastLoggedTime;
+    if (pendingSeconds > 0) {
+        logPageTime(pendingSeconds);
+    }
+    timerState = 'stopped';
+    timerSeconds = 0;
+    lastLoggedTime = 0;
+    pauseStartTime = null;
+    updateTimerDisplay();
+    updateControls();
+    alert('30분 이상 일시정지 상태로 있어 자동으로 학습이 종료되었습니다.');
+}
+
 function updateControls() {
     const btnStart = document.getElementById('btn-start');
     const btnPause = document.getElementById('btn-pause');
     const btnResume = document.getElementById('btn-resume');
     const btnStop = document.getElementById('btn-stop');
+    const btnReset = document.getElementById('btn-reset');
     const status = document.getElementById('timer-status');
+    const pauseInfo = document.getElementById('pause-info');
     
     if (!btnStart) return;
     
@@ -287,6 +336,8 @@ function updateControls() {
     btnPause.classList.add('d-none');
     btnResume.classList.add('d-none');
     btnStop.classList.add('d-none');
+    btnReset.classList.add('d-none');
+    if (pauseInfo) pauseInfo.classList.add('d-none');
     
     if (timerState === 'stopped') {
         btnStart.classList.remove('d-none');
@@ -295,11 +346,14 @@ function updateControls() {
     } else if (timerState === 'running') {
         btnPause.classList.remove('d-none');
         btnStop.classList.remove('d-none');
+        btnReset.classList.remove('d-none');
         status.textContent = '학습 중...';
         status.className = 'small text-success mt-1';
     } else if (timerState === 'paused') {
         btnResume.classList.remove('d-none');
         btnStop.classList.remove('d-none');
+        btnReset.classList.remove('d-none');
+        if (pauseInfo) pauseInfo.classList.remove('d-none');
         status.textContent = '일시정지';
         status.className = 'small text-warning mt-1';
     }
@@ -330,11 +384,18 @@ function pauseTimer() {
         logPageTime(pendingSeconds);
         lastLoggedTime = timerSeconds;
     }
+    pauseStartTime = Date.now();
+    pauseInterval = setInterval(updatePauseElapsed, 1000);
     updateControls();
 }
 
 function resumeTimer() {
     timerState = 'running';
+    if (pauseInterval) {
+        clearInterval(pauseInterval);
+        pauseInterval = null;
+    }
+    pauseStartTime = null;
     timerInterval = setInterval(function() {
         timerSeconds++;
         updateTimerDisplay();
@@ -353,14 +414,42 @@ function stopTimer() {
         clearInterval(timerInterval);
         timerInterval = null;
     }
+    if (pauseInterval) {
+        clearInterval(pauseInterval);
+        pauseInterval = null;
+    }
     const pendingSeconds = timerSeconds - lastLoggedTime;
     if (pendingSeconds > 0) {
         logPageTime(pendingSeconds);
     }
     timerSeconds = 0;
     lastLoggedTime = 0;
+    pauseStartTime = null;
     updateTimerDisplay();
     updateControls();
+}
+
+function resetTimer() {
+    if (confirm('타이머를 초기화하시겠습니까? 현재까지 기록된 시간은 저장됩니다.')) {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        if (pauseInterval) {
+            clearInterval(pauseInterval);
+            pauseInterval = null;
+        }
+        const pendingSeconds = timerSeconds - lastLoggedTime;
+        if (pendingSeconds > 0) {
+            logPageTime(pendingSeconds);
+        }
+        timerState = 'stopped';
+        timerSeconds = 0;
+        lastLoggedTime = 0;
+        pauseStartTime = null;
+        updateTimerDisplay();
+        updateControls();
+    }
 }
 
 async function logPageTime(seconds) {
