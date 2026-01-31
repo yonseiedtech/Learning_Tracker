@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}세션 목록 - 학습 진도 트래커{% endblock %}
+{% block title %}세미나 목록 - 학습 진도 트래커{% endblock %}
 
 {% block content %}
 <div class="page-container">
     <div class="page-header mb-4">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h2 class="fw-bold mb-1"><i class="bi bi-collection-play me-2 text-primary"></i>세션 목록</h2>
-                <p class="text-muted mb-0">{% if is_instructor %}생성한 독립 세션을 관리하세요{% else %}등록된 세션 및 공개 세션을 확인하세요{% endif %}</p>
+                <h2 class="fw-bold mb-1"><i class="bi bi-collection-play me-2 text-primary"></i>세미나 목록</h2>
+                <p class="text-muted mb-0">{% if is_instructor %}생성한 세미나를 관리하세요{% else %}등록된 세미나 및 공개 세미나를 확인하세요{% endif %}</p>
             </div>
             {% if is_instructor %}
             <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
-                <i class="bi bi-plus-lg me-2"></i>새 세션 만들기
+                <i class="bi bi-plus-lg me-2"></i>새 세미나 만들기
             </a>
             {% endif %}
         </div>
@@ -20,7 +20,7 @@
 
     {% if not is_instructor %}
     <div class="glass-card p-4 mb-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-key me-2"></i>초대 코드로 세션 등록</h5>
+        <h5 class="fw-bold mb-3"><i class="bi bi-key me-2"></i>초대 코드로 세미나 등록</h5>
         <form action="{{ url_for('courses.enroll') }}" method="GET" class="d-flex gap-2">
             <input type="text" name="code" class="form-control" placeholder="초대 코드 입력" style="max-width: 300px;">
             <button type="submit" class="btn btn-primary">
@@ -49,7 +49,7 @@
     {% endmacro %}
 
     {% if is_instructor and my_courses %}
-    <h4 class="fw-bold mb-3"><i class="bi bi-folder me-2 text-primary"></i>내 세션</h4>
+    <h4 class="fw-bold mb-3"><i class="bi bi-folder me-2 text-primary"></i>내 세미나</h4>
     <div class="row g-4 mb-5">
         {% for course in my_courses %}
         <div class="col-md-6 col-lg-4">
@@ -81,7 +81,7 @@
     {% endif %}
 
     {% if enrolled_courses %}
-    <h4 class="fw-bold mb-3"><i class="bi bi-bookmark-check me-2 text-success"></i>등록된 세션</h4>
+    <h4 class="fw-bold mb-3"><i class="bi bi-bookmark-check me-2 text-success"></i>등록된 세미나</h4>
     <div class="row g-4 mb-5">
         {% for course in enrolled_courses %}
         <div class="col-md-6 col-lg-4">
@@ -113,7 +113,7 @@
     {% endif %}
 
     {% if not is_instructor and public_courses %}
-    <h4 class="fw-bold mb-3"><i class="bi bi-collection me-2 text-primary"></i>공개 세션</h4>
+    <h4 class="fw-bold mb-3"><i class="bi bi-collection me-2 text-primary"></i>공개 세미나</h4>
     <div class="row g-4">
         {% for course in public_courses %}
         <div class="col-md-6 col-lg-4">
@@ -156,14 +156,14 @@
     <div class="glass-card p-5 text-center">
         <i class="bi bi-collection-play display-1 text-muted mb-3"></i>
         {% if is_instructor %}
-        <h5 class="fw-bold">아직 생성된 독립 세션이 없습니다</h5>
-        <p class="text-muted">새 세션을 만들어 1회차 강의나 세미나를 운영해보세요.</p>
+        <h5 class="fw-bold">아직 생성된 세미나가 없습니다</h5>
+        <p class="text-muted">새 세미나를 만들어 1회차 강의를 운영해보세요.</p>
         <a href="{{ url_for('courses.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>첫 세션 만들기
+            <i class="bi bi-plus-lg me-1"></i>첫 세미나 만들기
         </a>
         {% else %}
-        <h5 class="fw-bold">등록된 세션이 없습니다</h5>
-        <p class="text-muted">위에서 초대 코드를 입력하거나, 공개 세션에서 원하는 세션을 등록해주세요.</p>
+        <h5 class="fw-bold">등록된 세미나가 없습니다</h5>
+        <p class="text-muted">위에서 초대 코드를 입력하거나, 공개 세미나에서 원하는 세미나를 등록해주세요.</p>
         {% endif %}
     </div>
     {% endif %}

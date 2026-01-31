@@ -13,7 +13,7 @@
             <i class="bi bi-folder-plus me-1"></i>과목 생성
         </a>
         <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-3">
-            <i class="bi bi-plus-lg me-1"></i>강좌 생성
+            <i class="bi bi-plus-lg me-1"></i>세미나 생성
         </a>
     </div>
 </div>
@@ -34,7 +34,7 @@
                 <i class="bi bi-journal-bookmark fs-4 text-white"></i>
             </div>
             <div class="stat-value display-6 fw-bold">{{ courses|length }}</div>
-            <div class="stat-label text-muted small">개설 강좌</div>
+            <div class="stat-label text-muted small">개설 세미나</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -177,7 +177,7 @@
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌 <span class="badge bg-primary bg-opacity-10 text-primary ms-2">{{ courses|length }}</span></h5>
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 세미나 <span class="badge bg-primary bg-opacity-10 text-primary ms-2">{{ courses|length }}</span></h5>
 </div>
 
 {% if courses %}
@@ -234,11 +234,11 @@
     <div class="empty-icon mb-4">
         <i class="bi bi-journal-plus"></i>
     </div>
-    <h4 class="fw-bold mb-2">첫 강좌를 만들어 보세요!</h4>
-    <p class="text-muted mb-4">강좌를 생성하고 학생들의 학습을 관리해 보세요</p>
+    <h4 class="fw-bold mb-2">첫 세미나를 만들어 보세요!</h4>
+    <p class="text-muted mb-4">세미나를 생성하고 학생들의 학습을 관리해 보세요</p>
     <div class="d-flex gap-2 justify-content-center">
         <a href="{{ url_for('courses.create') }}" class="btn btn-primary rounded-pill px-4">
-            <i class="bi bi-plus-lg me-2"></i>강좌 만들기
+            <i class="bi bi-plus-lg me-2"></i>세미나 만들기
         </a>
     </div>
     <div class="mt-4 pt-4 border-top">
@@ -247,7 +247,7 @@
             <div class="col-auto">
                 <div class="quick-start-item text-center p-3 rounded-3" style="background: rgba(13, 27, 62, 0.05);">
                     <div class="step-number">1</div>
-                    <strong class="small d-block">강좌 생성</strong>
+                    <strong class="small d-block">세미나 생성</strong>
                     <small class="text-muted">제목과 설명 입력</small>
                 </div>
             </div>

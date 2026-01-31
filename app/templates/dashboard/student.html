@@ -52,7 +52,7 @@
                 <i class="bi bi-journal-bookmark fs-4 text-white"></i>
             </div>
             <div class="stat-value display-6 fw-bold">{{ courses|length }}</div>
-            <div class="stat-label text-muted small">수강 중인 강좌</div>
+            <div class="stat-label text-muted small">수강 중인 세미나</div>
         </div>
     </div>
 </div>
@@ -183,13 +183,13 @@
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 세션</h5>
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 세미나</h5>
     <div class="d-flex gap-2">
         <button class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#pastSessionsModal">
-            <i class="bi bi-archive me-1"></i>과거 세션
+            <i class="bi bi-archive me-1"></i>과거 세미나
         </button>
         <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary btn-sm rounded-pill">
-            <i class="bi bi-plus-lg me-1"></i>수강 신청
+            <i class="bi bi-plus-lg me-1"></i>세미나 등록
         </a>
     </div>
 </div>
@@ -279,7 +279,7 @@
                             <input class="form-check-input" type="radio" name="role" id="role_auditor" value="auditor">
                             <label class="form-check-label" for="role_auditor">
                                 <i class="bi bi-eye text-secondary me-1"></i>청강생
-                                <small class="text-muted d-block">강좌를 청강하며 학습에 참여합니다</small>
+                                <small class="text-muted d-block">세미나를 청강하며 학습에 참여합니다</small>
                             </label>
                         </div>
                     </div>

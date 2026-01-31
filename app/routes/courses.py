@@ -53,7 +53,7 @@ def list_courses():
 @login_required
 def create():
     if not current_user.is_instructor():
-        flash('강사만 강좌를 생성할 수 있습니다.', 'danger')
+        flash('강사만 세미나를 생성할 수 있습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     form = CourseForm()
@@ -66,7 +66,7 @@ def create():
         )
         db.session.add(course)
         db.session.commit()
-        flash('강좌가 생성되었습니다!', 'success')
+        flash('세미나가 생성되었습니다!', 'success')
         return redirect(url_for('courses.view', course_id=course.id))
     
     return render_template('courses/create.html', form=form)
@@ -92,14 +92,14 @@ def view(course_id):
     
     if current_user.is_instructor():
         if not has_course_access(course, current_user):
-            flash('이 강좌에 접근 권한이 없습니다.', 'danger')
+            flash('이 세미나에 접근 권한이 없습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         students = course.get_enrolled_students()
         checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).order_by(Checkpoint.order).all()
         return render_template('courses/view_instructor.html', course=course, students=students, checkpoints=checkpoints)
     else:
         if not current_user.is_enrolled(course):
-            flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
+            flash('이 세미나에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         
         if not course.is_accessible_by(current_user):
@@ -141,7 +141,7 @@ def view(course_id):
 def edit(course_id):
     course = Course.query.get_or_404(course_id)
     if not has_course_access(course, current_user):
-        flash('이 강좌를 수정할 권한이 없습니다.', 'danger')
+        flash('이 세미나를 수정할 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     form = CourseForm(obj=course)
@@ -149,7 +149,7 @@ def edit(course_id):
         course.title = form.title.data
         course.description = form.description.data
         db.session.commit()
-        flash('강좌가 수정되었습니다!', 'success')
+        flash('세미나가 수정되었습니다!', 'success')
         return redirect(url_for('courses.view', course_id=course.id))
     
     return render_template('courses/edit.html', form=form, course=course)
@@ -159,12 +159,12 @@ def edit(course_id):
 def delete(course_id):
     course = Course.query.get_or_404(course_id)
     if not has_course_access(course, current_user):
-        flash('이 강좌를 삭제할 권한이 없습니다.', 'danger')
+        flash('이 세미나를 삭제할 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     course.deleted_at = datetime.utcnow()
     db.session.commit()
-    flash('강좌가 삭제되었습니다!', 'success')
+    flash('세미나가 삭제되었습니다!', 'success')
     return redirect(url_for('main.dashboard'))
 
 @bp.route('/enroll', methods=['GET', 'POST'])
@@ -186,13 +186,13 @@ def enroll():
             return render_template('courses/enroll.html', form=form)
         
         if current_user.is_enrolled(course):
-            flash('이미 이 강좌에 등록되어 있습니다.', 'warning')
+            flash('이미 이 세미나에 등록되어 있습니다.', 'warning')
             return redirect(url_for('courses.view', course_id=course.id))
         
         enrollment = Enrollment(course_id=course.id, user_id=current_user.id)
         db.session.add(enrollment)
         db.session.commit()
-        flash(f'{course.title} 강좌에 등록되었습니다!', 'success')
+        flash(f'{course.title} 세미나에 등록되었습니다!', 'success')
         return redirect(url_for('courses.view', course_id=course.id))
     
     return render_template('courses/enroll.html', form=form)
@@ -313,7 +313,7 @@ def live_mode(course_id):
         return render_template('courses/live_instructor.html', course=course, checkpoints=checkpoints, students=students, session=session, messages=recent_messages)
     else:
         if not current_user.is_enrolled(course):
-            flash('이 강좌에 등록되어 있지 않습니다.', 'danger')
+            flash('이 세미나에 등록되어 있지 않습니다.', 'danger')
             return redirect(url_for('main.dashboard'))
         
         if not course.is_accessible_by(current_user):

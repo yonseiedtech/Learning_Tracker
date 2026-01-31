@@ -18,7 +18,7 @@ def user_has_course_access(user, course):
 def list_posts(course_id):
     course = Course.query.get_or_404(course_id)
     if not user_has_course_access(current_user, course):
-        flash('이 강좌에 접근 권한이 없습니다.', 'danger')
+        flash('이 세미나에 접근 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     posts = ForumPost.query.filter_by(course_id=course_id).order_by(ForumPost.created_at.desc()).all()
@@ -29,7 +29,7 @@ def list_posts(course_id):
 def create_post(course_id):
     course = Course.query.get_or_404(course_id)
     if not user_has_course_access(current_user, course):
-        flash('이 강좌에 접근 권한이 없습니다.', 'danger')
+        flash('이 세미나에 접근 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
     
     if request.method == 'POST':

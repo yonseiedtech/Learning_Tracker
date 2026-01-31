@@ -546,7 +546,7 @@
         <ul class="unified-nav-links">
             <li><a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if request.endpoint == 'main.dashboard' else '' }}">대시보드</a></li>
             <li><a href="{{ url_for('subjects.list_subjects') }}" class="{{ 'active' if 'subjects' in request.endpoint else '' }}">과목</a></li>
-            <li><a href="{{ url_for('courses.list_courses') }}" class="{{ 'active' if 'courses' in request.endpoint else '' }}">세션</a></li>
+            <li><a href="{{ url_for('courses.list_courses') }}" class="{{ 'active' if 'courses' in request.endpoint else '' }}">세미나</a></li>
             <li><a href="{{ url_for('community.index') }}" class="{{ 'active' if 'community' in request.endpoint else '' }}">커뮤니티</a></li>
             <li><a href="{{ url_for('guide.index') }}" class="{{ 'active' if 'guide' in request.endpoint else '' }}">이용안내</a></li>
             {% if current_user.is_instructor() %}

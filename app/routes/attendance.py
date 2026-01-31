@@ -93,7 +93,7 @@ def self_check():
     course = Course.query.get_or_404(course_id)
     
     if not current_user.is_enrolled(course):
-        return jsonify({'error': '등록되지 않은 강좌입니다.'}), 403
+        return jsonify({'error': '등록되지 않은 세미나입니다.'}), 403
     
     session = ActiveSession.query.filter_by(id=session_id, ended_at=None).first()
     if not session:
