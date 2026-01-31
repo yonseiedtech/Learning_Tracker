@@ -431,13 +431,26 @@ def members(subject_id):
         else:
             member_data['students'].append(data)
     
-    enrolled_students = SubjectEnrollment.query.filter_by(subject_id=subject_id).all()
-    student_users = [e.user for e in enrolled_students]
+    enrollments = SubjectEnrollment.query.filter_by(subject_id=subject_id).all()
+    
+    enrollment_data = {
+        'approved': [],
+        'pending': [],
+        'rejected': []
+    }
+    
+    for enrollment in enrollments:
+        data = {'enrollment': enrollment, 'user': enrollment.user}
+        status = enrollment.status or 'approved'
+        if status in enrollment_data:
+            enrollment_data[status].append(data)
+        else:
+            enrollment_data['approved'].append(data)
     
     return render_template('subjects/members.html', 
                           subject=subject, 
                           member_data=member_data,
-                          enrolled_students=student_users)
+                          enrollment_data=enrollment_data)
 
 
 @bp.route('/<int:subject_id>/members/add', methods=['POST'])

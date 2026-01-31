@@ -111,63 +111,142 @@
 </div>
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌</h5>
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary btn-sm rounded-pill">
-        <i class="bi bi-plus-lg me-1"></i>수강 신청
-    </a>
-</div>
-
-{% if courses %}
-<div class="row g-4">
-    {% for course in courses %}
-    <div class="col-md-6 col-lg-4">
-        <div class="glass-card course-card h-100">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div class="course-icon course-icon-student">
-                        <i class="bi bi-mortarboard"></i>
-                    </div>
-                    {% set cp_count = course.checkpoints.filter_by(deleted_at=None).count() %}
-                    <span class="badge bg-success bg-opacity-10 text-success">수강 중</span>
+{% if pending_enrollments %}
+<div class="glass-card p-4 mb-4 border-start border-warning border-4">
+    <h5 class="fw-bold mb-3"><i class="bi bi-bell text-warning me-2"></i>등록 초대</h5>
+    <div class="row g-3">
+        {% for enrollment in pending_enrollments %}
+        <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: rgba(255, 193, 7, 0.1);">
+                <div>
+                    <strong>{{ enrollment.subject.title }}</strong>
+                    <span class="badge bg-secondary ms-1">{{ '조교' if enrollment.role == 'ta' else ('청강생' if enrollment.role == 'auditor' else '학습자') }}</span>
+                    <p class="mb-0 small text-muted">{{ enrollment.subject.instructor.display_name }} 강사님</p>
                 </div>
-                <h5 class="fw-bold mb-2">{{ course.title }}</h5>
-                <p class="text-muted small mb-3">{{ course.description[:60] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 60 else '' }}</p>
-                
-                <div class="d-flex align-items-center mb-3">
-                    <i class="bi bi-person-circle me-2 text-muted"></i>
-                    <small class="text-muted">강사: {{ course.instructor.display_name }}</small>
-                </div>
-                
-                <div class="d-flex gap-2 mb-3">
-                    <span class="badge bg-light text-dark">
-                        <i class="bi bi-flag me-1"></i>{{ cp_count }} 체크포인트
-                    </span>
-                </div>
-            </div>
-            <div class="card-footer bg-transparent border-0 p-4 pt-0">
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm flex-fill rounded-pill">
-                        <i class="bi bi-book me-1"></i>학습
-                    </a>
-                    {% if course.session_type == 'live_session' %}
-                    <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success btn-sm flex-fill rounded-pill">
-                        <i class="bi bi-broadcast me-1"></i>라이브
-                    </a>
-                    {% endif %}
+                    <form action="{{ url_for('subjects.approve_enrollment', subject_id=enrollment.subject_id) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-sm rounded-pill">
+                            <i class="bi bi-check-lg"></i> 승인
+                        </button>
+                    </form>
+                    <form action="{{ url_for('subjects.reject_enrollment', subject_id=enrollment.subject_id) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0"><i class="bi bi-book me-2 text-primary"></i>내 과목</h5>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#applyRoleModal">
+            <i class="bi bi-person-badge me-1"></i>조교/청강 신청
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#pastSubjectsModal">
+            <i class="bi bi-archive me-1"></i>과거 과목
+        </button>
+    </div>
+</div>
+
+{% if subjects %}
+<div class="row g-3 mb-4">
+    {% for subject in subjects %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('subjects.view', subject_id=subject.id) }}" class="text-decoration-none">
+            <div class="glass-card p-3 h-100 text-center subject-card">
+                <div class="subject-icon mb-2" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                    <i class="bi bi-book-half text-white fs-5"></i>
+                </div>
+                <h6 class="fw-bold mb-1 text-dark">{{ subject.title[:20] }}{{ '...' if subject.title|length > 20 else '' }}</h6>
+                <small class="text-muted">{{ subject.instructor.display_name }}</small>
+            </div>
+        </a>
     </div>
     {% endfor %}
+</div>
+{% else %}
+<div class="glass-card p-4 mb-4 text-center">
+    <i class="bi bi-book text-muted" style="font-size: 2rem;"></i>
+    <p class="text-muted mb-2 mt-2">아직 등록된 과목이 없어요</p>
+    <a href="{{ url_for('subjects.list_subjects') }}" class="btn btn-outline-primary btn-sm rounded-pill">
+        <i class="bi bi-search me-1"></i>과목 찾아보기
+    </a>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 세션</h5>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#pastSessionsModal">
+            <i class="bi bi-archive me-1"></i>과거 세션
+        </button>
+        <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary btn-sm rounded-pill">
+            <i class="bi bi-plus-lg me-1"></i>수강 신청
+        </a>
+    </div>
+</div>
+
+{% if courses %}
+<div class="glass-card p-0 mb-4">
+    <div class="list-group list-group-flush">
+        {% for course in courses %}
+        <div class="list-group-item d-flex align-items-center justify-content-between p-3 session-item">
+            <div class="d-flex align-items-center flex-grow-1">
+                <div class="session-type-icon me-3" style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: 
+                    {% if course.session_type == 'live_session' %}linear-gradient(135deg, #dc3545, #fd7e14)
+                    {% elif course.session_type == 'video' %}linear-gradient(135deg, #6f42c1, #e83e8c)
+                    {% elif course.session_type == 'video_external' %}linear-gradient(135deg, #ff0000, #cc0000)
+                    {% elif course.session_type == 'material' %}linear-gradient(135deg, #20c997, #0dcaf0)
+                    {% elif course.session_type == 'assignment' %}linear-gradient(135deg, #fd7e14, #ffc107)
+                    {% elif course.session_type == 'quiz' %}linear-gradient(135deg, #0d6efd, #6610f2)
+                    {% else %}linear-gradient(135deg, #6c757d, #495057){% endif %};">
+                    <i class="bi {% if course.session_type == 'live_session' %}bi-broadcast{% elif course.session_type == 'video' %}bi-play-circle{% elif course.session_type == 'video_external' %}bi-youtube{% elif course.session_type == 'material' %}bi-file-text{% elif course.session_type == 'assignment' %}bi-pencil-square{% elif course.session_type == 'quiz' %}bi-question-circle{% else %}bi-collection{% endif %} text-white"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <strong>{{ course.title }}</strong>
+                        {% if course.subject %}
+                        <span class="badge bg-light text-dark small">{{ course.subject.title[:15] }}{{ '...' if course.subject.title|length > 15 else '' }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-3 mt-1">
+                        <small class="text-muted"><i class="bi bi-person me-1"></i>{{ course.instructor.display_name }}</small>
+                        {% set cp_count = course.checkpoints.filter_by(deleted_at=None).count() %}
+                        {% if cp_count > 0 %}
+                        <small class="text-muted"><i class="bi bi-flag me-1"></i>{{ cp_count }} 체크포인트</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('courses.view', course_id=course.id) }}" class="btn btn-outline-primary btn-sm rounded-pill">
+                    <i class="bi bi-book me-1"></i>학습
+                </a>
+                {% if course.session_type == 'live_session' %}
+                <a href="{{ url_for('courses.live_mode', course_id=course.id) }}" class="btn btn-success btn-sm rounded-pill">
+                    <i class="bi bi-broadcast me-1"></i>라이브
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% else %}
 <div class="empty-state glass-card text-center py-5">
     <div class="empty-icon mb-4">
         <i class="bi bi-journal-plus"></i>
     </div>
-    <h4 class="fw-bold mb-2">아직 수강 중인 강좌가 없어요</h4>
-    <p class="text-muted mb-4">강사님께 받은 초대 코드로 강좌에 등록해 보세요!</p>
+    <h4 class="fw-bold mb-2">아직 수강 중인 세션이 없어요</h4>
+    <p class="text-muted mb-4">강사님께 받은 초대 코드로 세션에 등록해 보세요!</p>
     <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
         <i class="bi bi-plus-lg me-2"></i>지금 수강 신청하기
     </a>
@@ -180,7 +259,7 @@
             </div>
             <div class="text-center">
                 <div class="step-number">2</div>
-                <small>강좌 확인</small>
+                <small>세션 확인</small>
             </div>
             <div class="text-center">
                 <div class="step-number">3</div>
@@ -190,6 +269,80 @@
     </div>
 </div>
 {% endif %}
+
+<div class="modal fade" id="applyRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i>조교/청강 신청</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('subjects.apply_role') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="subject_id" class="form-label">과목 선택</label>
+                        <select class="form-select" name="subject_id" id="subject_id" required>
+                            <option value="">과목을 선택하세요</option>
+                            {% for subject in available_subjects %}
+                            <option value="{{ subject.id }}">{{ subject.title }} ({{ subject.instructor.display_name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">신청 역할</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_ta" value="ta" checked>
+                            <label class="form-check-label" for="role_ta">
+                                <i class="bi bi-person-workspace text-info me-1"></i>조교
+                                <small class="text-muted d-block">강사를 보조하며 학습자를 지원합니다</small>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="role" id="role_auditor" value="auditor">
+                            <label class="form-check-label" for="role_auditor">
+                                <i class="bi bi-eye text-secondary me-1"></i>청강생
+                                <small class="text-muted d-block">강좌를 청강하며 학습에 참여합니다</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary">신청</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pastSubjectsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-archive me-2"></i>과거 과목</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted text-center py-4">과거에 수강했던 과목이 없습니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pastSessionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-archive me-2"></i>과거 세션</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted text-center py-4">과거에 수강했던 세션이 없습니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 .stat-card {
@@ -237,6 +390,19 @@
     justify-content: center;
     margin: 0 auto 8px;
     font-weight: 600;
+}
+.subject-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.subject-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(13, 27, 62, 0.12);
+}
+.session-item {
+    transition: background-color 0.2s ease;
+}
+.session-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
 }
 </style>
 {% endblock %}

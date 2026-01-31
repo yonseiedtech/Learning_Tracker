@@ -116,23 +116,84 @@
         <div class="glass-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0"><i class="bi bi-person text-primary me-2"></i>학습자</h5>
-                <span class="badge bg-primary">{{ enrolled_students|length }}명</span>
+                <span class="badge bg-primary">{{ enrollment_data.approved|length }}명</span>
             </div>
-            {% if enrolled_students %}
+            {% if enrollment_data.approved %}
             <div style="max-height: 400px; overflow-y: auto;">
                 <ul class="list-group list-group-flush">
-                    {% for student in enrolled_students %}
+                    {% for item in enrollment_data.approved %}
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                         <div>
-                            <strong>{{ student.display_name }}</strong>
-                            <br><small class="text-muted">{{ student.email }}</small>
+                            <strong>{{ item.user.display_name }}</strong>
+                            {% if item.enrollment.role in ['ta', 'auditor'] %}
+                            <span class="badge bg-info ms-1">{{ '조교' if item.enrollment.role == 'ta' else '청강생' }}</span>
+                            {% endif %}
+                            <br><small class="text-muted">{{ item.user.email }}</small>
                         </div>
+                        <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
                     </li>
                     {% endfor %}
                 </ul>
             </div>
             {% else %}
             <p class="text-muted text-center py-3 mb-0">등록된 학습자가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-hourglass-split text-warning me-2"></i>승인 대기</h5>
+                <span class="badge bg-warning text-dark">{{ enrollment_data.pending|length }}명</span>
+            </div>
+            {% if enrollment_data.pending %}
+            <div style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for item in enrollment_data.pending %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <strong>{{ item.user.display_name }}</strong>
+                            <span class="badge bg-secondary ms-1">{{ '조교' if item.enrollment.role == 'ta' else ('청강생' if item.enrollment.role == 'auditor' else '학습자') }}</span>
+                            <br><small class="text-muted">{{ item.user.email }}</small>
+                            <br><small class="text-warning">{{ item.enrollment.enrolled_at.strftime('%Y-%m-%d %H:%M') }} 초대됨</small>
+                        </div>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> 대기중</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3 mb-0">대기 중인 사용자가 없습니다.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-x-circle text-danger me-2"></i>거절됨</h5>
+                <span class="badge bg-danger">{{ enrollment_data.rejected|length }}명</span>
+            </div>
+            {% if enrollment_data.rejected %}
+            <div style="max-height: 300px; overflow-y: auto;">
+                <ul class="list-group list-group-flush">
+                    {% for item in enrollment_data.rejected %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <strong>{{ item.user.display_name }}</strong>
+                            <br><small class="text-muted">{{ item.user.email }}</small>
+                            <br><small class="text-danger">{{ item.enrollment.rejected_at.strftime('%Y-%m-%d %H:%M') if item.enrollment.rejected_at else '' }} 거절됨</small>
+                        </div>
+                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i></span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-3 mb-0">거절된 사용자가 없습니다.</p>
             {% endif %}
         </div>
     </div>
@@ -168,11 +229,32 @@
                             </label>
                         </div>
                         <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_ta" value="ta">
+                            <label class="form-check-label" for="role_ta">
+                                <i class="bi bi-person-workspace text-info me-1"></i>조교 (학습자)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role" id="role_auditor" value="auditor">
+                            <label class="form-check-label" for="role_auditor">
+                                <i class="bi bi-eye text-secondary me-1"></i>청강생
+                            </label>
+                        </div>
+                        <div class="form-check">
                             <input class="form-check-input" type="radio" name="role" id="role_student" value="student" checked>
                             <label class="form-check-label" for="role_student">
                                 <i class="bi bi-person text-primary me-1"></i>학습자
                             </label>
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="require_approval" id="require_approval" value="true" checked>
+                            <label class="form-check-label" for="require_approval">
+                                <i class="bi bi-bell me-1"></i>사용자 승인 필요 (알림 발송)
+                            </label>
+                        </div>
+                        <div class="form-text">체크하면 사용자에게 알림을 보내고, 사용자가 승인해야 등록됩니다.</div>
                     </div>
                 </div>
                 <div class="modal-footer">

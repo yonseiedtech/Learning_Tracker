@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, jsonify, request
 from flask_login import login_required, current_user
-from app.models import Course, Enrollment, Progress, Checkpoint, ActiveSession, Subject
+from app.models import Course, Enrollment, Progress, Checkpoint, ActiveSession, Subject, SubjectEnrollment, Notification
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -67,6 +67,17 @@ def dashboard():
         enrollments = Enrollment.query.filter_by(user_id=current_user.id).all()
         courses = [e.course for e in enrollments if not e.course.deleted_at and e.course.visibility != 'private']
         
+        subject_enrollments = SubjectEnrollment.query.filter_by(
+            user_id=current_user.id,
+            status='approved'
+        ).all()
+        subjects = [se.subject for se in subject_enrollments if se.subject and not se.subject.deleted_at]
+        
+        pending_subject_enrollments = SubjectEnrollment.query.filter_by(
+            user_id=current_user.id,
+            status='pending'
+        ).all()
+        
         total_completed = Progress.query.filter_by(user_id=current_user.id).filter(Progress.completed_at != None).count()
         
         total_checkpoints = 0
@@ -107,8 +118,17 @@ def dashboard():
             ActiveSession.ended_at == None
         ).order_by(ActiveSession.scheduled_at).limit(5).all()
         
+        all_subjects = Subject.query.filter(
+            Subject.deleted_at.is_(None),
+            Subject.is_visible == True
+        ).all()
+        available_subjects = [s for s in all_subjects if s.id not in [se.subject_id for se in subject_enrollments + pending_subject_enrollments]]
+        
         return render_template('dashboard/student.html', 
             courses=courses,
+            subjects=subjects,
+            pending_enrollments=pending_subject_enrollments,
+            available_subjects=available_subjects,
             total_completed=total_completed,
             total_checkpoints=total_checkpoints,
             completion_rate=completion_rate,
@@ -145,4 +165,31 @@ def calculate_streak(user_id):
 @bp.route('/notifications')
 @login_required
 def notifications():
-    return render_template('notifications.html')
+    user_notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(50).all()
+    return render_template('notifications.html', notifications=user_notifications)
+
+
+@bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    notification = Notification.query.get_or_404(notification_id)
+    if notification.user_id != current_user.id:
+        return jsonify({'success': False, 'message': '권한이 없습니다.'}), 403
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@bp.route('/notifications/mark-all-read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@bp.route('/notifications/unread-count')
+@login_required
+def unread_notification_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
