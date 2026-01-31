@@ -83,9 +83,16 @@ def dashboard():
         
         total_completed = Progress.query.filter_by(user_id=current_user.id).filter(Progress.completed_at != None).count()
         
+        # Count checkpoints from standalone seminars
         total_checkpoints = 0
         for course in courses:
             total_checkpoints += course.checkpoints.filter_by(deleted_at=None).count()
+        
+        # Also count checkpoints from enrolled subject sessions
+        for subject in subjects:
+            subject_courses = Course.query.filter_by(subject_id=subject.id, deleted_at=None).all()
+            for course in subject_courses:
+                total_checkpoints += course.checkpoints.filter_by(deleted_at=None).count()
         
         completion_rate = round((total_completed / total_checkpoints * 100) if total_checkpoints > 0 else 0)
         
@@ -106,10 +113,19 @@ def dashboard():
         streak_days = calculate_streak(current_user.id)
         
         active_sessions_for_student = []
+        # Check standalone seminars
         for course in courses:
             active = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
             if active:
                 active_sessions_for_student.append({'course': course, 'session': active})
+        
+        # Check subject sessions
+        for subject in subjects:
+            subject_courses = Course.query.filter_by(subject_id=subject.id, deleted_at=None).all()
+            for course in subject_courses:
+                active = ActiveSession.query.filter_by(course_id=course.id, ended_at=None).first()
+                if active:
+                    active_sessions_for_student.append({'course': course, 'session': active})
         
         upcoming_for_student = ActiveSession.query.join(Course).join(Enrollment).filter(
             Enrollment.user_id == current_user.id,
