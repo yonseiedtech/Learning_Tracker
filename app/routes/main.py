@@ -23,7 +23,10 @@ def index():
 @login_required
 def dashboard():
     if current_user.is_instructor():
-        courses = Course.query.filter_by(instructor_id=current_user.id).filter(Course.deleted_at.is_(None)).all()
+        courses = Course.query.filter_by(instructor_id=current_user.id).filter(
+            Course.deleted_at.is_(None),
+            Course.subject_id.is_(None)
+        ).all()
         subjects = Subject.query.filter_by(instructor_id=current_user.id).filter(Subject.deleted_at.is_(None)).all()
         
         total_students = db.session.query(func.count(func.distinct(Enrollment.user_id))).join(Course).filter(
