@@ -535,7 +535,7 @@ class SubjectEnrollment(db.Model):
     rejected_at = db.Column(db.DateTime, nullable=True)
     
     user = db.relationship('User', backref='subject_enrollments')
-    subject = db.relationship('Subject', backref='enrollments')
+    subject = db.relationship('Subject', backref='subject_enrollment_list')
     
     __table_args__ = (db.UniqueConstraint('subject_id', 'user_id', name='unique_subject_enrollment'),)
 
