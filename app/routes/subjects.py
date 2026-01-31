@@ -812,6 +812,86 @@ def reject_enrollment(subject_id):
     return redirect(url_for('main.dashboard'))
 
 
+@bp.route('/<int:subject_id>/enrollment/<int:user_id>/admin-approve', methods=['POST'])
+@login_required
+def admin_approve_enrollment(subject_id, user_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=user_id,
+        status='pending'
+    ).first()
+    
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    enrollment.status = 'approved'
+    enrollment.approved_at = datetime.utcnow()
+    
+    member = SubjectMember.query.filter_by(subject_id=subject_id, user_id=user_id).first()
+    if not member:
+        member = SubjectMember(
+            subject_id=subject_id, 
+            user_id=user_id, 
+            role=enrollment.role if enrollment.role in ['ta', 'auditor'] else 'student'
+        )
+        db.session.add(member)
+    
+    courses = Course.query.filter_by(subject_id=subject_id, deleted_at=None).filter(
+        Course.visibility != 'private'
+    ).all()
+    for course in courses:
+        existing_enrollment = Enrollment.query.filter_by(
+            course_id=course.id, user_id=user_id
+        ).first()
+        if not existing_enrollment:
+            course_enrollment = Enrollment(course_id=course.id, user_id=user_id)
+            db.session.add(course_enrollment)
+    
+    Notification.create_enrollment_approved(user_id, subject, enrollment.role or 'student')
+    db.session.commit()
+    
+    user = User.query.get(user_id)
+    flash(f'{user.display_name}의 등록 신청을 승인했습니다.', 'success')
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/enrollment/<int:user_id>/admin-reject', methods=['POST'])
+@login_required
+def admin_reject_enrollment(subject_id, user_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    if not has_subject_access(subject, current_user):
+        flash('권한이 없습니다.', 'danger')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=user_id,
+        status='pending'
+    ).first()
+    
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('subjects.members', subject_id=subject_id))
+    
+    enrollment.status = 'rejected'
+    enrollment.rejected_at = datetime.utcnow()
+    
+    Notification.create_enrollment_rejected(user_id, subject, enrollment.role or 'student')
+    db.session.commit()
+    
+    user = User.query.get(user_id)
+    flash(f'{user.display_name}의 등록 신청을 거절했습니다.', 'info')
+    return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
 @bp.route('/my-pending-enrollments')
 @login_required
 def my_pending_enrollments():

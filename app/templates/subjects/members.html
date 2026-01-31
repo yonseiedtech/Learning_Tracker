@@ -158,9 +158,20 @@
                             <strong>{{ item.user.display_name }}</strong>
                             <span class="badge bg-secondary ms-1">{{ '조교' if item.enrollment.role == 'ta' else ('청강생' if item.enrollment.role == 'auditor' else '학습자') }}</span>
                             <br><small class="text-muted">{{ item.user.email }}</small>
-                            <br><small class="text-warning">{{ item.enrollment.enrolled_at.strftime('%Y-%m-%d %H:%M') }} 초대됨</small>
+                            <br><small class="text-warning">{{ item.enrollment.enrolled_at.strftime('%Y-%m-%d %H:%M') }} 신청됨</small>
                         </div>
-                        <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> 대기중</span>
+                        <div class="btn-group btn-group-sm">
+                            <form action="{{ url_for('subjects.admin_approve_enrollment', subject_id=subject.id, user_id=item.user.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-success btn-sm" title="승인">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                            <form action="{{ url_for('subjects.admin_reject_enrollment', subject_id=subject.id, user_id=item.user.id) }}" method="POST" class="d-inline ms-1">
+                                <button type="submit" class="btn btn-danger btn-sm" title="거절">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>

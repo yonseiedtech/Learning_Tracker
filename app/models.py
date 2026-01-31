@@ -740,3 +740,27 @@ class Notification(db.Model):
     def get_role_display(role):
         role_map = {'student': '학습자', 'ta': '조교', 'auditor': '청강생'}
         return role_map.get(role, '학습자')
+    
+    @staticmethod
+    def create_enrollment_approved(user_id, subject, role='student'):
+        notification = Notification(
+            user_id=user_id,
+            type='enrollment_approved',
+            title=f'{subject.title} 과목 등록 승인',
+            message=f'{subject.title} 과목에 {Notification.get_role_display(role)}(으)로 등록이 승인되었습니다.',
+            data={'subject_id': subject.id, 'role': role}
+        )
+        db.session.add(notification)
+        return notification
+    
+    @staticmethod
+    def create_enrollment_rejected(user_id, subject, role='student'):
+        notification = Notification(
+            user_id=user_id,
+            type='enrollment_rejected',
+            title=f'{subject.title} 과목 등록 거절',
+            message=f'{subject.title} 과목 등록 신청이 거절되었습니다.',
+            data={'subject_id': subject.id, 'role': role}
+        )
+        db.session.add(notification)
+        return notification

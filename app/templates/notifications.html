@@ -27,8 +27,8 @@
             {% if notifications %}
             {% for notification in notifications %}
             <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-notification-id="{{ notification.id }}">
-                <div class="notification-icon {% if notification.type == 'enrollment_invite' %}bg-warning{% elif notification.type == 'role_application' %}bg-info{% else %}bg-primary{% endif %}">
-                    <i class="bi {% if notification.type == 'enrollment_invite' %}bi-person-plus{% elif notification.type == 'role_application' %}bi-person-badge{% else %}bi-bell{% endif %}"></i>
+                <div class="notification-icon {% if notification.type == 'enrollment_invite' %}bg-warning{% elif notification.type == 'role_application' %}bg-info{% elif notification.type == 'enrollment_approved' %}bg-success{% elif notification.type == 'enrollment_rejected' %}bg-danger{% else %}bg-primary{% endif %}">
+                    <i class="bi {% if notification.type == 'enrollment_invite' %}bi-person-plus{% elif notification.type == 'role_application' %}bi-person-badge{% elif notification.type == 'enrollment_approved' %}bi-check-circle{% elif notification.type == 'enrollment_rejected' %}bi-x-circle{% else %}bi-bell{% endif %}"></i>
                 </div>
                 <div class="notification-content">
                     <div class="notification-title">{{ notification.title }}</div>
