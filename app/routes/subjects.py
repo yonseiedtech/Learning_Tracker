@@ -1041,7 +1041,7 @@ def change_enrollment_status(subject_id, user_id):
             enrollment.rejected_at = None
         flash(f'{user.display_name}의 상태가 변경되었습니다.', 'success')
     
-    if new_role and new_role in ['student', 'ta', 'auditor']:
+    if new_role and new_role in ['student', 'ta']:
         enrollment.role = new_role
         flash(f'{user.display_name}의 역할이 변경되었습니다.', 'success')
     

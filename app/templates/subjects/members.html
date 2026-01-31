@@ -204,8 +204,6 @@
                     <td>
                         {% if item.enrollment.role == 'ta' %}
                         <span class="badge bg-info"><i class="bi bi-person-workspace me-1"></i>조교(학습자)</span>
-                        {% elif item.enrollment.role == 'auditor' %}
-                        <span class="badge bg-secondary"><i class="bi bi-eye me-1"></i>청강생</span>
                         {% else %}
                         <span class="badge bg-primary"><i class="bi bi-person me-1"></i>학습자</span>
                         {% endif %}
@@ -233,15 +231,6 @@
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="role" value="ta">
                                         <button type="submit" class="dropdown-item"><i class="bi bi-person-workspace text-info me-2"></i>조교(학습자)로 변경</button>
-                                    </form>
-                                </li>
-                                {% endif %}
-                                {% if item.enrollment.role != 'auditor' %}
-                                <li>
-                                    <form action="{{ url_for('subjects.change_enrollment_status', subject_id=subject.id, user_id=item.user.id) }}" method="POST">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="role" value="auditor">
-                                        <button type="submit" class="dropdown-item"><i class="bi bi-eye text-secondary me-2"></i>청강생으로 변경</button>
                                     </form>
                                 </li>
                                 {% endif %}
@@ -311,12 +300,6 @@
                             <input class="form-check-input" type="radio" name="role" id="role_ta" value="ta">
                             <label class="form-check-label" for="role_ta">
                                 <i class="bi bi-person-workspace text-info me-1"></i>조교 (학습자)
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="role" id="role_auditor" value="auditor">
-                            <label class="form-check-label" for="role_auditor">
-                                <i class="bi bi-eye text-secondary me-1"></i>청강생
                             </label>
                         </div>
                         <div class="form-check">
