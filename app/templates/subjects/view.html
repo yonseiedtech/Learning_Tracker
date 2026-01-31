@@ -152,9 +152,9 @@
                         </span>
                     </td>
                     <td>
-                        {% set type_icons = {'live_session': 'broadcast', 'video': 'play-circle', 'video_external': 'youtube', 'material': 'file-earmark-text', 'assignment': 'clipboard-check', 'quiz': 'question-circle'} %}
-                        {% set type_names = {'live_session': '라이브', 'video': '동영상 일반', 'video_external': '외부영상', 'material': '자료', 'assignment': '과제', 'quiz': '퀴즈'} %}
-                        {% set type_colors = {'live_session': 'danger', 'video': 'info', 'video_external': 'danger', 'material': 'success', 'assignment': 'warning', 'quiz': 'primary'} %}
+                        {% set type_icons = {'live_session': 'broadcast', 'video': 'play-circle', 'video_external': 'link-45deg', 'material': 'file-earmark-text', 'assignment': 'clipboard-check', 'quiz': 'question-circle'} %}
+                        {% set type_names = {'live_session': '라이브', 'video': '동영상', 'video_external': '외부영상', 'material': '자료', 'assignment': '과제', 'quiz': '퀴즈'} %}
+                        {% set type_colors = {'live_session': 'danger', 'video': 'info', 'video_external': 'secondary', 'material': 'success', 'assignment': 'warning', 'quiz': 'primary'} %}
                         <span class="badge bg-{{ type_colors.get(course.session_type, 'secondary') }}">
                             <i class="bi bi-{{ type_icons.get(course.session_type, 'circle') }} me-1"></i>{{ type_names.get(course.session_type, '세션') }}
                         </span>

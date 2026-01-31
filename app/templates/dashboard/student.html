@@ -241,32 +241,9 @@
     </div>
 </div>
 {% else %}
-<div class="empty-state glass-card text-center py-5">
-    <div class="empty-icon mb-4">
-        <i class="bi bi-journal-plus"></i>
-    </div>
-    <h4 class="fw-bold mb-2">아직 수강 중인 세션이 없어요</h4>
-    <p class="text-muted mb-4">강사님께 받은 초대 코드로 세션에 등록해 보세요!</p>
-    <a href="{{ url_for('courses.enroll') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-2"></i>지금 수강 신청하기
-    </a>
-    <div class="mt-4 pt-4 border-top">
-        <p class="text-muted small mb-2">초대 코드 입력 방법</p>
-        <div class="d-flex justify-content-center gap-3">
-            <div class="text-center">
-                <div class="step-number">1</div>
-                <small>코드 입력</small>
-            </div>
-            <div class="text-center">
-                <div class="step-number">2</div>
-                <small>세션 확인</small>
-            </div>
-            <div class="text-center">
-                <div class="step-number">3</div>
-                <small>학습 시작!</small>
-            </div>
-        </div>
-    </div>
+<div class="glass-card p-4 mb-4 text-center">
+    <i class="bi bi-inbox text-muted fs-3 me-2"></i>
+    <span class="text-muted">등록된 독립 세션이 없습니다.</span>
 </div>
 {% endif %}
 
