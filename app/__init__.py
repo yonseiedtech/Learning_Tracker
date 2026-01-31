@@ -40,7 +40,7 @@ def create_app(config_class=Config):
     
     socketio.init_app(app, cors_allowed_origins=allowed_origins if allowed_origins else None, async_mode='eventlet')
     
-    from app.routes import auth, courses, checkpoints, progress, analytics, main, forum, subjects, attendance, community, guide
+    from app.routes import auth, courses, checkpoints, progress, analytics, main, forum, subjects, attendance, community, guide, sessions
     app.register_blueprint(auth.bp)
     app.register_blueprint(courses.bp)
     app.register_blueprint(checkpoints.bp)
@@ -52,6 +52,7 @@ def create_app(config_class=Config):
     app.register_blueprint(attendance.bp)
     app.register_blueprint(community.bp)
     app.register_blueprint(guide.bp)
+    app.register_blueprint(sessions.bp)
     
     from app import events
     

@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} - 퀴즈{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        {% if course.subject %}
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ course.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-question-circle text-purple me-2"></i>{{ course.title }}
+                </h4>
+                <span class="badge bg-purple bg-opacity-10 text-purple">
+                    <i class="bi bi-patch-question me-1"></i>퀴즈
+                </span>
+            </div>
+            
+            {% if course.description %}
+            <p class="text-muted mb-4">{{ course.description }}</p>
+            {% endif %}
+            
+            <div class="quiz-info d-flex gap-4 mb-4">
+                {% if course.quiz_time_limit %}
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-clock text-primary me-2"></i>
+                    <span>제한시간: <strong>{{ course.quiz_time_limit }}분</strong></span>
+                </div>
+                {% endif %}
+                {% if course.quiz_pass_score %}
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-trophy text-warning me-2"></i>
+                    <span>합격점수: <strong>{{ course.quiz_pass_score }}점</strong></span>
+                </div>
+                {% endif %}
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-list-ol text-success me-2"></i>
+                    <span>문제 수: <strong>{{ questions|length }}개</strong></span>
+                </div>
+            </div>
+            
+            {% if not is_instructor %}
+            {% if attempt and attempt.completed_at %}
+            <div class="quiz-result p-4 rounded-3 mb-4 {% if attempt.score >= (course.quiz_pass_score or attempt.max_score * 0.6) %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
+                <h5 class="fw-bold mb-3">
+                    {% if attempt.score >= (course.quiz_pass_score or attempt.max_score * 0.6) %}
+                    <i class="bi bi-trophy-fill text-success me-2"></i>퀴즈 합격!
+                    {% else %}
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>다시 도전해보세요
+                    {% endif %}
+                </h5>
+                <div class="row">
+                    <div class="col-4 text-center">
+                        <div class="fs-2 fw-bold {% if attempt.score >= (course.quiz_pass_score or attempt.max_score * 0.6) %}text-success{% else %}text-danger{% endif %}">
+                            {{ attempt.score }}
+                        </div>
+                        <small class="text-muted">획득 점수</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="fs-2 fw-bold text-primary">{{ attempt.max_score }}</div>
+                        <small class="text-muted">총점</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <div class="fs-2 fw-bold text-info">{{ ((attempt.score / attempt.max_score) * 100)|int }}%</div>
+                        <small class="text-muted">정답률</small>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary rounded-pill mb-4" onclick="startNewQuiz()">
+                <i class="bi bi-arrow-repeat me-2"></i>다시 풀기
+            </button>
+            {% else %}
+            <div id="quiz-start-section" {% if attempt and not attempt.completed_at %}style="display: none;"{% endif %}>
+                <div class="text-center py-4">
+                    <i class="bi bi-clipboard2-check display-1 text-purple opacity-50 mb-3"></i>
+                    <p class="text-muted mb-4">퀴즈를 시작하려면 아래 버튼을 클릭하세요.</p>
+                    <button class="btn btn-lg btn-primary rounded-pill" onclick="startQuiz()">
+                        <i class="bi bi-play-fill me-2"></i>퀴즈 시작
+                    </button>
+                </div>
+            </div>
+            
+            <div id="quiz-section" {% if not attempt or attempt.completed_at %}style="display: none;"{% endif %}>
+                {% if course.quiz_time_limit %}
+                <div class="alert alert-warning d-flex align-items-center mb-4">
+                    <i class="bi bi-clock-fill me-2"></i>
+                    <span>남은 시간: <strong id="timer">{{ course.quiz_time_limit }}:00</strong></span>
+                </div>
+                {% endif %}
+                
+                <form id="quiz-form">
+                    {% for q in questions %}
+                    <div class="question-card p-4 mb-3 rounded-3" style="background: rgba(255,255,255,0.7); border-left: 4px solid #8b5cf6;">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h6 class="fw-bold mb-0">
+                                <span class="badge bg-purple me-2">{{ loop.index }}</span>
+                                {{ q.question }}
+                            </h6>
+                            <span class="badge bg-light text-dark">{{ q.points }}점</span>
+                        </div>
+                        
+                        {% if q.question_type == 'multiple_choice' %}
+                        <div class="options">
+                            {% for option in q.options.split('\n') if option.strip() %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="q_{{ q.id }}" 
+                                       id="q_{{ q.id }}_{{ loop.index }}" value="{{ option.strip() }}">
+                                <label class="form-check-label" for="q_{{ q.id }}_{{ loop.index }}">
+                                    {{ option.strip() }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif q.question_type == 'true_false' %}
+                        <div class="options">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="q_{{ q.id }}" 
+                                       id="q_{{ q.id }}_true" value="true">
+                                <label class="form-check-label" for="q_{{ q.id }}_true">O (참)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="q_{{ q.id }}" 
+                                       id="q_{{ q.id }}_false" value="false">
+                                <label class="form-check-label" for="q_{{ q.id }}_false">X (거짓)</label>
+                            </div>
+                        </div>
+                        {% else %}
+                        <input type="text" class="form-control" name="q_{{ q.id }}" 
+                               placeholder="답을 입력하세요">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    
+                    <button type="button" class="btn btn-lg btn-success rounded-pill w-100" onclick="submitQuiz()">
+                        <i class="bi bi-check-circle me-2"></i>제출하기
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                강사용 미리보기 화면입니다. 퀴즈를 응시할 수 없습니다.
+            </div>
+            
+            {% if questions %}
+            <h5 class="fw-bold mb-3">등록된 문제</h5>
+            {% for q in questions %}
+            <div class="question-card p-3 mb-2 rounded-3" style="background: rgba(255,255,255,0.7);">
+                <div class="d-flex justify-content-between">
+                    <span><strong>{{ loop.index }}.</strong> {{ q.question }}</span>
+                    <span class="badge bg-primary">{{ q.points }}점</span>
+                </div>
+                <small class="text-muted">정답: {{ q.correct_answer }}</small>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted">등록된 문제가 없습니다.</p>
+            {% endif %}
+            {% endif %}
+        </div>
+        
+        {% if is_instructor and all_attempts %}
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-bar-chart me-2 text-info"></i>응시 현황
+                <span class="badge bg-primary ms-2">{{ all_attempts|length }}명</span>
+            </h5>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>학습자</th>
+                            <th>점수</th>
+                            <th>결과</th>
+                            <th>응시일시</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for att in all_attempts %}
+                        <tr>
+                            <td>{{ att.user.username }}</td>
+                            <td>
+                                <span class="fw-bold">{{ att.score }}</span> / {{ att.max_score }}
+                            </td>
+                            <td>
+                                {% if att.completed_at %}
+                                    {% if att.score >= (course.quiz_pass_score or att.max_score * 0.6) %}
+                                    <span class="badge bg-success">합격</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">불합격</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge bg-warning text-dark">진행중</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ att.started_at.strftime('%m/%d %H:%M') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-trophy me-2 text-warning"></i>퀴즈 현황
+            </h5>
+            
+            {% if attempt and attempt.completed_at %}
+            <div class="text-center p-3 rounded-3 mb-3 {% if attempt.score >= (course.quiz_pass_score or attempt.max_score * 0.6) %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
+                <div class="fs-1 fw-bold {% if attempt.score >= (course.quiz_pass_score or attempt.max_score * 0.6) %}text-success{% else %}text-danger{% endif %}">
+                    {{ ((attempt.score / attempt.max_score) * 100)|int }}%
+                </div>
+                <small class="text-muted">정답률</small>
+            </div>
+            {% endif %}
+            
+            <hr class="my-3">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="fw-bold">학습 완료</span>
+                <div id="completion-status">
+                    {% if completion %}
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-circle me-1"></i>미완료</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not is_instructor %}
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                퀴즈를 통과하면 자동으로 완료 처리됩니다.
+            </div>
+            
+            <div class="d-grid gap-2">
+                {% if completion %}
+                <button class="btn btn-outline-secondary rounded-pill" onclick="toggleCompletion(false)">
+                    <i class="bi bi-x-circle me-2"></i>완료 취소
+                </button>
+                {% else %}
+                <button class="btn btn-success rounded-pill" onclick="toggleCompletion(true)">
+                    <i class="bi bi-check-circle me-2"></i>완료 표시
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="{{ url_for('subjects.view', subject_id=course.subject_id) if course.subject else url_for('main.dashboard') }}" 
+           class="btn btn-outline-primary rounded-pill w-100">
+            <i class="bi bi-arrow-left me-2"></i>목록으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<style>
+.text-purple { color: #8b5cf6; }
+.bg-purple { background-color: #8b5cf6; }
+</style>
+
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const courseId = {{ course.id }};
+const timeLimit = {{ course.quiz_time_limit or 0 }};
+let timerInterval = null;
+let remainingSeconds = timeLimit * 60;
+
+async function startQuiz() {
+    try {
+        const response = await fetch(`/sessions/${courseId}/quiz/start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('quiz-start-section').style.display = 'none';
+            document.getElementById('quiz-section').style.display = 'block';
+            
+            if (timeLimit > 0) {
+                startTimer();
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function startNewQuiz() {
+    location.reload();
+}
+
+function startTimer() {
+    const timerEl = document.getElementById('timer');
+    timerInterval = setInterval(function() {
+        remainingSeconds--;
+        
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        timerEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        
+        if (remainingSeconds <= 60) {
+            timerEl.classList.add('text-danger');
+        }
+        
+        if (remainingSeconds <= 0) {
+            clearInterval(timerInterval);
+            submitQuiz();
+        }
+    }, 1000);
+}
+
+async function submitQuiz() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+    
+    const form = document.getElementById('quiz-form');
+    const formData = new FormData(form);
+    const answers = {};
+    
+    for (let [key, value] of formData.entries()) {
+        const qId = key.replace('q_', '');
+        answers[qId] = value;
+    }
+    
+    try {
+        const response = await fetch(`/sessions/${courseId}/quiz/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ answers: answers })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function toggleCompletion(markComplete) {
+    try {
+        const endpoint = markComplete ? 'complete' : 'uncomplete';
+        const response = await fetch(`/sessions/${courseId}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+</script>
+{% endblock %}

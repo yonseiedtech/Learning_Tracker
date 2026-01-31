@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} - 학습 자료{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        {% if course.subject %}
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ course.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-file-earmark-text text-info me-2"></i>{{ course.title }}
+                </h4>
+                <span class="badge bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-journal-text me-1"></i>학습 자료
+                </span>
+            </div>
+            
+            {% if course.description %}
+            <p class="text-muted mb-4">{{ course.description }}</p>
+            {% endif %}
+            
+            {% if course.material_file_path %}
+            <div class="material-preview p-4 rounded-3 mb-4" style="background: rgba(13, 27, 62, 0.03); border: 2px dashed rgba(13, 27, 62, 0.2);">
+                <div class="d-flex align-items-center">
+                    <div class="file-icon me-4">
+                        {% set ext = course.material_file_name.split('.')[-1].lower() if course.material_file_name else 'file' %}
+                        {% if ext == 'pdf' %}
+                        <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 4rem;"></i>
+                        {% elif ext in ['doc', 'docx'] %}
+                        <i class="bi bi-file-earmark-word text-primary" style="font-size: 4rem;"></i>
+                        {% elif ext in ['ppt', 'pptx'] %}
+                        <i class="bi bi-file-earmark-ppt text-warning" style="font-size: 4rem;"></i>
+                        {% elif ext in ['xls', 'xlsx'] %}
+                        <i class="bi bi-file-earmark-excel text-success" style="font-size: 4rem;"></i>
+                        {% elif ext in ['jpg', 'jpeg', 'png', 'gif'] %}
+                        <i class="bi bi-file-earmark-image text-info" style="font-size: 4rem;"></i>
+                        {% elif ext == 'zip' %}
+                        <i class="bi bi-file-earmark-zip text-secondary" style="font-size: 4rem;"></i>
+                        {% else %}
+                        <i class="bi bi-file-earmark text-primary" style="font-size: 4rem;"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="mb-1 fw-bold">{{ course.material_file_name or '학습 자료' }}</h5>
+                        <p class="text-muted mb-3">{{ course.material_file_type or '알 수 없는 형식' }}</p>
+                        <a href="{{ url_for('sessions.material_download', course_id=course.id) }}" 
+                           class="btn btn-primary rounded-pill">
+                            <i class="bi bi-download me-2"></i>다운로드
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-file-earmark-x display-1 text-muted opacity-50"></i>
+                <p class="mt-3 mb-0 text-muted">등록된 학습 자료가 없습니다.</p>
+            </div>
+            {% endif %}
+            
+            {% if course.assignment_description %}
+            <div class="mt-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-card-text me-2"></i>학습 내용</h5>
+                <div class="content-area p-4 rounded-3" style="background: rgba(255,255,255,0.7);">
+                    {{ course.assignment_description | safe }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-clock-history me-2 text-info"></i>학습 현황
+            </h5>
+            
+            {% if not is_instructor %}
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small">체류 시간</span>
+                    <span class="fw-bold" id="total-time">
+                        {% if page_time %}
+                        {{ (page_time.total_seconds // 60)|int }}분 {{ page_time.total_seconds % 60 }}초
+                        {% else %}
+                        0분 0초
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="text-center p-3 rounded-3" style="background: rgba(14, 165, 233, 0.1);">
+                    <div class="fs-4 fw-bold text-info" id="current-session-time">00:00</div>
+                    <small class="text-muted">현재 세션</small>
+                </div>
+            </div>
+            {% endif %}
+            
+            <hr class="my-3">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="fw-bold">학습 완료</span>
+                <div id="completion-status">
+                    {% if completion %}
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-circle me-1"></i>미완료</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not is_instructor %}
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                자료를 학습한 후 완료 버튼을 눌러주세요.
+            </div>
+            
+            <div class="d-grid gap-2">
+                {% if completion %}
+                <button class="btn btn-outline-secondary rounded-pill" onclick="toggleCompletion(false)">
+                    <i class="bi bi-x-circle me-2"></i>완료 취소
+                </button>
+                {% else %}
+                <button class="btn btn-success rounded-pill" onclick="toggleCompletion(true)">
+                    <i class="bi bi-check-circle me-2"></i>완료 표시
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="{{ url_for('subjects.view', subject_id=course.subject_id) if course.subject else url_for('main.dashboard') }}" 
+           class="btn btn-outline-primary rounded-pill w-100">
+            <i class="bi bi-arrow-left me-2"></i>목록으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const courseId = {{ course.id }};
+let sessionSeconds = 0;
+let lastLoggedTime = 0;
+
+const timeInterval = setInterval(function() {
+    sessionSeconds++;
+    
+    const mins = Math.floor(sessionSeconds / 60);
+    const secs = sessionSeconds % 60;
+    const timeDisplay = document.getElementById('current-session-time');
+    if (timeDisplay) {
+        timeDisplay.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+    
+    if (sessionSeconds - lastLoggedTime >= 30) {
+        logPageTime(30);
+        lastLoggedTime = sessionSeconds;
+    }
+}, 1000);
+
+async function logPageTime(seconds) {
+    try {
+        const response = await fetch(`/sessions/${courseId}/log-time`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ seconds: seconds })
+        });
+        const data = await response.json();
+        if (data.success) {
+            const totalMins = Math.floor(data.total_seconds / 60);
+            const totalSecs = data.total_seconds % 60;
+            document.getElementById('total-time').textContent = totalMins + '분 ' + totalSecs + '초';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+window.addEventListener('beforeunload', function() {
+    const remainingSeconds = sessionSeconds - lastLoggedTime;
+    if (remainingSeconds > 0) {
+        navigator.sendBeacon(`/sessions/${courseId}/log-time`, 
+            JSON.stringify({ seconds: remainingSeconds }));
+    }
+});
+
+async function toggleCompletion(markComplete) {
+    try {
+        const endpoint = markComplete ? 'complete' : 'uncomplete';
+        const response = await fetch(`/sessions/${courseId}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                time_spent_seconds: sessionSeconds
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+</script>
+{% endblock %}

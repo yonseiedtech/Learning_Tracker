@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} - 동영상 시청{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        {% if course.subject %}
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ course.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-play-circle text-primary me-2"></i>{{ course.title }}
+                </h4>
+                <span class="badge bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-camera-video me-1"></i>동영상
+                </span>
+            </div>
+            
+            {% if course.description %}
+            <p class="text-muted mb-4">{{ course.description }}</p>
+            {% endif %}
+            
+            <div class="video-container position-relative" style="background: #000; border-radius: 12px; overflow: hidden;">
+                {% if is_youtube and youtube_id %}
+                <div id="youtube-player-container" style="position: relative; padding-bottom: 56.25%; height: 0;">
+                    <iframe id="youtube-player"
+                            src="https://www.youtube.com/embed/{{ youtube_id }}?enablejsapi=1&rel=0"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen></iframe>
+                </div>
+                {% elif course.video_file_path %}
+                <video id="video-player" 
+                       controls 
+                       style="width: 100%; max-height: 500px;"
+                       preload="metadata">
+                    <source src="{{ url_for('sessions.video_stream', course_id=course.id) }}" type="video/mp4">
+                    브라우저가 동영상을 지원하지 않습니다.
+                </video>
+                {% else %}
+                <div class="d-flex align-items-center justify-content-center py-5 text-white">
+                    <div class="text-center">
+                        <i class="bi bi-film display-1 opacity-50"></i>
+                        <p class="mt-3 mb-0">동영상이 등록되지 않았습니다.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-bar-chart-line me-2 text-success"></i>시청 현황
+            </h5>
+            
+            {% if not is_instructor %}
+            <div class="mb-3">
+                <label class="form-label text-muted small">시청 진행률</label>
+                <div class="progress" style="height: 24px; border-radius: 12px;">
+                    <div class="progress-bar bg-gradient" 
+                         role="progressbar" 
+                         id="watch-progress-bar"
+                         style="width: {{ watch_log.watch_percentage if watch_log else 0 }}%; background: linear-gradient(135deg, #3b82f6, #8b5cf6);"
+                         aria-valuenow="{{ watch_log.watch_percentage if watch_log else 0 }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span id="watch-percentage">{{ '%.1f'|format(watch_log.watch_percentage if watch_log else 0) }}%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="text-center p-3 rounded-3" style="background: rgba(59, 130, 246, 0.1);">
+                        <div class="fs-5 fw-bold text-primary" id="watched-time">
+                            {% if watch_log %}
+                            {{ (watch_log.watched_seconds // 60)|int }}분
+                            {% else %}
+                            0분
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">시청 시간</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="text-center p-3 rounded-3" style="background: rgba(139, 92, 246, 0.1);">
+                        <div class="fs-5 fw-bold text-purple" id="play-count">{{ watch_log.play_count if watch_log else 0 }}회</div>
+                        <small class="text-muted">재생 횟수</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <hr class="my-3">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="fw-bold">학습 완료</span>
+                <div id="completion-status">
+                    {% if completion %}
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-circle me-1"></i>미완료</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not is_instructor %}
+            {% if is_youtube %}
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                유튜브 영상은 시청 후 직접 완료 버튼을 눌러주세요.
+                <br><small class="text-muted">체류 시간: <span id="page-time">0</span>초</small>
+            </div>
+            {% else %}
+            <div class="alert alert-info small mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                영상을 80% 이상 시청하면 자동으로 완료 처리됩니다.
+            </div>
+            {% endif %}
+            
+            <div class="d-grid gap-2">
+                {% if completion %}
+                <button class="btn btn-outline-secondary rounded-pill" onclick="toggleCompletion(false)">
+                    <i class="bi bi-x-circle me-2"></i>완료 취소
+                </button>
+                {% else %}
+                <button class="btn btn-success rounded-pill" onclick="toggleCompletion(true)">
+                    <i class="bi bi-check-circle me-2"></i>완료 표시
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="{{ url_for('subjects.view', subject_id=course.subject_id) if course.subject else url_for('main.dashboard') }}" 
+           class="btn btn-outline-primary rounded-pill w-100">
+            <i class="bi bi-arrow-left me-2"></i>목록으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<style>
+.text-purple {
+    color: #8b5cf6;
+}
+.video-container {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+</style>
+
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const courseId = {{ course.id }};
+const isYoutube = {{ 'true' if is_youtube else 'false' }};
+let pageTimeSeconds = 0;
+let pageTimeInterval = null;
+let lastLoggedTime = 0;
+
+{% if not is_instructor and not is_youtube and course.video_file_path %}
+const video = document.getElementById('video-player');
+let watchedSeconds = {{ watch_log.watched_seconds if watch_log else 0 }};
+let lastPosition = {{ watch_log.last_position if watch_log else 0 }};
+let isNewPlay = false;
+
+if (video) {
+    video.addEventListener('loadedmetadata', function() {
+        if (lastPosition > 0 && lastPosition < video.duration) {
+            video.currentTime = lastPosition;
+        }
+    });
+    
+    video.addEventListener('play', function() {
+        isNewPlay = true;
+    });
+    
+    video.addEventListener('timeupdate', function() {
+        const currentWatched = Math.floor(video.currentTime);
+        if (currentWatched > watchedSeconds) {
+            watchedSeconds = currentWatched;
+        }
+    });
+    
+    video.addEventListener('pause', function() {
+        logVideoProgress();
+    });
+    
+    video.addEventListener('ended', function() {
+        logVideoProgress();
+    });
+    
+    setInterval(function() {
+        if (!video.paused && !video.ended) {
+            logVideoProgress();
+        }
+    }, 10000);
+    
+    async function logVideoProgress() {
+        try {
+            const response = await fetch(`/sessions/${courseId}/video/log`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    watched_seconds: watchedSeconds,
+                    total_duration: Math.floor(video.duration),
+                    last_position: Math.floor(video.currentTime),
+                    is_new_play: isNewPlay
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('watch-progress-bar').style.width = data.watch_percentage + '%';
+                document.getElementById('watch-percentage').textContent = data.watch_percentage.toFixed(1) + '%';
+                document.getElementById('watched-time').textContent = Math.floor(watchedSeconds / 60) + '분';
+                
+                if (data.auto_completed) {
+                    document.getElementById('completion-status').innerHTML = 
+                        '<span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>';
+                    showToast('동영상을 80% 이상 시청하여 자동 완료 처리되었습니다!', 'success');
+                }
+            }
+            isNewPlay = false;
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+}
+{% endif %}
+
+{% if is_youtube %}
+pageTimeInterval = setInterval(function() {
+    pageTimeSeconds++;
+    const pageTimeEl = document.getElementById('page-time');
+    if (pageTimeEl) {
+        pageTimeEl.textContent = pageTimeSeconds;
+    }
+    
+    if (pageTimeSeconds - lastLoggedTime >= 30) {
+        logPageTime(30);
+        lastLoggedTime = pageTimeSeconds;
+    }
+}, 1000);
+
+async function logPageTime(seconds) {
+    try {
+        await fetch(`/sessions/${courseId}/log-time`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ seconds: seconds })
+        });
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+window.addEventListener('beforeunload', function() {
+    const remainingSeconds = pageTimeSeconds - lastLoggedTime;
+    if (remainingSeconds > 0) {
+        navigator.sendBeacon(`/sessions/${courseId}/log-time`, 
+            JSON.stringify({ seconds: remainingSeconds }));
+    }
+});
+{% endif %}
+
+async function toggleCompletion(markComplete) {
+    try {
+        const endpoint = markComplete ? 'complete' : 'uncomplete';
+        const response = await fetch(`/sessions/${courseId}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                time_spent_seconds: pageTimeSeconds
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function showToast(message, type) {
+    const toastHtml = `
+        <div class="toast-notification ${type}" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+            <div class="alert alert-${type === 'success' ? 'success' : 'danger'} d-flex align-items-center">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                ${message}
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', toastHtml);
+    setTimeout(() => {
+        document.querySelector('.toast-notification').remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

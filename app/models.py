@@ -632,3 +632,58 @@ class AssignmentSubmission(db.Model):
     course = db.relationship('Course', backref=db.backref('submissions', lazy='dynamic'))
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('submissions', lazy='dynamic'))
     grader = db.relationship('User', foreign_keys=[graded_by])
+
+class VideoWatchLog(db.Model):
+    __tablename__ = 'video_watch_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    watched_seconds = db.Column(db.Integer, default=0)
+    total_duration = db.Column(db.Integer, nullable=True)
+    watch_percentage = db.Column(db.Float, default=0.0)
+    last_position = db.Column(db.Integer, default=0)
+    play_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    course = db.relationship('Course', backref=db.backref('watch_logs', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('video_watch_logs', lazy='dynamic'))
+    
+    __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_video_watch'),)
+    
+    @property
+    def is_completed(self):
+        return self.watch_percentage >= 80.0
+
+class SessionCompletion(db.Model):
+    __tablename__ = 'session_completions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completion_type = db.Column(db.String(30), default='manual')
+    time_spent_seconds = db.Column(db.Integer, default=0)
+    notes = db.Column(db.Text, nullable=True)
+    
+    course = db.relationship('Course', backref=db.backref('completions', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('session_completions', lazy='dynamic'))
+    
+    __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_session_completion'),)
+
+class PageTimeLog(db.Model):
+    __tablename__ = 'page_time_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    total_seconds = db.Column(db.Integer, default=0)
+    last_active_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    course = db.relationship('Course', backref=db.backref('page_time_logs', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('page_time_logs', lazy='dynamic'))
+    
+    __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_page_time'),)

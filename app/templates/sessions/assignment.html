@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.title }} - 과제{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+        {% if course.subject %}
+        <li class="breadcrumb-item"><a href="{{ url_for('subjects.view', subject_id=course.subject_id) }}">{{ course.subject.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ course.title }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-pencil-square text-warning me-2"></i>{{ course.title }}
+                </h4>
+                <span class="badge bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-clipboard-check me-1"></i>과제
+                </span>
+            </div>
+            
+            {% if course.description %}
+            <p class="text-muted mb-4">{{ course.description }}</p>
+            {% endif %}
+            
+            {% if course.assignment_due_date %}
+            <div class="alert {% if course.assignment_due_date < now %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center mb-4">
+                <i class="bi bi-calendar-event me-2"></i>
+                <strong>제출 마감:</strong>&nbsp;{{ course.assignment_due_date.strftime('%Y년 %m월 %d일 %H:%M') }}
+                {% if course.assignment_due_date < now %}
+                <span class="badge bg-danger ms-2">마감됨</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if course.assignment_description %}
+            <div class="assignment-content mb-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-card-text me-2"></i>과제 내용</h5>
+                <div class="content-area p-4 rounded-3" style="background: rgba(255,255,255,0.7); border-left: 4px solid #f59e0b;">
+                    {{ course.assignment_description | safe }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if course.material_file_path %}
+            <div class="mb-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>첨부 자료</h5>
+                <a href="{{ url_for('sessions.material_download', course_id=course.id) }}" 
+                   class="btn btn-outline-primary rounded-pill">
+                    <i class="bi bi-download me-2"></i>{{ course.material_file_name or '자료 다운로드' }}
+                </a>
+            </div>
+            {% endif %}
+            
+            {% if not is_instructor %}
+            <hr class="my-4">
+            
+            <h5 class="fw-bold mb-3"><i class="bi bi-send me-2"></i>과제 제출</h5>
+            <form action="{{ url_for('sessions.submit_assignment', course_id=course.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">제출 내용</label>
+                    <textarea class="form-control" name="content" rows="6" 
+                              placeholder="과제 내용을 입력하세요...">{{ submission.content if submission else '' }}</textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold">파일 첨부 <small class="text-muted">(최대 100MB)</small></label>
+                    <input type="file" class="form-control" name="file">
+                    {% if submission and submission.file_name %}
+                    <small class="text-muted mt-1 d-block">
+                        <i class="bi bi-paperclip me-1"></i>기존 파일: {{ submission.file_name }}
+                    </small>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="btn btn-primary rounded-pill">
+                    <i class="bi bi-send me-2"></i>{{ '재제출' if submission else '제출하기' }}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        
+        {% if is_instructor and all_submissions %}
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-list-check me-2 text-success"></i>제출 현황
+                <span class="badge bg-primary ms-2">{{ all_submissions|length }}명</span>
+            </h5>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>학습자</th>
+                            <th>제출일시</th>
+                            <th>점수</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in all_submissions %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-2">
+                                        {% if sub.user.profile_image %}
+                                        <img src="{{ sub.user.profile_image }}" class="rounded-circle" width="32" height="32">
+                                        {% else %}
+                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                            {{ sub.user.username[:2].upper() }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {{ sub.user.username }}
+                                </div>
+                            </td>
+                            <td>{{ sub.submitted_at.strftime('%m/%d %H:%M') }}</td>
+                            <td>
+                                {% if sub.score is not none %}
+                                <span class="badge bg-success">{{ sub.score }}점</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if sub.graded_at %}
+                                <span class="badge bg-success">채점완료</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">대기중</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-info-circle me-2 text-warning"></i>제출 현황
+            </h5>
+            
+            {% if submission %}
+            <div class="submission-info">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">제출일시</span>
+                    <span class="fw-bold">{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                {% if submission.score is not none %}
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">점수</span>
+                    <span class="fw-bold text-success">{{ submission.score }}점</span>
+                </div>
+                {% endif %}
+                {% if submission.feedback %}
+                <div class="mt-3">
+                    <span class="text-muted d-block mb-2">피드백</span>
+                    <div class="p-3 rounded-3" style="background: rgba(40, 167, 69, 0.1);">
+                        {{ submission.feedback }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">아직 제출하지 않았습니다.</p>
+            {% endif %}
+            
+            <hr class="my-3">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="fw-bold">학습 완료</span>
+                <div id="completion-status">
+                    {% if completion %}
+                    <span class="badge bg-success fs-6"><i class="bi bi-check-circle-fill me-1"></i>완료</span>
+                    {% else %}
+                    <span class="badge bg-secondary fs-6"><i class="bi bi-circle me-1"></i>미완료</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if not is_instructor %}
+            <div class="d-grid gap-2">
+                {% if completion %}
+                <button class="btn btn-outline-secondary rounded-pill" onclick="toggleCompletion(false)">
+                    <i class="bi bi-x-circle me-2"></i>완료 취소
+                </button>
+                {% else %}
+                <button class="btn btn-success rounded-pill" onclick="toggleCompletion(true)">
+                    <i class="bi bi-check-circle me-2"></i>완료 표시
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="{{ url_for('subjects.view', subject_id=course.subject_id) if course.subject else url_for('main.dashboard') }}" 
+           class="btn btn-outline-primary rounded-pill w-100">
+            <i class="bi bi-arrow-left me-2"></i>목록으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const courseId = {{ course.id }};
+
+async function toggleCompletion(markComplete) {
+    try {
+        const endpoint = markComplete ? 'complete' : 'uncomplete';
+        const response = await fetch(`/sessions/${courseId}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+</script>
+{% endblock %}
