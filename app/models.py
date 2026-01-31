@@ -118,7 +118,6 @@ class Subject(db.Model):
     
     instructor = db.relationship('User', backref='subjects_taught')
     courses = db.relationship('Course', backref='subject', lazy='dynamic', cascade='all, delete-orphan')
-    enrollments = db.relationship('SubjectEnrollment', backref='enrolled_subject', lazy='dynamic')
     members = db.relationship('SubjectMember', backref='member_subject', lazy='dynamic')
     
     @staticmethod
