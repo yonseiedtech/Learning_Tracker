@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Subject, Course, Enrollment, SubjectEnrollment, SubjectMember, User
+from app.models import Subject, Course, Enrollment, SubjectEnrollment, SubjectMember, User, Notification
 from app.forms import SubjectForm
 from datetime import datetime
 import io
@@ -449,8 +449,9 @@ def add_member(subject_id):
     
     email = request.form.get('email')
     role = request.form.get('role', 'student')
+    require_approval = request.form.get('require_approval', 'true') == 'true'
     
-    if role not in ['instructor', 'assistant', 'student']:
+    if role not in ['instructor', 'assistant', 'student', 'ta', 'auditor']:
         flash('잘못된 역할입니다.', 'danger')
         return redirect(url_for('subjects.members', subject_id=subject_id))
     
@@ -465,21 +466,40 @@ def add_member(subject_id):
         db.session.commit()
         flash(f'{user.display_name}의 역할이 {SubjectMember.get_role_display(role)}(으)로 변경되었습니다.', 'success')
     else:
-        member = SubjectMember(subject_id=subject_id, user_id=user.id, role=role)
-        db.session.add(member)
-        
         subject_enrollment = SubjectEnrollment.query.filter_by(
             subject_id=subject_id, user_id=user.id
         ).first()
-        if not subject_enrollment:
-            subject_enrollment = SubjectEnrollment(subject_id=subject_id, user_id=user.id)
+        
+        enrollment_role = 'student' if role in ['student', 'instructor', 'assistant'] else role
+        
+        if subject_enrollment:
+            if subject_enrollment.status == 'approved':
+                flash('이미 등록된 사용자입니다.', 'info')
+                return redirect(url_for('subjects.members', subject_id=subject_id))
+            subject_enrollment.status = 'pending' if require_approval else 'approved'
+            subject_enrollment.role = enrollment_role
+        else:
+            subject_enrollment = SubjectEnrollment(
+                subject_id=subject_id, 
+                user_id=user.id,
+                status='pending' if require_approval else 'approved',
+                role=enrollment_role
+            )
             db.session.add(subject_enrollment)
         
-        if role == 'student':
+        if require_approval:
+            Notification.create_enrollment_invite(user.id, subject, enrollment_role)
+            db.session.commit()
+            flash(f'{user.display_name}에게 등록 초대를 발송했습니다. 승인 대기 중입니다.', 'success')
+        else:
+            subject_enrollment.approved_at = datetime.utcnow()
+            
+            member = SubjectMember(subject_id=subject_id, user_id=user.id, role=role)
+            db.session.add(member)
+            
             courses = Course.query.filter_by(subject_id=subject_id, deleted_at=None).filter(
                 Course.visibility != 'private'
             ).all()
-            enrolled_count = 0
             for course in courses:
                 existing_enrollment = Enrollment.query.filter_by(
                     course_id=course.id, user_id=user.id
@@ -487,10 +507,9 @@ def add_member(subject_id):
                 if not existing_enrollment:
                     enrollment = Enrollment(course_id=course.id, user_id=user.id)
                     db.session.add(enrollment)
-                    enrolled_count += 1
-        
-        db.session.commit()
-        flash(f'{user.display_name}이(가) {SubjectMember.get_role_display(role)}(으)로 추가되었습니다.', 'success')
+            
+            db.session.commit()
+            flash(f'{user.display_name}이(가) {SubjectMember.get_role_display(role)}(으)로 추가되었습니다.', 'success')
     
     return redirect(url_for('subjects.members', subject_id=subject_id))
 
@@ -712,3 +731,131 @@ def upload_members_excel(subject_id):
         flash(f'파일 처리 중 오류가 발생했습니다: {str(e)}', 'danger')
     
     return redirect(url_for('subjects.members', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/enrollment/approve', methods=['POST'])
+@login_required
+def approve_enrollment(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=current_user.id,
+        status='pending'
+    ).first()
+    
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('main.dashboard'))
+    
+    enrollment.status = 'approved'
+    enrollment.approved_at = datetime.utcnow()
+    
+    member = SubjectMember.query.filter_by(subject_id=subject_id, user_id=current_user.id).first()
+    if not member:
+        member = SubjectMember(
+            subject_id=subject_id, 
+            user_id=current_user.id, 
+            role=enrollment.role if enrollment.role in ['ta', 'auditor'] else 'student'
+        )
+        db.session.add(member)
+    
+    courses = Course.query.filter_by(subject_id=subject_id, deleted_at=None).filter(
+        Course.visibility != 'private'
+    ).all()
+    for course in courses:
+        existing_enrollment = Enrollment.query.filter_by(
+            course_id=course.id, user_id=current_user.id
+        ).first()
+        if not existing_enrollment:
+            course_enrollment = Enrollment(course_id=course.id, user_id=current_user.id)
+            db.session.add(course_enrollment)
+    
+    db.session.commit()
+    flash(f'{subject.title} 과목에 등록되었습니다.', 'success')
+    return redirect(url_for('subjects.view', subject_id=subject_id))
+
+
+@bp.route('/<int:subject_id>/enrollment/reject', methods=['POST'])
+@login_required
+def reject_enrollment(subject_id):
+    subject = Subject.query.get_or_404(subject_id)
+    
+    enrollment = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id,
+        user_id=current_user.id,
+        status='pending'
+    ).first()
+    
+    if not enrollment:
+        flash('대기 중인 등록 요청이 없습니다.', 'warning')
+        return redirect(url_for('main.dashboard'))
+    
+    enrollment.status = 'rejected'
+    enrollment.rejected_at = datetime.utcnow()
+    db.session.commit()
+    
+    flash(f'{subject.title} 과목 등록을 거절했습니다.', 'info')
+    return redirect(url_for('main.dashboard'))
+
+
+@bp.route('/my-pending-enrollments')
+@login_required
+def my_pending_enrollments():
+    pending_enrollments = SubjectEnrollment.query.filter_by(
+        user_id=current_user.id,
+        status='pending'
+    ).all()
+    
+    return render_template('subjects/pending_enrollments.html', 
+                          pending_enrollments=pending_enrollments)
+
+
+@bp.route('/apply-role', methods=['POST'])
+@login_required
+def apply_role():
+    subject_id = request.form.get('subject_id', type=int)
+    role = request.form.get('role')
+    
+    if role not in ['ta', 'auditor']:
+        flash('잘못된 역할입니다.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    subject = Subject.query.get_or_404(subject_id)
+    
+    existing = SubjectEnrollment.query.filter_by(
+        subject_id=subject_id, user_id=current_user.id
+    ).first()
+    
+    if existing and existing.status == 'approved':
+        flash('이미 해당 과목에 등록되어 있습니다.', 'info')
+        return redirect(url_for('subjects.view', subject_id=subject_id))
+    
+    if existing and existing.status == 'pending':
+        flash('이미 등록 요청이 대기 중입니다.', 'info')
+        return redirect(url_for('main.dashboard'))
+    
+    if existing:
+        existing.status = 'pending'
+        existing.role = role
+    else:
+        enrollment = SubjectEnrollment(
+            subject_id=subject_id,
+            user_id=current_user.id,
+            status='pending',
+            role=role
+        )
+        db.session.add(enrollment)
+    
+    notification = Notification(
+        user_id=subject.instructor_id,
+        type='role_application',
+        title=f'{Notification.get_role_display(role)} 신청',
+        message=f'{current_user.display_name}님이 {subject.title} 과목에 {Notification.get_role_display(role)}(으)로 신청했습니다.',
+        data={'subject_id': subject_id, 'user_id': current_user.id, 'role': role}
+    )
+    db.session.add(notification)
+    db.session.commit()
+    
+    flash(f'{subject.title} 과목에 {Notification.get_role_display(role)}(으)로 신청했습니다. 승인을 기다려주세요.', 'success')
+    return redirect(url_for('main.dashboard'))

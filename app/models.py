@@ -528,7 +528,11 @@ class SubjectEnrollment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    role = db.Column(db.String(20), default='student')  # student, ta, auditor
     enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    rejected_at = db.Column(db.DateTime, nullable=True)
     
     user = db.relationship('User', backref='subject_enrollments')
     
@@ -704,3 +708,35 @@ class PageTimeLog(db.Model):
     user = db.relationship('User', backref=db.backref('page_time_logs', lazy='dynamic'))
     
     __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_page_time'),)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # enrollment_invite, enrollment_approved, etc.
+    title = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text)
+    data = db.Column(db.JSON)  # Additional data like subject_id, enrollment_id, etc.
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+    
+    @staticmethod
+    def create_enrollment_invite(user_id, subject, role='student'):
+        notification = Notification(
+            user_id=user_id,
+            type='enrollment_invite',
+            title=f'{subject.title} 과목 등록 초대',
+            message=f'{subject.instructor.display_name} 강사님이 {subject.title} 과목에 {Notification.get_role_display(role)}(으)로 초대했습니다.',
+            data={'subject_id': subject.id, 'role': role}
+        )
+        db.session.add(notification)
+        return notification
+    
+    @staticmethod
+    def get_role_display(role):
+        role_map = {'student': '학습자', 'ta': '조교', 'auditor': '청강생'}
+        return role_map.get(role, '학습자')
