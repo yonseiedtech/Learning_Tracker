@@ -64,7 +64,14 @@ The application is built with a Flask factory pattern, using SQLAlchemy for ORM 
     - Live bulletin board for announcements during sessions.
 - **Self-Study Mode**:
     - Independent progress tracking and time measurement.
-    - Start/pause/resume/stop timer functionality.
+    - Start/pause/resume/stop/reset timer functionality.
+    - Pause elapsed time display showing how long paused.
+    - Auto-end feature: Timer automatically ends and saves progress after 30 minutes of pause.
+    - Auto-save: Timer saves progress on stop or reset actions.
+- **Standalone Sessions (Seminars)**:
+    - Independent sessions not attached to any Subject (subject_id is None).
+    - Direct enrollment via invite codes from session list page.
+    - Separate sections for instructors, enrolled, and public sessions.
 - **Community & Support**:
     - `Community` section for learning reviews, Q&A (with adoption and resolution status), and study group recruitment.
     - `Guide` section including announcements, FAQ, Q&A, resources, updates, and suggestions.
