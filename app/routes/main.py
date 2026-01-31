@@ -29,9 +29,16 @@ def dashboard():
         ).all()
         subjects = Subject.query.filter_by(instructor_id=current_user.id).filter(Subject.deleted_at.is_(None)).all()
         
-        total_students = db.session.query(func.count(func.distinct(Enrollment.user_id))).join(Course).filter(
+        course_students = db.session.query(func.count(func.distinct(Enrollment.user_id))).join(Course).filter(
             Course.instructor_id == current_user.id
         ).scalar() or 0
+        
+        subject_students = db.session.query(func.count(func.distinct(SubjectEnrollment.user_id))).join(Subject).filter(
+            Subject.instructor_id == current_user.id,
+            SubjectEnrollment.status == 'approved'
+        ).scalar() or 0
+        
+        total_students = course_students + subject_students
         
         total_checkpoints = Checkpoint.query.join(Course).filter(
             Course.instructor_id == current_user.id,
