@@ -405,6 +405,118 @@ def toggle_course_visibility(course_id):
     return redirect(url_for('courses.view', course_id=course_id))
 
 
+@bp.route('/course/<int:course_id>/get', methods=['GET'])
+@login_required
+def get_course(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        return jsonify({'success': False, 'message': '강사만 세션을 수정할 수 있습니다.'}), 403
+    
+    return jsonify({
+        'success': True,
+        'course': {
+            'id': course.id,
+            'title': course.title,
+            'description': course.description or '',
+            'session_type': course.session_type,
+            'week_number': course.week_number,
+            'session_number': course.session_number,
+            'visibility': course.visibility,
+            'video_url': course.video_url or '',
+            'video_file_name': course.video_file_name or '',
+            'material_file_name': course.material_file_name or '',
+            'assignment_description': course.assignment_description or '',
+            'assignment_due_date': course.assignment_due_date.strftime('%Y-%m-%dT%H:%M') if course.assignment_due_date else '',
+            'quiz_time_limit': course.quiz_time_limit or 30,
+            'quiz_pass_score': course.quiz_pass_score or 60,
+            'start_date': course.start_date.strftime('%Y-%m-%dT%H:%M') if course.start_date else '',
+            'end_date': course.end_date.strftime('%Y-%m-%dT%H:%M') if course.end_date else '',
+            'attendance_start': course.attendance_start.strftime('%Y-%m-%dT%H:%M') if course.attendance_start else '',
+            'attendance_end': course.attendance_end.strftime('%Y-%m-%dT%H:%M') if course.attendance_end else '',
+            'late_allowed': course.late_allowed or False,
+            'late_end': course.late_end.strftime('%Y-%m-%dT%H:%M') if course.late_end else '',
+        }
+    })
+
+
+@bp.route('/course/<int:course_id>/update', methods=['POST'])
+@login_required
+def update_course(course_id):
+    import base64
+    
+    course = Course.query.get_or_404(course_id)
+    if course.instructor_id != current_user.id:
+        return jsonify({'success': False, 'message': '강사만 세션을 수정할 수 있습니다.'}), 403
+    
+    try:
+        data = request.form
+        
+        course.title = data.get('title', course.title)
+        course.description = data.get('description', course.description)
+        course.week_number = int(data.get('week_number', course.week_number or 1))
+        course.session_number = int(data.get('session_number', course.session_number or 1)) if data.get('session_number') else None
+        course.visibility = data.get('visibility', course.visibility)
+        
+        if course.session_type == 'video_external':
+            new_url = data.get('video_url', '')
+            if new_url:
+                course.video_url = new_url
+                course.preparation_status = 'ready'
+        
+        if course.session_type == 'video' and 'video_file' in request.files:
+            video_file = request.files['video_file']
+            if video_file and video_file.filename:
+                file_content = video_file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    return jsonify({'success': False, 'message': '파일 크기가 100MB를 초과합니다.'}), 400
+                course.video_file_name = video_file.filename
+                course.video_file_path = base64.b64encode(file_content).decode('utf-8')
+                course.preparation_status = 'ready'
+        
+        if course.session_type == 'material' and 'material_file' in request.files:
+            material_file = request.files['material_file']
+            if material_file and material_file.filename:
+                file_content = material_file.read()
+                if len(file_content) > MAX_FILE_SIZE:
+                    return jsonify({'success': False, 'message': '파일 크기가 100MB를 초과합니다.'}), 400
+                course.material_file_name = material_file.filename
+                ext = material_file.filename.rsplit('.', 1)[-1].lower() if '.' in material_file.filename else ''
+                course.material_file_type = ext
+                course.material_file_path = base64.b64encode(file_content).decode('utf-8')
+                course.preparation_status = 'ready'
+        
+        if course.session_type == 'assignment':
+            course.assignment_description = data.get('assignment_description', course.assignment_description)
+            if data.get('assignment_due_date'):
+                course.assignment_due_date = datetime.strptime(data.get('assignment_due_date'), '%Y-%m-%dT%H:%M')
+        
+        if course.session_type == 'quiz':
+            course.quiz_time_limit = int(data.get('quiz_time_limit', 30))
+            course.quiz_pass_score = int(data.get('quiz_pass_score', 60))
+        
+        if data.get('start_date'):
+            course.start_date = datetime.strptime(data.get('start_date'), '%Y-%m-%dT%H:%M')
+        if data.get('end_date'):
+            course.end_date = datetime.strptime(data.get('end_date'), '%Y-%m-%dT%H:%M')
+        if data.get('attendance_start'):
+            course.attendance_start = datetime.strptime(data.get('attendance_start'), '%Y-%m-%dT%H:%M')
+        if data.get('attendance_end'):
+            course.attendance_end = datetime.strptime(data.get('attendance_end'), '%Y-%m-%dT%H:%M')
+        if data.get('late_allowed') == 'on' and data.get('late_end'):
+            course.late_allowed = True
+            course.late_end = datetime.strptime(data.get('late_end'), '%Y-%m-%dT%H:%M')
+        else:
+            course.late_allowed = False
+            course.late_end = None
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '세션이 성공적으로 수정되었습니다.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @bp.route('/<int:subject_id>/members')
 @login_required
 def members(subject_id):

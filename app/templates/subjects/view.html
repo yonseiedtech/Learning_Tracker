@@ -160,7 +160,14 @@
                         </span>
                     </td>
                     <td>
+                        {% if current_user.is_instructor() and subject.instructor_id == current_user.id %}
+                        <a href="javascript:void(0)" class="text-decoration-none session-edit-link" data-course-id="{{ course.id }}" title="클릭하여 수정">
+                            <strong class="text-primary">{{ course.title }}</strong>
+                            <i class="bi bi-pencil-square ms-1 small text-muted"></i>
+                        </a>
+                        {% else %}
                         <strong>{{ course.title }}</strong>
+                        {% endif %}
                         {% if course.description %}
                         <br><small class="text-muted">{{ course.description[:40] }}{% if course.description|length > 40 %}...{% endif %}</small>
                         {% endif %}
@@ -237,6 +244,182 @@
     {% endif %}
 </div>
 
+<div class="modal fade" id="editSessionModal" tabindex="-1" aria-labelledby="editSessionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold" id="editSessionModalLabel">
+                    <i class="bi bi-pencil-square me-2 text-primary"></i>세션 수정
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editSessionForm" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <input type="hidden" id="editCourseId" name="course_id">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">세션명</label>
+                            <input type="text" class="form-control" id="editTitle" name="title" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">세션 종류</label>
+                            <input type="text" class="form-control" id="editSessionType" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">주차</label>
+                            <input type="number" class="form-control" id="editWeekNumber" name="week_number" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">회차</label>
+                            <input type="number" class="form-control" id="editSessionNumber" name="session_number" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">공개 설정</label>
+                            <select class="form-select" id="editVisibility" name="visibility">
+                                <option value="public">공개</option>
+                                <option value="private">비공개</option>
+                                <option value="scheduled">기간제</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">설명</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div id="videoExternalFields" class="session-type-fields mt-4" style="display:none;">
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-link-45deg me-1"></i>외부 영상 (YouTube 등) 설정
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">영상 URL</label>
+                            <input type="url" class="form-control" id="editVideoUrl" name="video_url" placeholder="https://www.youtube.com/watch?v=...">
+                        </div>
+                    </div>
+                    
+                    <div id="videoUploadFields" class="session-type-fields mt-4" style="display:none;">
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-play-circle me-1"></i>동영상 업로드 설정
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">현재 파일</label>
+                            <p class="form-control-plaintext" id="currentVideoFile">-</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">새 파일 업로드 (선택)</label>
+                            <input type="file" class="form-control" id="editVideoFile" name="video_file" accept="video/*">
+                            <small class="text-muted">최대 100MB</small>
+                        </div>
+                    </div>
+                    
+                    <div id="materialFields" class="session-type-fields mt-4" style="display:none;">
+                        <div class="alert alert-success py-2">
+                            <i class="bi bi-file-earmark-text me-1"></i>학습 자료 설정
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">현재 파일</label>
+                            <p class="form-control-plaintext" id="currentMaterialFile">-</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">새 파일 업로드 (선택)</label>
+                            <input type="file" class="form-control" id="editMaterialFile" name="material_file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip">
+                            <small class="text-muted">PDF, DOC, PPT, XLS, TXT, ZIP (최대 100MB)</small>
+                        </div>
+                    </div>
+                    
+                    <div id="assignmentFields" class="session-type-fields mt-4" style="display:none;">
+                        <div class="alert alert-warning py-2">
+                            <i class="bi bi-clipboard-check me-1"></i>과제 설정
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">과제 설명</label>
+                            <textarea class="form-control" id="editAssignmentDescription" name="assignment_description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">제출 마감일</label>
+                            <input type="datetime-local" class="form-control" id="editAssignmentDueDate" name="assignment_due_date">
+                        </div>
+                    </div>
+                    
+                    <div id="quizFields" class="session-type-fields mt-4" style="display:none;">
+                        <div class="alert alert-primary py-2">
+                            <i class="bi bi-question-circle me-1"></i>퀴즈 설정
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">제한 시간 (분)</label>
+                                <input type="number" class="form-control" id="editQuizTimeLimit" name="quiz_time_limit" min="1" value="30">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">합격 점수 (%)</label>
+                                <input type="number" class="form-control" id="editQuizPassScore" name="quiz_pass_score" min="0" max="100" value="60">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="accordion" id="advancedSettings">
+                            <div class="accordion-item border-0 glass-card">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed bg-transparent" type="button" data-bs-toggle="collapse" data-bs-target="#scheduleSettings">
+                                        <i class="bi bi-calendar-event me-2"></i>일정 및 출석 설정
+                                    </button>
+                                </h2>
+                                <div id="scheduleSettings" class="accordion-collapse collapse" data-bs-parent="#advancedSettings">
+                                    <div class="accordion-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">시작일</label>
+                                                <input type="datetime-local" class="form-control" id="editStartDate" name="start_date">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">종료일</label>
+                                                <input type="datetime-local" class="form-control" id="editEndDate" name="end_date">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">출석 시작</label>
+                                                <input type="datetime-local" class="form-control" id="editAttendanceStart" name="attendance_start">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">출석 종료</label>
+                                                <input type="datetime-local" class="form-control" id="editAttendanceEnd" name="attendance_end">
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" id="editLateAllowed" name="late_allowed">
+                                                    <label class="form-check-label" for="editLateAllowed">지각 허용</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6" id="lateEndField" style="display:none;">
+                                                <label class="form-label">지각 허용 종료</label>
+                                                <input type="datetime-local" class="form-control" id="editLateEnd" name="late_end">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>취소
+                    </button>
+                    <button type="submit" class="btn btn-primary rounded-pill" id="saveSessionBtn">
+                        <i class="bi bi-check-lg me-1"></i>저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function copyInviteCode() {
     const code = document.getElementById('inviteCode').textContent;
@@ -259,5 +442,122 @@ function regenerateCode() {
         });
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const editModal = new bootstrap.Modal(document.getElementById('editSessionModal'));
+    const sessionTypeNames = {
+        'live_session': '라이브 세션',
+        'video': '동영상 업로드',
+        'video_external': '외부 영상',
+        'material': '학습 자료',
+        'assignment': '과제',
+        'quiz': '퀴즈'
+    };
+    
+    document.querySelectorAll('.session-edit-link').forEach(link => {
+        link.addEventListener('click', function() {
+            const courseId = this.dataset.courseId;
+            loadSessionData(courseId);
+        });
+    });
+    
+    document.getElementById('editLateAllowed').addEventListener('change', function() {
+        document.getElementById('lateEndField').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    function loadSessionData(courseId) {
+        fetch(`/subjects/course/${courseId}/get`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const c = data.course;
+                    document.getElementById('editCourseId').value = c.id;
+                    document.getElementById('editTitle').value = c.title;
+                    document.getElementById('editDescription').value = c.description;
+                    document.getElementById('editSessionType').value = sessionTypeNames[c.session_type] || c.session_type;
+                    document.getElementById('editWeekNumber').value = c.week_number || '';
+                    document.getElementById('editSessionNumber').value = c.session_number || '';
+                    document.getElementById('editVisibility').value = c.visibility;
+                    
+                    document.querySelectorAll('.session-type-fields').forEach(el => el.style.display = 'none');
+                    
+                    if (c.session_type === 'video_external') {
+                        document.getElementById('videoExternalFields').style.display = 'block';
+                        document.getElementById('editVideoUrl').value = c.video_url;
+                    } else if (c.session_type === 'video') {
+                        document.getElementById('videoUploadFields').style.display = 'block';
+                        document.getElementById('currentVideoFile').textContent = c.video_file_name || '업로드된 파일 없음';
+                    } else if (c.session_type === 'material') {
+                        document.getElementById('materialFields').style.display = 'block';
+                        document.getElementById('currentMaterialFile').textContent = c.material_file_name || '업로드된 파일 없음';
+                    } else if (c.session_type === 'assignment') {
+                        document.getElementById('assignmentFields').style.display = 'block';
+                        document.getElementById('editAssignmentDescription').value = c.assignment_description;
+                        document.getElementById('editAssignmentDueDate').value = c.assignment_due_date;
+                    } else if (c.session_type === 'quiz') {
+                        document.getElementById('quizFields').style.display = 'block';
+                        document.getElementById('editQuizTimeLimit').value = c.quiz_time_limit;
+                        document.getElementById('editQuizPassScore').value = c.quiz_pass_score;
+                    }
+                    
+                    document.getElementById('editStartDate').value = c.start_date;
+                    document.getElementById('editEndDate').value = c.end_date;
+                    document.getElementById('editAttendanceStart').value = c.attendance_start;
+                    document.getElementById('editAttendanceEnd').value = c.attendance_end;
+                    document.getElementById('editLateAllowed').checked = c.late_allowed;
+                    document.getElementById('editLateEnd').value = c.late_end;
+                    document.getElementById('lateEndField').style.display = c.late_allowed ? 'block' : 'none';
+                    
+                    editModal.show();
+                } else {
+                    alert('세션 정보를 불러오는데 실패했습니다.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('세션 정보를 불러오는데 실패했습니다.');
+            });
+    }
+    
+    document.getElementById('editSessionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const courseId = document.getElementById('editCourseId').value;
+        const formData = new FormData(this);
+        
+        document.getElementById('saveSessionBtn').disabled = true;
+        document.getElementById('saveSessionBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>저장 중...';
+        
+        fetch(`/subjects/course/${courseId}/update`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                editModal.hide();
+                location.reload();
+            } else {
+                alert(data.message || '저장에 실패했습니다.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('저장에 실패했습니다.');
+        })
+        .finally(() => {
+            document.getElementById('saveSessionBtn').disabled = false;
+            document.getElementById('saveSessionBtn').innerHTML = '<i class="bi bi-check-lg me-1"></i>저장';
+        });
+    });
+});
 </script>
+
+<style>
+.session-edit-link:hover {
+    text-decoration: underline !important;
+}
+.session-edit-link:hover .bi-pencil-square {
+    color: var(--bs-primary) !important;
+}
+</style>
 {% endblock %}

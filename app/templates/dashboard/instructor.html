@@ -21,11 +21,11 @@
 <div class="row g-4 mb-4">
     <div class="col-6 col-lg-3">
         <div class="glass-card stat-card p-4 text-center h-100">
-            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #0d1b3e, #1a3a5c);">
-                <i class="bi bi-people fs-4 text-white"></i>
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);">
+                <i class="bi bi-book fs-4 text-white"></i>
             </div>
-            <div class="stat-value display-6 fw-bold">{{ total_students }}</div>
-            <div class="stat-label text-muted small">전체 수강생</div>
+            <div class="stat-value display-6 fw-bold">{{ subjects|length }}</div>
+            <div class="stat-label text-muted small">개설 과목</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -39,11 +39,11 @@
     </div>
     <div class="col-6 col-lg-3">
         <div class="glass-card stat-card p-4 text-center h-100">
-            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
-                <i class="bi bi-flag fs-4 text-white"></i>
+            <div class="stat-icon mb-2" style="background: linear-gradient(135deg, #0d1b3e, #1a3a5c);">
+                <i class="bi bi-people fs-4 text-white"></i>
             </div>
-            <div class="stat-value display-6 fw-bold">{{ total_checkpoints }}</div>
-            <div class="stat-label text-muted small">체크포인트</div>
+            <div class="stat-value display-6 fw-bold">{{ total_students }}</div>
+            <div class="stat-label text-muted small">전체 수강생</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
@@ -137,7 +137,47 @@
 {% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌</h5>
+    <h5 class="fw-bold mb-0"><i class="bi bi-book me-2 text-primary"></i>내 과목 <span class="badge bg-primary bg-opacity-10 text-primary ms-2">{{ subjects|length }}</span></h5>
+    <a href="{{ url_for('subjects.list_subjects') }}" class="btn btn-outline-secondary btn-sm rounded-pill">
+        <i class="bi bi-list me-1"></i>전체 보기
+    </a>
+</div>
+
+{% if subjects %}
+<div class="row g-3 mb-4">
+    {% for subject in subjects %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('subjects.view', subject_id=subject.id) }}" class="text-decoration-none">
+            <div class="glass-card p-3 h-100 subject-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="subject-icon" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); width: 48px; height: 48px; min-width: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-book-half text-white fs-5"></i>
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <h6 class="fw-bold mb-1 text-dark text-truncate">{{ subject.title }}</h6>
+                        <small class="text-muted">{{ subject.courses.count() }}개 세션 · {{ subject.subject_enrollment_list|length }}명 등록</small>
+                    </div>
+                </div>
+                {% if not subject.is_visible %}
+                <span class="badge bg-warning text-dark mt-2"><i class="bi bi-eye-slash me-1"></i>비공개</span>
+                {% endif %}
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="glass-card p-4 mb-4 text-center">
+    <i class="bi bi-folder-plus text-muted" style="font-size: 2rem;"></i>
+    <p class="text-muted mb-2 mt-2">아직 생성된 과목이 없어요</p>
+    <a href="{{ url_for('subjects.create') }}" class="btn btn-outline-primary btn-sm rounded-pill">
+        <i class="bi bi-plus-lg me-1"></i>과목 생성하기
+    </a>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-primary"></i>내 강좌 <span class="badge bg-primary bg-opacity-10 text-primary ms-2">{{ courses|length }}</span></h5>
 </div>
 
 {% if courses %}
