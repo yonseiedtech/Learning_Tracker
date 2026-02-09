@@ -724,6 +724,7 @@ class SlideDeck(db.Model):
     conversion_status = db.Column(db.String(20), default='pending')
     conversion_error = db.Column(db.Text, nullable=True)
     slides_dir = db.Column(db.String(500), nullable=True)
+    estimated_duration_minutes = db.Column(db.Integer, nullable=True)
     flag_threshold_count = db.Column(db.Integer, default=5)
     flag_threshold_rate = db.Column(db.Float, default=0.25)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

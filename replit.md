@@ -87,7 +87,7 @@ The application is built with a Flask factory pattern, using SQLAlchemy for ORM 
 
 ### System Design Choices
 - **PPT 슬라이드 방송 시스템**:
-    - `SlideDeck` model: PPTX 파일 업로드 및 이미지 변환 관리 (course_id, session_id, slide_count, current_slide_index, conversion_status)
+    - `SlideDeck` model: PPTX/PDF 파일 업로드 및 이미지 변환 관리 (course_id, session_id, slide_count, current_slide_index, conversion_status, estimated_duration_minutes)
     - `SlideReaction` model: 슬라이드별 학습자 이해도 피드백 (understood/question/hard/none)
     - `SlideBookmark` model: 문제 슬라이드 자동/수동 북마크 (is_auto, is_manual, memo, supplement_url)
     - PPTX→PDF→PNG 변환 파이프라인 (LibreOffice headless + pdf2image)

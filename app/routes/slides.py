@@ -63,11 +63,14 @@ def upload_pptx(course_id):
 
     active_session = ActiveSession.query.filter_by(course_id=course_id, ended_at=None).first()
 
+    estimated_duration = request.form.get('estimated_duration_minutes', type=int)
+
     deck = SlideDeck(
         course_id=course_id,
         session_id=active_session.id if active_session else None,
         file_name=file.filename,
-        conversion_status='converting'
+        conversion_status='converting',
+        estimated_duration_minutes=estimated_duration if estimated_duration and estimated_duration > 0 else None
     )
     db.session.add(deck)
     db.session.commit()

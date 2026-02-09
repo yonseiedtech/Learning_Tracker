@@ -84,6 +84,13 @@
                         <input type="file" class="form-control" id="pptxFile" name="pptx_file" accept=".pptx,.ppt,.pdf">
                         <div class="form-text">PPT/PPTX/PDF 파일을 업로드하면 슬라이드 이미지로 변환됩니다.</div>
                     </div>
+                    <div style="width: 140px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                            <input type="number" class="form-control" id="estimatedDuration" name="estimated_duration_minutes" min="1" max="300" placeholder="예상 시간">
+                            <span class="input-group-text">분</span>
+                        </div>
+                    </div>
                     <button type="submit" class="btn btn-info rounded-pill" id="pptUploadBtn">
                         <i class="bi bi-cloud-upload me-1"></i>변환 시작
                     </button>
@@ -1339,6 +1346,8 @@ if (pptForm) {
         const formData = new FormData();
         formData.append('pptx_file', fileInput.files[0]);
         formData.append('csrf_token', '{{ csrf_token() }}');
+        const estDuration = document.getElementById('estimatedDuration').value;
+        if (estDuration) formData.append('estimated_duration_minutes', estDuration);
         
         document.getElementById('pptUploadBtn').disabled = true;
         document.getElementById('pptUploadBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>변환 중...';
@@ -1407,6 +1416,7 @@ let lastAlertType = null;
 let alertDismissed = false;
 let donutChart = null;
 let trendChart = null;
+const estimatedDurationMinutes = {{ active_deck.estimated_duration_minutes or 0 }};
 
 function toggleSlidePresenter() {
     if (totalSlides === 0) { showToast('슬라이드가 없습니다.', 'warning'); return; }
@@ -1457,9 +1467,11 @@ function updateLectureTimerDisplay() {
     const el = document.getElementById('lectureElapsed');
     if (el) el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 
-    const totalEstMin = totalSlides * 2;
+    const totalEstMin = estimatedDurationMinutes || (totalSlides * 2);
     const totalEl = document.getElementById('lectureTotalTime');
-    if (totalEl) totalEl.textContent = Math.floor(totalEstMin / 60) > 0 ? Math.floor(totalEstMin/60) + ':' + String(totalEstMin%60).padStart(2,'0') + ':00' : String(totalEstMin).padStart(2,'0') + ':00';
+    const totalH = Math.floor(totalEstMin / 60);
+    const totalM = totalEstMin % 60;
+    if (totalEl) totalEl.textContent = totalH > 0 ? totalH + ':' + String(totalM).padStart(2,'0') + ':00' : String(totalM).padStart(2,'0') + ':00';
 
     const pct = Math.min(100, ((currentSlideIndex + 1) / totalSlides) * 100);
     const fill = document.getElementById('lectureProgressFill');
@@ -1492,7 +1504,7 @@ function updateSlideTimeDisplay() {
     const display = document.getElementById('slideTimeDisplay');
     if (display) display.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 
-    const avgPerSlide = 120;
+    const avgPerSlide = estimatedDurationMinutes ? (estimatedDurationMinutes * 60 / totalSlides) : 120;
     const paceEl = document.getElementById('slideTimePace');
     const paceText = document.getElementById('slideTimePaceText');
     if (totalForSlide > avgPerSlide * 1.5 && paceEl && paceText) {
