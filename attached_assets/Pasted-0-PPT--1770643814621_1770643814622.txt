@@ -1,0 +1,235 @@
+0) 한 줄 요약
+
+강사가 업로드한 PPT를 서버에서 슬라이드로 변환해 실시간 슬라이드 방송(동기화) 하고, 학습자는 각 슬라이드에 대해 이해도/미참여를 선택하면 강사 화면과 슬라이드 하단에 집계 현황이 즉시 반영되며, “어렵다/질문있다”가 많은 슬라이드는 자동으로 북마크/하이라이트되어 강의 중/후 보충 설명에 활용되게 한다.
+
+1) 핵심 사용자 시나리오(유저 스토리)
+강사(Host)
+
+강의 세션을 생성하고 PPT를 업로드한다.
+
+“현재 슬라이드”를 넘기면 모든 학습자 화면도 동일한 슬라이드로 자동 이동한다.
+
+각 슬라이드별 이해도 분포를 실시간으로 본다.
+
+이해가 낮거나 질문이 많은 슬라이드는 자동 표시(테두리/북마크)된 목록을 본다.
+
+휴식시간/종료 후 “북마크된 슬라이드 목록”을 보고 보충자료 링크/메모를 남긴다(선택).
+
+학습자(Learner)
+
+세션에 입장하면 강사가 보고 있는 슬라이드가 그대로 보인다(동기화).
+
+각 슬라이드 하단에서 상태를 선택한다:
+
+👍 잘 이해돼요
+
+❓ 궁금한 부분이 있어요
+
+😵 어려워요
+
+(또는 아무 선택도 안 함 = 미참여로 집계)
+
+선택을 바꾸면 즉시 집계가 갱신된다.
+
+2) 기능 요구사항(명세 형태)
+A. PPT 업로드 & 슬라이드 변환
+
+요구
+
+강사는 .pptx 업로드 가능.
+
+업로드 후 서버에서 슬라이드를 이미지(PNG/JPG) 또는 PDF→이미지로 변환.
+
+변환된 슬라이드들을 “슬라이드 deck”으로 저장하고 URL로 제공.
+
+결과
+
+슬라이드 수, 각 슬라이드 이미지 URL, deckId 생성.
+
+권장(개발 편의)
+
+1안: PPTX → PDF 변환 후 PDF 페이지를 이미지로 렌더링
+
+2안: PPTX → 이미지 직접 변환
+
+B. 실시간 슬라이드 쇼 공유(동기화)
+
+요구
+
+강사가 “다음/이전/슬라이드 번호 이동”하면,
+
+학습자 화면의 현재 슬라이드가 강사와 동일하게 강제 이동.
+
+학습자는 기본적으로 탐색 제한(옵션):
+
+“강사와 동기화 ON” 상태에서는 강제 이동
+
+(선택) 동기화 OFF는 금지하거나, 복습 모드로만 허용
+
+실시간
+
+WebSocket(or Realtime) 기반 이벤트:
+
+SLIDE_CHANGED {deckId, slideIndex}
+
+C. 슬라이드별 이해도 피드백 수집
+
+요구
+
+학습자는 현재 슬라이드에 대해 다음 중 하나를 선택:
+
+UNDERSTOOD
+
+QUESTION
+
+HARD
+
+NONE(미선택/미참여)
+
+학습자가 상태를 바꾸면 그 슬라이드의 집계에서 이전 값은 -1, 새 값은 +1로 반영.
+
+1명당 슬라이드당 1개 상태만 유지(최신값).
+
+이벤트
+
+REACTION_SET {userId, deckId, slideIndex, reaction}
+
+D. 실시간 현황 표시(UI)
+
+학습자 화면(슬라이드 하단)
+
+현재 슬라이드의 “전체 참여자 수 / 미참여 수”와 3개 반응 분포를 표시
+
+예: 👍 12 / ❓ 5 / 😵 3 / 미참여 8 (총 28)
+
+반응 버튼(토글) 제공: 누르면 선택, 다시 누르면 해제(= NONE) 가능(정책 선택)
+
+강사 화면
+
+현재 슬라이드의 실시간 분포
+
+슬라이드 썸네일 목록에서 각 슬라이드에 “문제 슬라이드 배지” 표시
+
+E. 어려움/질문 슬라이드 자동 북마크(하이라이트)
+
+정의(예시 정책, 코드로 설정 가능하게)
+
+아래 조건 중 하나면 “주의 슬라이드”로 표시:
+
+HARD + QUESTION >= thresholdCount (예: 5명 이상)
+
+또는 (HARD + QUESTION) / totalParticipants >= thresholdRate (예: 25% 이상)
+
+주의 슬라이드는:
+
+슬라이드 썸네일 테두리 빨간색/노란색
+
+북마크 아이콘 자동 표시
+
+강사는 수동으로 “북마크 토글”도 가능(자동+수동 혼합)
+
+결과물
+
+강의 종료 후 “북마크 슬라이드 목록” 페이지:
+
+슬라이드 이미지 + 집계 요약 + 메모/보충자료 링크 입력(선택)
+
+3) 데이터 모델(최소안)
+엔티티
+
+Session
+
+sessionId, hostId, deckId, currentSlideIndex, createdAt, status
+
+Deck
+
+deckId, fileName, slides[]: {index, imageUrl}, slideCount
+
+Participant
+
+sessionId, userId, joinedAt, lastSeenAt
+
+Reaction
+
+key: (sessionId, userId, slideIndex) → reactionType, updatedAt
+
+SlideAggregate(캐시/집계)
+
+key: (sessionId, slideIndex) → counts {UNDERSTOOD, QUESTION, HARD, NONE}
+
+집계 방식(추천)
+
+DB에 Reaction은 원본으로 저장.
+
+실시간 집계는 메모리/Redis로 유지(빠름) + 주기적으로 DB에 스냅샷 가능.
+
+참여자 수 변화(입장/퇴장) 시 NONE 정의가 흔들리므로,
+
+NONE = activeParticipants - (UNDERSTOOD+QUESTION+HARD) 로 계산하는 방식이 깔끔.
+
+4) 실시간 통신 이벤트(예시)
+
+JOIN_SESSION {sessionId, userId}
+
+SESSION_STATE {currentSlideIndex, slideCount, aggregatesBySlide?}
+
+SLIDE_CHANGED {slideIndex}
+
+REACTION_SET {slideIndex, reaction}
+
+AGGREGATE_UPDATED {slideIndex, counts, flagged}
+
+FLAG_UPDATED {slideIndex, flagged, reason}
+
+5) 화면 구성(최소 UI 플로우)
+강사
+
+세션 생성 → 2) PPT 업로드/변환 상태 표시 → 3) 프레젠터 뷰
+
+좌측: 슬라이드 썸네일 리스트(북마크/주의 표시)
+
+중앙: 현재 슬라이드
+
+하단/우측: 이해도 분포(막대/숫자), 참여자 수
+
+“북마크 목록 보기” 버튼
+
+학습자
+
+중앙: 현재 슬라이드(강사 동기화)
+
+하단: 이해도 버튼 3개 + (선택) 해제/미참여 안내
+
+하단 우측(또는 슬라이드 아래): 실시간 분포 표시
+
+6) 예외/운영 고려사항(중요)
+
+업로드 실패/변환 실패: 원인 메시지와 재시도 제공
+
+대용량 PPT: 슬라이드 수 많을 때 변환 시간/용량 관리(압축, 해상도 옵션)
+
+동시접속: WebSocket 스케일(한 세션 수십~수백명 기준)
+
+네트워크 끊김: 재접속 시 SESSION_STATE로 현재 슬라이드/집계 동기화
+
+익명/실명: 학습자 반응은 익명 집계가 기본(개인 식별 최소화)
+
+미참여 정의: “아예 버튼을 누르지 않은 사람”을 미참여로 표시하되, 접속 중인 인원 기준으로 계산
+
+7) Replit 구현 방향(스택 예시)
+
+Front: React(또는 Next.js) + WebSocket 클라이언트
+
+Back: Node/Express(or Fastify) + Socket.IO(가장 구현 쉬움)
+
+Storage: 변환된 슬라이드 이미지는 Object Storage(S3 호환) 또는 Replit 파일 저장(프로토타입)
+
+DB: SQLite/Postgres(가능하면 Postgres)
+
+(선택) Redis: 집계 캐시/룸 관리
+
+8) Replit에 붙여넣기용 “요구사항 프롬프트” (그대로 복사해서 사용)
+
+아래 문장을 Replit AI에 바로 던지면 개발 계획/코드 구조를 뽑아내기 좋아.
+
+“웹 기반 실시간 강의 세션 앱을 만들고 싶다. 강사가 PPTX를 업로드하면 서버에서 슬라이드 이미지를 생성하고(deck), 강사가 슬라이드를 넘길 때 학습자 화면이 동일 슬라이드로 실시간 동기화되게 해라. 학습자는 각 슬라이드마다 UNDERSTOOD/QUESTION/HARD 중 하나를 선택하거나 아무 선택도 안 할 수 있고, 선택 결과는 즉시 집계되어 학습자 화면 슬라이드 하단과 강사 화면에 실시간으로 표시되어야 한다. 슬라이드별로 (HARD+QUESTION)이 일정 임계치(개수 또는 비율)를 넘으면 해당 슬라이드를 flagged로 처리해 썸네일에 테두리/북마크 표시를 하고, 강의 종료 후 flagged 슬라이드 목록을 확인할 수 있게 해라. WebSocket(Socket.IO)로 이벤트: SLIDE_CHANGED, REACTION_SET, AGGREGATE_UPDATED를 설계하고, DB에는 reaction 원본을 (sessionId,userId,slideIndex) 키로 저장하며 NONE(미참여)는 activeParticipants - reactedCount로 계산해라. 최소 동작하는 프로토타입부터 구현해라.”
