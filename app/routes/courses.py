@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost, SubjectMember, User, Notification, SlideDeck
+from app.models import Course, Enrollment, Checkpoint, Progress, ActiveSession, ChatMessage, LiveSessionPost, SubjectMember, User, Notification, SlideDeck, SlideBookmark, SlideReaction
 from app.forms import CourseForm, EnrollForm
 from datetime import datetime
 
@@ -312,7 +312,12 @@ def live_mode(course_id):
         students = course.get_enrolled_students()
         slide_decks = SlideDeck.query.filter_by(course_id=course.id, conversion_status='completed').order_by(SlideDeck.created_at.desc()).all()
         active_deck = slide_decks[0] if slide_decks else None
-        return render_template('courses/live_instructor.html', course=course, checkpoints=checkpoints, students=students, session=session, messages=recent_messages, slide_decks=slide_decks, active_deck=active_deck)
+        active_slides = active_deck.get_slide_urls() if active_deck else []
+        active_bookmarks = {}
+        if active_deck:
+            for b in SlideBookmark.query.filter_by(deck_id=active_deck.id).all():
+                active_bookmarks[b.slide_index] = b
+        return render_template('courses/live_instructor.html', course=course, checkpoints=checkpoints, students=students, session=session, messages=recent_messages, slide_decks=slide_decks, active_deck=active_deck, active_slides=active_slides, active_bookmarks=active_bookmarks)
     else:
         if not current_user.is_enrolled(course):
             flash('이 세미나에 등록되어 있지 않습니다.', 'danger')
@@ -332,7 +337,12 @@ def live_mode(course_id):
         progress_records = {p.checkpoint_id: p for p in Progress.query.filter_by(user_id=current_user.id, mode='live').all()}
         enrollments = Enrollment.query.filter_by(course_id=course_id).all()
         active_deck = SlideDeck.query.filter_by(course_id=course.id, conversion_status='completed').order_by(SlideDeck.created_at.desc()).first()
-        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages, enrollments=enrollments, attendance_checked=attendance_checked, active_deck=active_deck)
+        active_slides = active_deck.get_slide_urls() if active_deck else []
+        my_reactions = {}
+        if active_deck:
+            for r in SlideReaction.query.filter_by(deck_id=active_deck.id, user_id=current_user.id).all():
+                my_reactions[r.slide_index] = r.reaction
+        return render_template('courses/live_student.html', course=course, checkpoints=checkpoints, progress=progress_records, session=session, messages=recent_messages, enrollments=enrollments, attendance_checked=attendance_checked, active_deck=active_deck, active_slides=active_slides, my_reactions=my_reactions)
 
 @bp.route('/<int:course_id>/regenerate-code', methods=['POST'])
 @login_required

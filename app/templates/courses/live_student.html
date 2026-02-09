@@ -37,18 +37,65 @@
 </div>
 
 {% if active_deck %}
-<div class="glass-card p-4 mb-4">
-    <div class="d-flex justify-content-between align-items-center">
+<div class="glass-card p-4 mb-4" id="slideSection">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center gap-3">
             <i class="bi bi-easel fs-4 text-info"></i>
             <div>
-                <h6 class="fw-bold mb-0">PPT 슬라이드 방송</h6>
+                <h6 class="fw-bold mb-0">슬라이드 방송</h6>
                 <small class="text-muted">{{ active_deck.file_name }} ({{ active_deck.slide_count }}슬라이드)</small>
             </div>
         </div>
-        <a href="{{ url_for('slides.viewer_view', deck_id=active_deck.id) }}" class="btn btn-info rounded-pill" target="_blank">
-            <i class="bi bi-play-circle me-1"></i>슬라이드 뷰어 열기
-        </a>
+        <div class="d-flex gap-2">
+            <button class="btn btn-info btn-sm rounded-pill" id="toggleSlideViewer" onclick="toggleSlideViewer()">
+                <i class="bi bi-eye me-1"></i>슬라이드 보기
+            </button>
+            <a href="{{ url_for('slides.viewer_view', deck_id=active_deck.id) }}" class="btn btn-outline-primary btn-sm rounded-pill" target="_blank">
+                <i class="bi bi-arrows-fullscreen me-1"></i>전체화면
+            </a>
+            <span class="badge bg-info bg-opacity-10 text-info d-flex align-items-center">
+                <i class="bi bi-broadcast me-1"></i>실시간
+            </span>
+        </div>
+    </div>
+
+    <div id="inlineViewer" class="d-none">
+        <div class="inline-viewer-slide-area glass-card no-hover p-0 mb-3">
+            <img src="{{ active_slides[0] if active_slides else '' }}" alt="현재 슬라이드" id="inlineViewerImage">
+            <div class="inline-viewer-indicator" id="viewerSlideIndicator">
+                슬라이드 1 / {{ active_slides|length }}
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-center gap-3 mb-3 flex-wrap" id="reactionButtons">
+            <button class="btn btn-outline-success rounded-pill px-4 py-2 reaction-btn-inline {% if my_reactions.get(0) == 'understood' %}active-understood{% endif %}"
+                    id="btnUnderstood" onclick="setReaction('understood')">
+                <span style="font-size: 1.2rem;">👍</span> <span class="ms-1">잘 이해돼요</span>
+            </button>
+            <button class="btn btn-outline-warning rounded-pill px-4 py-2 reaction-btn-inline {% if my_reactions.get(0) == 'question' %}active-question{% endif %}"
+                    id="btnQuestion" onclick="setReaction('question')">
+                <span style="font-size: 1.2rem;">❓</span> <span class="ms-1">궁금해요</span>
+            </button>
+            <button class="btn btn-outline-danger rounded-pill px-4 py-2 reaction-btn-inline {% if my_reactions.get(0) == 'hard' %}active-hard{% endif %}"
+                    id="btnHard" onclick="setReaction('hard')">
+                <span style="font-size: 1.2rem;">😵</span> <span class="ms-1">어려워요</span>
+            </button>
+        </div>
+
+        <div class="d-flex justify-content-center gap-4">
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 1.1rem;">👍</span>
+                <span class="fw-bold" id="aggUnderstood">0</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 1.1rem;">❓</span>
+                <span class="fw-bold" id="aggQuestion">0</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 1.1rem;">😵</span>
+                <span class="fw-bold" id="aggHard">0</span>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -200,6 +247,32 @@
 </div>
 
 <style>
+.inline-viewer-slide-area {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+.inline-viewer-slide-area img {
+    width: 100%;
+    display: block;
+}
+.inline-viewer-indicator {
+    text-align: center;
+    padding: 0.6rem;
+    font-weight: 600;
+    color: var(--app-text-muted, #6c757d);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--app-border, #dee2e6);
+    background: var(--app-input-bg, #f8f9fa);
+}
+.reaction-btn-inline {
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+.reaction-btn-inline:hover { transform: translateY(-1px); }
+.reaction-btn-inline.active-understood { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #16a34a; font-weight: 600; }
+.reaction-btn-inline.active-question { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #d97706; font-weight: 600; }
+.reaction-btn-inline.active-hard { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #dc2626; font-weight: 600; }
 .checkpoint-item-student {
     transition: all 0.3s ease;
     background: rgba(255,255,255,0.5);
@@ -648,5 +721,105 @@ window.addEventListener('beforeunload', function() {
 });
 
 document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+{% if active_deck and active_slides %}
+const deckId = {{ active_deck.id }};
+const slideUrls = {{ active_slides|tojson }};
+const totalViewerSlides = slideUrls.length;
+let viewerCurrentIndex = Math.min({{ active_deck.current_slide_index }}, totalViewerSlides - 1);
+if (viewerCurrentIndex < 0) viewerCurrentIndex = 0;
+let myReactions = {{ my_reactions|tojson }};
+let currentReaction = myReactions[viewerCurrentIndex] || null;
+let viewerVisible = false;
+
+function toggleSlideViewer() {
+    if (totalViewerSlides === 0) return;
+    const viewer = document.getElementById('inlineViewer');
+    const btn = document.getElementById('toggleSlideViewer');
+    viewerVisible = !viewerVisible;
+    
+    if (viewerVisible) {
+        viewer.classList.remove('d-none');
+        btn.innerHTML = '<i class="bi bi-eye-slash me-1"></i>슬라이드 숨기기';
+        btn.classList.replace('btn-info', 'btn-outline-info');
+        socket.emit('join_slide_session', { deck_id: deckId });
+        updateViewerSlide();
+        loadMyReaction();
+    } else {
+        viewer.classList.add('d-none');
+        btn.innerHTML = '<i class="bi bi-eye me-1"></i>슬라이드 보기';
+        btn.classList.replace('btn-outline-info', 'btn-info');
+    }
+}
+
+socket.on('slide_session_state', function(data) {
+    viewerCurrentIndex = data.current_slide_index || 0;
+    if (viewerVisible) {
+        updateViewerSlide();
+        loadMyReaction();
+    }
+});
+
+socket.on('slide_changed', function(data) {
+    viewerCurrentIndex = data.slide_index;
+    if (viewerVisible) {
+        updateViewerSlide();
+        loadMyReaction();
+    }
+});
+
+socket.on('slide_aggregate_updated', function(data) {
+    if (viewerVisible && data.slide_index === viewerCurrentIndex) {
+        updateViewerAggregates(data.counts);
+    }
+});
+
+function updateViewerSlide() {
+    if (viewerCurrentIndex >= 0 && viewerCurrentIndex < totalViewerSlides) {
+        const img = document.getElementById('inlineViewerImage');
+        if (img) img.src = slideUrls[viewerCurrentIndex];
+        const indicator = document.getElementById('viewerSlideIndicator');
+        if (indicator) indicator.textContent = '슬라이드 ' + (viewerCurrentIndex + 1) + ' / ' + totalViewerSlides;
+    }
+}
+
+function loadMyReaction() {
+    currentReaction = myReactions[viewerCurrentIndex] || null;
+    updateReactionButtons();
+}
+
+function setReaction(reaction) {
+    if (currentReaction === reaction) {
+        currentReaction = null;
+        myReactions[viewerCurrentIndex] = null;
+        socket.emit('set_slide_reaction', { deck_id: deckId, slide_index: viewerCurrentIndex, reaction: 'none' });
+    } else {
+        currentReaction = reaction;
+        myReactions[viewerCurrentIndex] = reaction;
+        socket.emit('set_slide_reaction', { deck_id: deckId, slide_index: viewerCurrentIndex, reaction: reaction });
+    }
+    updateReactionButtons();
+}
+
+function updateReactionButtons() {
+    const btnU = document.getElementById('btnUnderstood');
+    const btnQ = document.getElementById('btnQuestion');
+    const btnH = document.getElementById('btnHard');
+    if (!btnU) return;
+    
+    btnU.className = 'btn btn-outline-success rounded-pill px-4 py-2 reaction-btn-inline' + (currentReaction === 'understood' ? ' active-understood' : '');
+    btnQ.className = 'btn btn-outline-warning rounded-pill px-4 py-2 reaction-btn-inline' + (currentReaction === 'question' ? ' active-question' : '');
+    btnH.className = 'btn btn-outline-danger rounded-pill px-4 py-2 reaction-btn-inline' + (currentReaction === 'hard' ? ' active-hard' : '');
+}
+
+function updateViewerAggregates(counts) {
+    const u = document.getElementById('aggUnderstood');
+    const q = document.getElementById('aggQuestion');
+    const h = document.getElementById('aggHard');
+    if (u) u.textContent = counts.understood || 0;
+    if (q) q.textContent = counts.question || 0;
+    if (h) h.textContent = counts.hard || 0;
+}
+{% endif %}
 </script>
 {% endblock %}

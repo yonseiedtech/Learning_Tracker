@@ -54,20 +54,23 @@
     </div>
 </div>
 
-<div class="glass-card p-4 mb-4">
+<div class="glass-card p-4 mb-4" id="slideSection">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold mb-0"><i class="bi bi-easel me-2 text-info"></i>PPT 슬라이드 방송</h5>
-        <div class="d-flex gap-2">
+        <h5 class="fw-bold mb-0"><i class="bi bi-easel me-2 text-info"></i>슬라이드 방송</h5>
+        <div class="d-flex gap-2 flex-wrap">
             {% if active_deck %}
-            <a href="{{ url_for('slides.presenter_view', deck_id=active_deck.id) }}" class="btn btn-primary btn-sm rounded-pill" target="_blank">
-                <i class="bi bi-play-circle me-1"></i>프레젠터 모드 열기
+            <button class="btn btn-info btn-sm rounded-pill" id="toggleSlidePresenter" onclick="toggleSlidePresenter()">
+                <i class="bi bi-eye me-1"></i>슬라이드 표시
+            </button>
+            <a href="{{ url_for('slides.presenter_view', deck_id=active_deck.id) }}" class="btn btn-outline-primary btn-sm rounded-pill" target="_blank">
+                <i class="bi bi-arrows-fullscreen me-1"></i>전체화면
             </a>
             <a href="{{ url_for('slides.review_view', deck_id=active_deck.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" target="_blank">
-                <i class="bi bi-journal-text me-1"></i>리뷰 페이지
+                <i class="bi bi-journal-text me-1"></i>리뷰
             </a>
             {% endif %}
             <button class="btn btn-outline-info btn-sm rounded-pill" data-bs-toggle="collapse" data-bs-target="#pptUploadSection">
-                <i class="bi bi-upload me-1"></i>PPT 업로드
+                <i class="bi bi-upload me-1"></i>파일 업로드
             </button>
         </div>
     </div>
@@ -78,8 +81,8 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <div class="flex-grow-1">
-                        <input type="file" class="form-control" id="pptxFile" name="pptx_file" accept=".pptx,.ppt">
-                        <div class="form-text">PPT/PPTX 파일을 업로드하면 슬라이드 이미지로 변환됩니다.</div>
+                        <input type="file" class="form-control" id="pptxFile" name="pptx_file" accept=".pptx,.ppt,.pdf">
+                        <div class="form-text">PPT/PPTX/PDF 파일을 업로드하면 슬라이드 이미지로 변환됩니다.</div>
                     </div>
                     <button type="submit" class="btn btn-info rounded-pill" id="pptUploadBtn">
                         <i class="bi bi-cloud-upload me-1"></i>변환 시작
@@ -91,15 +94,79 @@
             </div>
         </div>
     </div>
-    
+
     {% if active_deck %}
-    <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: rgba(59, 130, 246, 0.08);">
-        <i class="bi bi-file-earmark-slides fs-4 text-info"></i>
-        <div class="flex-grow-1">
-            <strong>{{ active_deck.file_name }}</strong>
-            <br><small class="text-muted">{{ active_deck.slide_count }}개 슬라이드 | 현재: {{ active_deck.current_slide_index + 1 }}번 슬라이드</small>
+    <div id="inlinePresenter" class="d-none">
+        <div class="d-flex gap-3" style="height: 420px;">
+            <div class="slide-thumb-sidebar" id="slideThumbSidebar">
+                {% for url in active_slides %}
+                <div class="inline-slide-thumb {% if loop.index0 == 0 %}active{% endif %} {% if loop.index0 in active_bookmarks %}flagged{% endif %}"
+                     data-index="{{ loop.index0 }}" onclick="goToSlide({{ loop.index0 }})">
+                    <img src="{{ url }}" alt="{{ loop.index }}">
+                    <span class="thumb-num">{{ loop.index }}</span>
+                    <span class="thumb-flag {% if loop.index0 not in active_bookmarks %}d-none{% endif %}" id="thumbFlag{{ loop.index0 }}">🔖</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex-grow-1 d-flex flex-column min-width-0">
+                <div class="inline-slide-main">
+                    <img src="{{ active_slides[0] if active_slides else '' }}" id="inlineSlideImage" alt="현재 슬라이드">
+                </div>
+                <div class="inline-slide-controls mt-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill" id="prevSlideBtn" onclick="prevSlide()">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <span class="fw-bold small" id="slideCounter">1 / {{ active_slides|length }}</span>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill" id="nextSlideBtn" onclick="nextSlide()">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="inline-reaction-bars flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span style="width: 24px; text-align: center;">👍</span>
+                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
+                                <div id="barUnderstood" style="height: 100%; width: 0%; background: #22c55e; border-radius: 6px; transition: width 0.3s;"></div>
+                            </div>
+                            <span class="fw-bold small" style="width: 24px;" id="countUnderstood">0</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span style="width: 24px; text-align: center;">❓</span>
+                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
+                                <div id="barQuestion" style="height: 100%; width: 0%; background: #f59e0b; border-radius: 6px; transition: width 0.3s;"></div>
+                            </div>
+                            <span class="fw-bold small" style="width: 24px;" id="countQuestion">0</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="width: 24px; text-align: center;">😵</span>
+                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
+                                <div id="barHard" style="height: 100%; width: 0%; background: #ef4444; border-radius: 6px; transition: width 0.3s;"></div>
+                            </div>
+                            <span class="fw-bold small" style="width: 24px;" id="countHard">0</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill" id="bookmarkToggle" onclick="toggleBookmark()">
+                            <i class="bi bi-bookmark" id="bookmarkIcon"></i>
+                        </button>
+                        <span class="badge bg-info bg-opacity-10 text-info" id="participantBadge">
+                            <i class="bi bi-people-fill me-1"></i><span id="participantCount">0</span>명
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <span class="badge bg-success">변환 완료</span>
+    </div>
+    
+    <div id="slideDeckInfo" class="{% if not active_deck %}d-none{% endif %}">
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: rgba(59, 130, 246, 0.08);">
+            <i class="bi bi-file-earmark-slides fs-4 text-info"></i>
+            <div class="flex-grow-1">
+                <strong>{{ active_deck.file_name }}</strong>
+                <br><small class="text-muted">{{ active_deck.slide_count }}개 슬라이드 | 현재: <span id="currentSlideNum">{{ active_deck.current_slide_index + 1 }}</span>번 슬라이드</small>
+            </div>
+            <span class="badge bg-success">변환 완료</span>
+        </div>
     </div>
     {% endif %}
     
@@ -114,13 +181,13 @@
                     {{ deck.file_name }} <small class="text-muted">({{ deck.slide_count }}슬라이드)</small>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{{ url_for('slides.presenter_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                        <i class="bi bi-play-circle"></i>
+                    <a href="{{ url_for('slides.presenter_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="전체화면 프레젠터">
+                        <i class="bi bi-arrows-fullscreen"></i>
                     </a>
-                    <a href="{{ url_for('slides.review_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                    <a href="{{ url_for('slides.review_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="리뷰 페이지">
                         <i class="bi bi-journal-text"></i>
                     </a>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDeck({{ deck.id }})">
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDeck({{ deck.id }})" title="삭제">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -387,6 +454,75 @@
 </div>
 
 <style>
+.slide-thumb-sidebar {
+    width: 160px;
+    min-width: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 8px;
+}
+.inline-slide-thumb {
+    position: relative;
+    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.inline-slide-thumb:hover { border-color: var(--primary-color, #3b82f6); }
+.inline-slide-thumb.active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+.inline-slide-thumb.flagged { border-color: #ef4444; }
+.inline-slide-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+.thumb-num {
+    position: absolute; bottom: 2px; left: 2px;
+    background: rgba(0,0,0,0.7); color: #fff; font-size: 0.65rem;
+    padding: 0px 5px; border-radius: 3px;
+}
+.thumb-flag {
+    position: absolute; top: 2px; right: 2px; font-size: 0.65rem;
+}
+.inline-slide-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-bg, #f0f2f5);
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 0;
+}
+.inline-slide-main img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+.inline-slide-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    flex-wrap: wrap;
+}
+.inline-reaction-bars {
+    max-width: 300px;
+    min-width: 200px;
+}
+@media (max-width: 768px) {
+    #inlinePresenter .d-flex { flex-direction: column; height: auto !important; }
+    .slide-thumb-sidebar {
+        width: 100%; min-width: 100%; flex-direction: row;
+        overflow-x: auto; overflow-y: hidden; height: 80px;
+        padding-right: 0; padding-bottom: 4px;
+    }
+    .inline-slide-thumb { min-width: 100px; }
+    .inline-slide-main { min-height: 250px; }
+    .inline-slide-controls { flex-wrap: wrap; }
+    .inline-reaction-bars { max-width: 100%; width: 100%; }
+}
 .checkpoint-item-instructor {
     cursor: pointer;
     transition: all 0.3s ease;
@@ -505,6 +641,15 @@
 
 {% block scripts %}
 <script>
+function showToast(message, type) {
+    const alertType = (type === 'success') ? 'success' : (type === 'warning') ? 'warning' : (type === 'danger') ? 'danger' : 'info';
+    const icon = (type === 'success') ? 'check-circle' : (type === 'warning') ? 'exclamation-triangle' : (type === 'danger') ? 'exclamation-circle' : 'info-circle';
+    const toastEl = document.createElement('div');
+    toastEl.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;animation:slideIn 0.3s ease';
+    toastEl.innerHTML = '<div class="alert alert-' + alertType + ' d-flex align-items-center shadow-lg border-0" style="min-width:250px;"><i class="bi bi-' + icon + ' me-2"></i>' + message + '<button type="button" class="btn-close ms-auto" onclick="this.closest(\'div\').parentElement.remove()"></button></div>';
+    document.body.appendChild(toastEl);
+    setTimeout(() => { if (toastEl.parentElement) toastEl.remove(); }, 5000);
+}
 const courseId = {{ course.id }};
 const checkpoints = {{ checkpoints|map(attribute='id')|list|tojson }};
 const checkpointEstimates = {{ checkpoints|map(attribute='estimated_minutes')|list|tojson }};
@@ -1053,7 +1198,7 @@ if (pptForm) {
         e.preventDefault();
         const fileInput = document.getElementById('pptxFile');
         if (!fileInput.files.length) {
-            showToast('PPT 파일을 선택해주세요.', 'warning');
+            showToast('PPT/PDF 파일을 선택해주세요.', 'warning');
             return;
         }
         const formData = new FormData();
@@ -1105,5 +1250,154 @@ function deleteDeck(deckId) {
         }
     });
 }
+
+{% if active_deck and active_slides %}
+const deckId = {{ active_deck.id }};
+const slideUrls = {{ active_slides|tojson }};
+const totalSlides = slideUrls.length;
+let currentSlideIndex = Math.min({{ active_deck.current_slide_index }}, totalSlides - 1);
+if (currentSlideIndex < 0) currentSlideIndex = 0;
+let slideAggregates = {};
+let bookmarkedSlides = new Set([{% for idx in active_bookmarks %}{{ idx }},{% endfor %}]);
+let slidePresenterVisible = false;
+
+function toggleSlidePresenter() {
+    if (totalSlides === 0) { showToast('슬라이드가 없습니다.', 'warning'); return; }
+    const presenter = document.getElementById('inlinePresenter');
+    const deckInfo = document.getElementById('slideDeckInfo');
+    const btn = document.getElementById('toggleSlidePresenter');
+    slidePresenterVisible = !slidePresenterVisible;
+    
+    if (slidePresenterVisible) {
+        presenter.classList.remove('d-none');
+        deckInfo.classList.add('d-none');
+        btn.innerHTML = '<i class="bi bi-eye-slash me-1"></i>슬라이드 숨기기';
+        btn.classList.replace('btn-info', 'btn-outline-info');
+        socket.emit('join_slide_session', { deck_id: deckId });
+        socket.emit('request_slide_aggregates', { deck_id: deckId });
+        updateSlideDisplay();
+    } else {
+        presenter.classList.add('d-none');
+        deckInfo.classList.remove('d-none');
+        btn.innerHTML = '<i class="bi bi-eye me-1"></i>슬라이드 표시';
+        btn.classList.replace('btn-outline-info', 'btn-info');
+    }
+}
+
+function goToSlide(index) {
+    if (index < 0 || index >= totalSlides || index === currentSlideIndex) return;
+    currentSlideIndex = index;
+    updateSlideDisplay();
+    socket.emit('change_slide', { deck_id: deckId, slide_index: currentSlideIndex });
+}
+
+function prevSlide() { if (currentSlideIndex > 0) goToSlide(currentSlideIndex - 1); }
+function nextSlide() { if (currentSlideIndex < totalSlides - 1) goToSlide(currentSlideIndex + 1); }
+
+function updateSlideDisplay() {
+    const img = document.getElementById('inlineSlideImage');
+    if (img) img.src = slideUrls[currentSlideIndex];
+    
+    const counter = document.getElementById('slideCounter');
+    if (counter) counter.textContent = (currentSlideIndex + 1) + ' / ' + totalSlides;
+    
+    const numEl = document.getElementById('currentSlideNum');
+    if (numEl) numEl.textContent = currentSlideIndex + 1;
+    
+    document.querySelectorAll('.inline-slide-thumb').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.index) === currentSlideIndex);
+    });
+    
+    const activeThumb = document.querySelector('.inline-slide-thumb.active');
+    if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    updateReactionBars();
+    updateBookmarkButton();
+    
+    const prevBtn = document.getElementById('prevSlideBtn');
+    const nextBtn = document.getElementById('nextSlideBtn');
+    if (prevBtn) prevBtn.disabled = currentSlideIndex === 0;
+    if (nextBtn) nextBtn.disabled = currentSlideIndex === totalSlides - 1;
+}
+
+function updateReactionBars() {
+    const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
+    const total = Math.max(agg.total_reacted, 1);
+    
+    document.getElementById('countUnderstood').textContent = agg.understood;
+    document.getElementById('countQuestion').textContent = agg.question;
+    document.getElementById('countHard').textContent = agg.hard;
+    
+    document.getElementById('barUnderstood').style.width = (agg.understood / total * 100) + '%';
+    document.getElementById('barQuestion').style.width = (agg.question / total * 100) + '%';
+    document.getElementById('barHard').style.width = (agg.hard / total * 100) + '%';
+    
+    const pc = document.getElementById('participantCount');
+    if (pc) pc.textContent = agg.total_reacted;
+}
+
+function updateBookmarkButton() {
+    const btn = document.getElementById('bookmarkToggle');
+    const icon = document.getElementById('bookmarkIcon');
+    if (!btn || !icon) return;
+    if (bookmarkedSlides.has(currentSlideIndex)) {
+        btn.classList.add('active');
+        icon.className = 'bi bi-bookmark-fill';
+    } else {
+        btn.classList.remove('active');
+        icon.className = 'bi bi-bookmark';
+    }
+}
+
+function toggleBookmark() {
+    socket.emit('toggle_slide_bookmark', { deck_id: deckId, slide_index: currentSlideIndex });
+}
+
+function updateThumbFlag(slideIndex, isFlagged) {
+    const flag = document.getElementById('thumbFlag' + slideIndex);
+    const wrapper = document.querySelector(`.inline-slide-thumb[data-index="${slideIndex}"]`);
+    if (flag) flag.classList.toggle('d-none', !isFlagged);
+    if (wrapper) wrapper.classList.toggle('flagged', isFlagged);
+}
+
+socket.on('all_slide_aggregates', function(data) {
+    slideAggregates = data.aggregates;
+    bookmarkedSlides = new Set();
+    if (data.flagged_slides) {
+        data.flagged_slides.forEach(function(fs) {
+            bookmarkedSlides.add(fs.slide_index);
+            updateThumbFlag(fs.slide_index, true);
+        });
+    }
+    updateReactionBars();
+    updateBookmarkButton();
+});
+
+socket.on('slide_aggregate_updated', function(data) {
+    slideAggregates[data.slide_index] = data.counts;
+    if (data.slide_index === currentSlideIndex) updateReactionBars();
+    if (data.flagged) {
+        bookmarkedSlides.add(data.slide_index);
+        updateThumbFlag(data.slide_index, true);
+    }
+});
+
+socket.on('bookmark_updated', function(data) {
+    if (data.is_bookmarked) {
+        bookmarkedSlides.add(data.slide_index);
+    } else {
+        bookmarkedSlides.delete(data.slide_index);
+    }
+    updateThumbFlag(data.slide_index, data.is_bookmarked);
+    if (data.slide_index === currentSlideIndex) updateBookmarkButton();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (!slidePresenterVisible) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); nextSlide(); }
+});
+{% endif %}
 </script>
 {% endblock %}

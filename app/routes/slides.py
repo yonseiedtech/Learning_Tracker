@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app import db
 from app.models import Course, Enrollment, ActiveSession, SlideDeck, SlideReaction, SlideBookmark, SubjectMember
-from app.services.slide_converter import convert_pptx_to_images, delete_deck_images, SLIDES_BASE_DIR, ensure_slides_dir
+from app.services.slide_converter import convert_file_to_images, delete_deck_images, SLIDES_BASE_DIR, ensure_slides_dir, ALLOWED_EXTENSIONS
 from datetime import datetime
 import tempfile
 import os
@@ -44,12 +44,13 @@ def upload_pptx(course_id):
     if not has_course_access(course, current_user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
-    file = request.files.get('pptx_file')
+    file = request.files.get('pptx_file') or request.files.get('slide_file')
     if not file or not file.filename:
-        return jsonify({'error': 'PPT 파일을 선택해주세요.'}), 400
+        return jsonify({'error': '파일을 선택해주세요.'}), 400
 
-    if not file.filename.lower().endswith(('.pptx', '.ppt')):
-        return jsonify({'error': '.pptx 또는 .ppt 파일만 업로드 가능합니다.'}), 400
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': '.pptx, .ppt 또는 .pdf 파일만 업로드 가능합니다.'}), 400
 
     file.seek(0, 2)
     file_size = file.tell()
@@ -72,11 +73,11 @@ def upload_pptx(course_id):
     db.session.commit()
 
     try:
-        with tempfile.NamedTemporaryFile(suffix='.pptx', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as tmp:
             file.save(tmp.name)
             tmp_path = tmp.name
 
-        slide_count, deck_dir = convert_pptx_to_images(tmp_path, deck.id)
+        slide_count, deck_dir = convert_file_to_images(tmp_path, deck.id)
 
         deck.slide_count = slide_count
         deck.slides_dir = deck_dir
