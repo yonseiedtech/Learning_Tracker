@@ -97,20 +97,73 @@
 
     {% if active_deck %}
     <div id="inlinePresenter" class="d-none">
+        <div class="lecture-timer-bar mb-2 p-2 rounded-3 d-flex align-items-center gap-3 flex-wrap" style="background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15);">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-stopwatch text-primary"></i>
+                <span class="fw-bold small" id="lectureElapsed">00:00:00</span>
+                <span class="text-muted small">/</span>
+                <span class="small text-muted" id="lectureTotalTime">--:--</span>
+            </div>
+            <div class="flex-grow-1" style="max-width: 300px;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="flex-grow-1 position-relative" style="height: 16px; background: var(--app-input-bg, #e9ecef); border-radius: 8px; overflow: hidden;">
+                        <div id="lectureProgressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 8px; transition: width 0.5s;"></div>
+                        <div id="lectureProgressMarker" style="position: absolute; top: 0; width: 3px; height: 100%; background: #fff; border-radius: 1px; box-shadow: 0 0 4px rgba(0,0,0,0.4); left: 0%; transition: left 0.5s;"></div>
+                    </div>
+                    <span class="fw-bold small text-primary" id="lectureProgressPct">0%</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted"><i class="bi bi-flag me-1"></i>슬라이드 <span id="slideTimeDisplay">00:00</span></span>
+                <span class="badge bg-opacity-10 small" id="slideTimePace" style="display: none;">
+                    <i class="bi bi-speedometer2 me-1"></i><span id="slideTimePaceText"></span>
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2 ms-auto">
+                <span class="small text-muted"><i class="bi bi-clock-history me-1"></i>예상 종료:</span>
+                <span class="fw-bold small" id="estimatedEndTime">--:--</span>
+            </div>
+        </div>
+
+        <div class="engagement-alert-bar d-none mb-2 p-2 rounded-3 d-flex align-items-center gap-2" id="engagementAlert">
+            <i class="bi bi-lightbulb fs-5" id="engagementAlertIcon"></i>
+            <div class="flex-grow-1">
+                <strong class="small" id="engagementAlertTitle"></strong>
+                <span class="small ms-2" id="engagementAlertMsg"></span>
+            </div>
+            <button class="btn btn-sm btn-outline-light rounded-pill" onclick="dismissEngagementAlert()" style="font-size: 0.7rem;">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+
         <div class="d-flex gap-3" style="height: 420px;">
             <div class="slide-thumb-sidebar" id="slideThumbSidebar">
+                <div class="slide-search-box mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="border:none; background: transparent; padding: 2px 6px;"><i class="bi bi-search" style="font-size:0.75rem;"></i></span>
+                        <input type="text" class="form-control form-control-sm" id="slideSearchInput" placeholder="슬라이드 검색..." oninput="filterSlides(this.value)" style="font-size:0.75rem; padding: 2px 6px; border-radius: 4px;">
+                    </div>
+                </div>
                 {% for url in active_slides %}
                 <div class="inline-slide-thumb {% if loop.index0 == 0 %}active{% endif %} {% if loop.index0 in active_bookmarks %}flagged{% endif %}"
-                     data-index="{{ loop.index0 }}" onclick="goToSlide({{ loop.index0 }})">
+                     data-index="{{ loop.index0 }}" onclick="goToSlide({{ loop.index0 }})" title="슬라이드 {{ loop.index }}">
                     <img src="{{ url }}" alt="{{ loop.index }}">
                     <span class="thumb-num">{{ loop.index }}</span>
                     <span class="thumb-flag {% if loop.index0 not in active_bookmarks %}d-none{% endif %}" id="thumbFlag{{ loop.index0 }}">🔖</span>
+                    <span class="thumb-time d-none" id="thumbTime{{ loop.index0 }}"></span>
                 </div>
                 {% endfor %}
             </div>
             <div class="flex-grow-1 d-flex flex-column min-width-0">
                 <div class="inline-slide-main">
                     <img src="{{ active_slides[0] if active_slides else '' }}" id="inlineSlideImage" alt="현재 슬라이드">
+                </div>
+                <div class="slide-jumpbar mt-1" id="slideJumpBar">
+                    {% for url in active_slides %}
+                    <div class="jumpbar-segment {% if loop.index0 == 0 %}active{% endif %}" data-index="{{ loop.index0 }}" onclick="goToSlide({{ loop.index0 }})" title="슬라이드 {{ loop.index }}">
+                        <div class="jumpbar-fill" id="jumpFill{{ loop.index0 }}"></div>
+                    </div>
+                    {% endfor %}
                 </div>
                 <div class="inline-slide-controls mt-2">
                     <div class="d-flex align-items-center gap-2">
@@ -122,29 +175,49 @@
                             <i class="bi bi-chevron-right"></i>
                         </button>
                     </div>
-                    <div class="inline-reaction-bars flex-grow-1">
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span style="width: 24px; text-align: center;">👍</span>
-                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
-                                <div id="barUnderstood" style="height: 100%; width: 0%; background: #22c55e; border-radius: 6px; transition: width 0.3s;"></div>
+
+                    <div class="engagement-dashboard flex-grow-1">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="reaction-donut-container" id="reactionDonut">
+                                <canvas id="reactionDonutChart" width="60" height="60"></canvas>
+                                <span class="donut-center-text" id="donutCenterText">0</span>
                             </div>
-                            <span class="fw-bold small" style="width: 24px;" id="countUnderstood">0</span>
+                            <div class="reaction-bars-compact flex-grow-1">
+                                <div class="d-flex align-items-center gap-1 mb-1">
+                                    <span style="width: 20px; text-align: center; font-size: 0.8rem;">👍</span>
+                                    <div class="flex-grow-1" style="height: 10px; background: var(--app-input-bg, #e9ecef); border-radius: 5px; overflow: hidden;">
+                                        <div id="barUnderstood" style="height: 100%; width: 0%; background: #22c55e; border-radius: 5px; transition: width 0.3s;"></div>
+                                    </div>
+                                    <span class="fw-bold" style="width: 28px; font-size: 0.7rem;" id="countUnderstood">0</span>
+                                    <span class="text-muted" style="width: 32px; font-size: 0.65rem;" id="pctUnderstood">0%</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1 mb-1">
+                                    <span style="width: 20px; text-align: center; font-size: 0.8rem;">❓</span>
+                                    <div class="flex-grow-1" style="height: 10px; background: var(--app-input-bg, #e9ecef); border-radius: 5px; overflow: hidden;">
+                                        <div id="barQuestion" style="height: 100%; width: 0%; background: #f59e0b; border-radius: 5px; transition: width 0.3s;"></div>
+                                    </div>
+                                    <span class="fw-bold" style="width: 28px; font-size: 0.7rem;" id="countQuestion">0</span>
+                                    <span class="text-muted" style="width: 32px; font-size: 0.65rem;" id="pctQuestion">0%</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span style="width: 20px; text-align: center; font-size: 0.8rem;">😵</span>
+                                    <div class="flex-grow-1" style="height: 10px; background: var(--app-input-bg, #e9ecef); border-radius: 5px; overflow: hidden;">
+                                        <div id="barHard" style="height: 100%; width: 0%; background: #ef4444; border-radius: 5px; transition: width 0.3s;"></div>
+                                    </div>
+                                    <span class="fw-bold" style="width: 28px; font-size: 0.7rem;" id="countHard">0</span>
+                                    <span class="text-muted" style="width: 32px; font-size: 0.65rem;" id="pctHard">0%</span>
+                                </div>
+                            </div>
+                            <div class="trend-mini-charts position-relative" id="trendChartsContainer">
+                                <canvas id="trendMiniChart" width="100" height="55"></canvas>
+                                <div class="trend-tooltip d-none" id="trendTooltip"></div>
+                            </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span style="width: 24px; text-align: center;">❓</span>
-                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
-                                <div id="barQuestion" style="height: 100%; width: 0%; background: #f59e0b; border-radius: 6px; transition: width 0.3s;"></div>
-                            </div>
-                            <span class="fw-bold small" style="width: 24px;" id="countQuestion">0</span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span style="width: 24px; text-align: center;">😵</span>
-                            <div class="flex-grow-1" style="height: 12px; background: var(--app-input-bg, #e9ecef); border-radius: 6px; overflow: hidden;">
-                                <div id="barHard" style="height: 100%; width: 0%; background: #ef4444; border-radius: 6px; transition: width 0.3s;"></div>
-                            </div>
-                            <span class="fw-bold small" style="width: 24px;" id="countHard">0</span>
+                        <div class="engagement-guide mt-1 d-none" id="engagementGuide">
+                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i><span id="engagementGuideText"></span></small>
                         </div>
                     </div>
+
                     <div class="d-flex align-items-center gap-2">
                         <button class="btn btn-sm btn-outline-secondary rounded-pill" id="bookmarkToggle" onclick="toggleBookmark()">
                             <i class="bi bi-bookmark" id="bookmarkIcon"></i>
@@ -463,6 +536,13 @@
     gap: 6px;
     padding-right: 8px;
 }
+.slide-search-box .input-group {
+    background: var(--app-input-bg, #f8f9fa);
+    border-radius: 6px;
+    border: 1px solid var(--app-border, #dee2e6);
+}
+.slide-search-box .form-control { border: none; background: transparent; }
+.slide-search-box .form-control:focus { box-shadow: none; }
 .inline-slide-thumb {
     position: relative;
     cursor: pointer;
@@ -475,6 +555,7 @@
 .inline-slide-thumb:hover { border-color: var(--primary-color, #3b82f6); }
 .inline-slide-thumb.active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
 .inline-slide-thumb.flagged { border-color: #ef4444; }
+.inline-slide-thumb.search-hidden { display: none; }
 .inline-slide-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
 .thumb-num {
     position: absolute; bottom: 2px; left: 2px;
@@ -483,6 +564,11 @@
 }
 .thumb-flag {
     position: absolute; top: 2px; right: 2px; font-size: 0.65rem;
+}
+.thumb-time {
+    position: absolute; bottom: 2px; right: 2px;
+    background: rgba(0,0,0,0.7); color: #fff; font-size: 0.55rem;
+    padding: 0px 4px; border-radius: 3px;
 }
 .inline-slide-main {
     flex: 1;
@@ -500,19 +586,66 @@
     object-fit: contain;
     border-radius: 8px;
 }
+.slide-jumpbar {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.jumpbar-segment {
+    flex: 1;
+    background: var(--app-input-bg, #e0e3e8);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    border-radius: 2px;
+}
+.jumpbar-segment:hover { background: rgba(59,130,246,0.3); transform: scaleY(1.5); }
+.jumpbar-segment.active { background: #3b82f6; }
+.jumpbar-segment.visited { background: rgba(59,130,246,0.5); }
+.jumpbar-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 0%; background: rgba(239,68,68,0.6); transition: height 0.3s;
+}
 .inline-slide-controls {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     padding: 0.5rem 0;
     flex-wrap: wrap;
 }
-.inline-reaction-bars {
-    max-width: 300px;
-    min-width: 200px;
+.engagement-dashboard { min-width: 280px; }
+.reaction-donut-container {
+    position: relative; width: 60px; height: 60px; flex-shrink: 0;
 }
+.donut-center-text {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 0.75rem; font-weight: 700; color: var(--app-text, #333);
+}
+.reaction-bars-compact { min-width: 140px; }
+.trend-mini-charts { flex-shrink: 0; }
+.trend-tooltip {
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85); color: #fff; padding: 4px 8px;
+    border-radius: 6px; font-size: 0.65rem; white-space: nowrap; z-index: 10;
+}
+.engagement-alert-bar {
+    animation: slideDown 0.3s ease;
+}
+.engagement-alert-bar.alert-warning-custom {
+    background: rgba(245,158,11,0.12) !important; border: 1px solid rgba(245,158,11,0.4) !important; color: #92400e;
+}
+.engagement-alert-bar.alert-danger-custom {
+    background: rgba(239,68,68,0.12) !important; border: 1px solid rgba(239,68,68,0.4) !important; color: #991b1b;
+}
+.engagement-alert-bar.alert-success-custom {
+    background: rgba(34,197,94,0.12) !important; border: 1px solid rgba(34,197,94,0.4) !important; color: #166534;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+.lecture-timer-bar .time-over { color: #ef4444 !important; animation: pulse 1.5s infinite; }
 @media (max-width: 768px) {
-    #inlinePresenter .d-flex { flex-direction: column; height: auto !important; }
+    #inlinePresenter > .d-flex:last-child { flex-direction: column; height: auto !important; }
     .slide-thumb-sidebar {
         width: 100%; min-width: 100%; flex-direction: row;
         overflow-x: auto; overflow-y: hidden; height: 80px;
@@ -521,7 +654,9 @@
     .inline-slide-thumb { min-width: 100px; }
     .inline-slide-main { min-height: 250px; }
     .inline-slide-controls { flex-wrap: wrap; }
-    .inline-reaction-bars { max-width: 100%; width: 100%; }
+    .engagement-dashboard { min-width: 100%; width: 100%; }
+    .lecture-timer-bar { font-size: 0.8rem; }
+    .slide-jumpbar { height: 6px; }
 }
 .checkpoint-item-instructor {
     cursor: pointer;
@@ -1260,6 +1395,18 @@ if (currentSlideIndex < 0) currentSlideIndex = 0;
 let slideAggregates = {};
 let bookmarkedSlides = new Set([{% for idx in active_bookmarks %}{{ idx }},{% endfor %}]);
 let slidePresenterVisible = false;
+let visitedSlides = new Set([currentSlideIndex]);
+
+let lectureStartTime = null;
+let slideStartTime = null;
+let slideTimeSpent = new Array(totalSlides).fill(0);
+let lectureTimerInterval = null;
+let trendHistory = [];
+const TREND_MAX_POINTS = 100;
+let lastAlertType = null;
+let alertDismissed = false;
+let donutChart = null;
+let trendChart = null;
 
 function toggleSlidePresenter() {
     if (totalSlides === 0) { showToast('슬라이드가 없습니다.', 'warning'); return; }
@@ -1275,6 +1422,13 @@ function toggleSlidePresenter() {
         btn.classList.replace('btn-info', 'btn-outline-info');
         socket.emit('join_slide_session', { deck_id: deckId });
         socket.emit('request_slide_aggregates', { deck_id: deckId });
+        if (!lectureStartTime) {
+            lectureStartTime = new Date();
+            slideStartTime = new Date();
+            startLectureTimer();
+        }
+        initDonutChart();
+        initTrendChart();
         updateSlideDisplay();
     } else {
         presenter.classList.add('d-none');
@@ -1284,9 +1438,94 @@ function toggleSlidePresenter() {
     }
 }
 
+function startLectureTimer() {
+    if (lectureTimerInterval) return;
+    lectureTimerInterval = setInterval(function() {
+        updateLectureTimerDisplay();
+        updateSlideTimeDisplay();
+        recordTrendPoint();
+        checkEngagementAlerts();
+    }, 1000);
+}
+
+function updateLectureTimerDisplay() {
+    if (!lectureStartTime) return;
+    const elapsed = Math.floor((Date.now() - lectureStartTime.getTime()) / 1000);
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const el = document.getElementById('lectureElapsed');
+    if (el) el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+
+    const totalEstMin = totalSlides * 2;
+    const totalEl = document.getElementById('lectureTotalTime');
+    if (totalEl) totalEl.textContent = Math.floor(totalEstMin / 60) > 0 ? Math.floor(totalEstMin/60) + ':' + String(totalEstMin%60).padStart(2,'0') + ':00' : String(totalEstMin).padStart(2,'0') + ':00';
+
+    const pct = Math.min(100, ((currentSlideIndex + 1) / totalSlides) * 100);
+    const fill = document.getElementById('lectureProgressFill');
+    const marker = document.getElementById('lectureProgressMarker');
+    const pctEl = document.getElementById('lectureProgressPct');
+    if (fill) fill.style.width = pct + '%';
+    if (marker) marker.style.left = pct + '%';
+    if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+
+    const avgTimePerSlide = elapsed / Math.max(currentSlideIndex + 1, 1);
+    const remainingSlides = totalSlides - currentSlideIndex - 1;
+    const estRemainingSeconds = Math.round(avgTimePerSlide * remainingSlides);
+    const endTime = new Date(Date.now() + estRemainingSeconds * 1000);
+    const endEl = document.getElementById('estimatedEndTime');
+    if (endEl) endEl.textContent = String(endTime.getHours()).padStart(2,'0') + ':' + String(endTime.getMinutes()).padStart(2,'0');
+
+    if (elapsed > totalEstMin * 60) {
+        if (el) el.classList.add('time-over');
+    } else {
+        if (el) el.classList.remove('time-over');
+    }
+}
+
+function updateSlideTimeDisplay() {
+    if (!slideStartTime) return;
+    const currentSlideElapsed = Math.floor((Date.now() - slideStartTime.getTime()) / 1000);
+    const totalForSlide = slideTimeSpent[currentSlideIndex] + currentSlideElapsed;
+    const m = Math.floor(totalForSlide / 60);
+    const s = totalForSlide % 60;
+    const display = document.getElementById('slideTimeDisplay');
+    if (display) display.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+
+    const avgPerSlide = 120;
+    const paceEl = document.getElementById('slideTimePace');
+    const paceText = document.getElementById('slideTimePaceText');
+    if (totalForSlide > avgPerSlide * 1.5 && paceEl && paceText) {
+        paceEl.style.display = '';
+        paceEl.className = 'badge bg-danger bg-opacity-10 text-danger small';
+        paceText.textContent = '느림';
+    } else if (totalForSlide < avgPerSlide * 0.5 && totalForSlide > 10 && paceEl && paceText) {
+        paceEl.style.display = '';
+        paceEl.className = 'badge bg-info bg-opacity-10 text-info small';
+        paceText.textContent = '빠름';
+    } else if (paceEl) {
+        paceEl.style.display = 'none';
+    }
+}
+
+function saveSlideTime() {
+    if (slideStartTime) {
+        slideTimeSpent[currentSlideIndex] += Math.floor((Date.now() - slideStartTime.getTime()) / 1000);
+        const thumbTime = document.getElementById('thumbTime' + currentSlideIndex);
+        if (thumbTime) {
+            const t = slideTimeSpent[currentSlideIndex];
+            thumbTime.textContent = Math.floor(t/60) + ':' + String(t%60).padStart(2,'0');
+            thumbTime.classList.remove('d-none');
+        }
+    }
+    slideStartTime = new Date();
+}
+
 function goToSlide(index) {
     if (index < 0 || index >= totalSlides || index === currentSlideIndex) return;
+    saveSlideTime();
     currentSlideIndex = index;
+    visitedSlides.add(index);
     updateSlideDisplay();
     socket.emit('change_slide', { deck_id: deckId, slide_index: currentSlideIndex });
 }
@@ -1311,8 +1550,16 @@ function updateSlideDisplay() {
     const activeThumb = document.querySelector('.inline-slide-thumb.active');
     if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     
+    document.querySelectorAll('.jumpbar-segment').forEach(el => {
+        const idx = parseInt(el.dataset.index);
+        el.classList.toggle('active', idx === currentSlideIndex);
+        el.classList.toggle('visited', visitedSlides.has(idx) && idx !== currentSlideIndex);
+    });
+    
     updateReactionBars();
     updateBookmarkButton();
+    updateDonutChart();
+    updateEngagementGuide();
     
     const prevBtn = document.getElementById('prevSlideBtn');
     const nextBtn = document.getElementById('nextSlideBtn');
@@ -1324,16 +1571,206 @@ function updateReactionBars() {
     const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
     const total = Math.max(agg.total_reacted, 1);
     
-    document.getElementById('countUnderstood').textContent = agg.understood;
-    document.getElementById('countQuestion').textContent = agg.question;
-    document.getElementById('countHard').textContent = agg.hard;
+    const u = agg.understood, q = agg.question, h = agg.hard;
+    const uPct = Math.round(u / total * 100), qPct = Math.round(q / total * 100), hPct = Math.round(h / total * 100);
+
+    document.getElementById('countUnderstood').textContent = u;
+    document.getElementById('countQuestion').textContent = q;
+    document.getElementById('countHard').textContent = h;
     
-    document.getElementById('barUnderstood').style.width = (agg.understood / total * 100) + '%';
-    document.getElementById('barQuestion').style.width = (agg.question / total * 100) + '%';
-    document.getElementById('barHard').style.width = (agg.hard / total * 100) + '%';
+    document.getElementById('pctUnderstood').textContent = uPct + '%';
+    document.getElementById('pctQuestion').textContent = qPct + '%';
+    document.getElementById('pctHard').textContent = hPct + '%';
+    
+    document.getElementById('barUnderstood').style.width = (u / total * 100) + '%';
+    document.getElementById('barQuestion').style.width = (q / total * 100) + '%';
+    document.getElementById('barHard').style.width = (h / total * 100) + '%';
     
     const pc = document.getElementById('participantCount');
     if (pc) pc.textContent = agg.total_reacted;
+
+    const jumpFill = document.getElementById('jumpFill' + currentSlideIndex);
+    if (jumpFill) {
+        const hardPct = agg.total_reacted > 0 ? ((q + h) / agg.total_reacted * 100) : 0;
+        jumpFill.style.height = hardPct + '%';
+    }
+}
+
+function initDonutChart() {
+    const canvas = document.getElementById('reactionDonutChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (donutChart) { donutChart.destroy(); }
+    donutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['이해', '질문', '어려움'],
+            datasets: [{
+                data: [0, 0, 0],
+                backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                borderWidth: 0,
+                cutout: '70%'
+            }]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: true, bodyFont: { size: 10 } } },
+            animation: { duration: 300 }
+        }
+    });
+}
+
+function updateDonutChart() {
+    if (!donutChart) return;
+    const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
+    donutChart.data.datasets[0].data = [agg.understood, agg.question, agg.hard];
+    donutChart.update('none');
+    const center = document.getElementById('donutCenterText');
+    if (center) center.textContent = agg.total_reacted;
+}
+
+function initTrendChart() {
+    const canvas = document.getElementById('trendMiniChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (trendChart) { trendChart.destroy(); }
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: '👍', data: [], borderColor: '#22c55e', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 },
+                { label: '❓', data: [], borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 },
+                { label: '😵', data: [], borderColor: '#ef4444', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            scales: {
+                x: { display: false },
+                y: { display: false, beginAtZero: true }
+            },
+            plugins: { legend: { display: false }, tooltip: { enabled: true, bodyFont: { size: 9 } } },
+            animation: { duration: 200 }
+        }
+    });
+}
+
+function recordTrendPoint() {
+    if (!trendChart || !slidePresenterVisible) return;
+    const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
+    const now = new Date();
+    const label = String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    
+    trendHistory.push({ t: label, u: agg.understood, q: agg.question, h: agg.hard });
+    if (trendHistory.length > TREND_MAX_POINTS) trendHistory.shift();
+    
+    if (Date.now() % 3000 < 1100) {
+        trendChart.data.labels = trendHistory.map(p => p.t);
+        trendChart.data.datasets[0].data = trendHistory.map(p => p.u);
+        trendChart.data.datasets[1].data = trendHistory.map(p => p.q);
+        trendChart.data.datasets[2].data = trendHistory.map(p => p.h);
+        trendChart.update('none');
+    }
+}
+
+function updateEngagementGuide() {
+    const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
+    const total = Math.max(agg.total_reacted, 1);
+    const uPct = agg.understood / total * 100;
+    const qPct = agg.question / total * 100;
+    const hPct = agg.hard / total * 100;
+    
+    const guideEl = document.getElementById('engagementGuide');
+    const guideText = document.getElementById('engagementGuideText');
+    if (!guideEl || !guideText) return;
+    
+    if (agg.total_reacted === 0) {
+        guideEl.classList.add('d-none');
+        return;
+    }
+    
+    guideEl.classList.remove('d-none');
+    if (uPct >= 70) {
+        guideText.textContent = '학습자의 ' + Math.round(uPct) + '%가 이해했습니다. 현재 진행 속도를 유지하세요.';
+    } else if (hPct >= 30) {
+        guideText.textContent = '어려움 반응이 ' + Math.round(hPct) + '%입니다. 추가 설명이 필요할 수 있습니다.';
+    } else if (qPct >= 30) {
+        guideText.textContent = '질문 반응이 ' + Math.round(qPct) + '%입니다. Q&A 시간을 고려하세요.';
+    } else {
+        guideText.textContent = '이해 ' + Math.round(uPct) + '% | 질문 ' + Math.round(qPct) + '% | 어려움 ' + Math.round(hPct) + '%';
+    }
+}
+
+function checkEngagementAlerts() {
+    if (alertDismissed) return;
+    const agg = slideAggregates[currentSlideIndex] || { understood: 0, question: 0, hard: 0, total_reacted: 0 };
+    if (agg.total_reacted < 2) return;
+    
+    const total = agg.total_reacted;
+    const uPct = agg.understood / total * 100;
+    const hPct = agg.hard / total * 100;
+    const qPct = agg.question / total * 100;
+    
+    const alertEl = document.getElementById('engagementAlert');
+    const alertIcon = document.getElementById('engagementAlertIcon');
+    const alertTitle = document.getElementById('engagementAlertTitle');
+    const alertMsg = document.getElementById('engagementAlertMsg');
+    if (!alertEl) return;
+
+    let newAlertType = null;
+    
+    if (hPct > 30) {
+        newAlertType = 'hard';
+        alertEl.className = 'engagement-alert-bar mb-2 p-2 rounded-3 d-flex align-items-center gap-2 alert-danger-custom';
+        alertIcon.className = 'bi bi-exclamation-triangle-fill fs-5 text-danger';
+        alertTitle.textContent = '⚠️ 어려움 반응 ' + Math.round(hPct) + '%';
+        alertMsg.textContent = '이 시점에서 개념 설명을 추가하세요. 예제를 통한 보충 설명을 권장합니다.';
+    } else if (qPct > 40) {
+        newAlertType = 'question';
+        alertEl.className = 'engagement-alert-bar mb-2 p-2 rounded-3 d-flex align-items-center gap-2 alert-warning-custom';
+        alertIcon.className = 'bi bi-question-circle-fill fs-5 text-warning';
+        alertTitle.textContent = '❓ 질문 반응 ' + Math.round(qPct) + '%';
+        alertMsg.textContent = 'Q&A 시간을 가지세요. 학습자들의 궁금증을 해소할 필요가 있습니다.';
+    } else if (uPct > 80) {
+        newAlertType = 'positive';
+        alertEl.className = 'engagement-alert-bar mb-2 p-2 rounded-3 d-flex align-items-center gap-2 alert-success-custom';
+        alertIcon.className = 'bi bi-check-circle-fill fs-5 text-success';
+        alertTitle.textContent = '✅ 긍정 반응 ' + Math.round(uPct) + '%';
+        alertMsg.textContent = '학습자들이 잘 이해하고 있습니다. 현재 진행 속도를 유지하세요.';
+    } else {
+        alertEl.classList.add('d-none');
+        lastAlertType = null;
+        return;
+    }
+    
+    if (newAlertType !== lastAlertType) {
+        lastAlertType = newAlertType;
+        alertDismissed = false;
+        alertEl.classList.remove('d-none');
+    }
+}
+
+function dismissEngagementAlert() {
+    const alertEl = document.getElementById('engagementAlert');
+    if (alertEl) alertEl.classList.add('d-none');
+    alertDismissed = true;
+    setTimeout(() => { alertDismissed = false; }, 30000);
+}
+
+function filterSlides(query) {
+    query = query.toLowerCase().trim();
+    document.querySelectorAll('.inline-slide-thumb').forEach(el => {
+        const idx = parseInt(el.dataset.index);
+        const slideNum = String(idx + 1);
+        if (!query || slideNum.includes(query)) {
+            el.classList.remove('search-hidden');
+        } else {
+            el.classList.add('search-hidden');
+        }
+    });
 }
 
 function updateBookmarkButton() {
@@ -1371,14 +1808,32 @@ socket.on('all_slide_aggregates', function(data) {
     }
     updateReactionBars();
     updateBookmarkButton();
+    updateDonutChart();
+    updateEngagementGuide();
+    
+    Object.keys(slideAggregates).forEach(function(idx) {
+        const a = slideAggregates[idx];
+        const jf = document.getElementById('jumpFill' + idx);
+        if (jf && a.total_reacted > 0) {
+            jf.style.height = ((a.question + a.hard) / a.total_reacted * 100) + '%';
+        }
+    });
 });
 
 socket.on('slide_aggregate_updated', function(data) {
     slideAggregates[data.slide_index] = data.counts;
-    if (data.slide_index === currentSlideIndex) updateReactionBars();
+    if (data.slide_index === currentSlideIndex) {
+        updateReactionBars();
+        updateDonutChart();
+        updateEngagementGuide();
+    }
     if (data.flagged) {
         bookmarkedSlides.add(data.slide_index);
         updateThumbFlag(data.slide_index, true);
+    }
+    const jf = document.getElementById('jumpFill' + data.slide_index);
+    if (jf && data.counts.total_reacted > 0) {
+        jf.style.height = ((data.counts.question + data.counts.hard) / data.counts.total_reacted * 100) + '%';
     }
 });
 
@@ -1395,8 +1850,10 @@ socket.on('bookmark_updated', function(data) {
 document.addEventListener('keydown', function(e) {
     if (!slidePresenterVisible) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevSlide(); }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+    if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
 });
 {% endif %}
 </script>
