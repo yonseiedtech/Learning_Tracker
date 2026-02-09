@@ -5,7 +5,7 @@ integrations = ["python_gemini_ai_integrations:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg", "iana-etc"]
+packages = ["ffmpeg", "freetype", "iana-etc", "lcms2", "libimagequant", "libjpeg", "libreoffice-still", "libtiff", "libwebp", "libxcrypt", "openjpeg", "poppler-utils", "poppler_utils", "tcl", "tk", "zlib"]
 
 [workflows]
 runButton = "Project"

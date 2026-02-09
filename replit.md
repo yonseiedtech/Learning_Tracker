@@ -10,6 +10,7 @@
   - 세미나(Standalone Course): 과목에 속하지 않는 독립적인 1회성 강의
 - **라이브 세션 예약**: 즉시 시작 또는 특정 시간 예약 기능
 - **실시간 채팅 및 게시판**: 세션 중 실시간 소통 및 공지사항 관리
+- **PPT 실시간 슬라이드 방송**: PPTX 업로드→이미지 변환, 강사-학습자 슬라이드 동기화, 이해도 피드백(👍/❓/😵), 문제 슬라이드 자동 북마크, 강의 후 리뷰 페이지
 - **AI 기반 체크포인트 생성**: PPT/PDF, 영상, 음성 분석을 통한 자동 체크포인트 생성 및 전사문 편집 기능
 - **역할 기반 접근 제어**: 시스템 관리자, 기관 관리자, 강사, 학습자로 구분된 권한 관리
 - **자기주도 학습 모드**: 개인별 진도 및 학습 시간 측정, 체크포인트 완료 토글
@@ -82,9 +83,18 @@ The application is built with a Flask factory pattern, using SQLAlchemy for ORM 
     - Completion rates, time spent analysis, CSV export.
 
 ### System Design Choices
-- **Database Schema**: Utilizes `Subject`, `Course`, `Checkpoint`, `Progress`, `Attendance`, `User`, `SubjectMember`, `Notification`, `Guide`, `Community` models for comprehensive data management.
+- **PPT 슬라이드 방송 시스템**:
+    - `SlideDeck` model: PPTX 파일 업로드 및 이미지 변환 관리 (course_id, session_id, slide_count, current_slide_index, conversion_status)
+    - `SlideReaction` model: 슬라이드별 학습자 이해도 피드백 (understood/question/hard/none)
+    - `SlideBookmark` model: 문제 슬라이드 자동/수동 북마크 (is_auto, is_manual, memo, supplement_url)
+    - PPTX→PDF→PNG 변환 파이프라인 (LibreOffice headless + pdf2image)
+    - Socket.IO events: slide_changed, set_slide_reaction, slide_aggregate_updated, bookmark_updated
+    - 프레젠터 뷰 (강사), 뷰어 (학습자), 리뷰 페이지
+    - Routes: `/slides/` blueprint (upload, delete, presenter, viewer, review)
+    - 파일 크기 제한: 50MB, 최대 슬라이드 수: 100장
+- **Database Schema**: Utilizes `Subject`, `Course`, `Checkpoint`, `Progress`, `Attendance`, `User`, `SubjectMember`, `Notification`, `Guide`, `Community`, `SlideDeck`, `SlideReaction`, `SlideBookmark` models for comprehensive data management.
 - **Asynchronous Operations**: Leverages Socket.IO and Eventlet for handling real-time, concurrent user interactions efficiently.
-- **Modularity**: Application organized into blueprints (`auth.py`, `main.py`, `courses.py`, `checkpoints.py`, `progress.py`, `analytics.py`) for better maintainability and scalability.
+- **Modularity**: Application organized into blueprints (`auth.py`, `main.py`, `courses.py`, `checkpoints.py`, `progress.py`, `analytics.py`, `slides.py`) for better maintainability and scalability.
 
 ## External Dependencies
 - **Flask**: Web framework

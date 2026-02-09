@@ -712,6 +712,65 @@ class PageTimeLog(db.Model):
     __table_args__ = (db.UniqueConstraint('course_id', 'user_id', name='unique_page_time'),)
 
 
+class SlideDeck(db.Model):
+    __tablename__ = 'slide_decks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False, index=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('active_sessions.id'), nullable=True)
+    file_name = db.Column(db.String(255), nullable=False)
+    slide_count = db.Column(db.Integer, default=0)
+    current_slide_index = db.Column(db.Integer, default=0)
+    conversion_status = db.Column(db.String(20), default='pending')
+    conversion_error = db.Column(db.Text, nullable=True)
+    slides_dir = db.Column(db.String(500), nullable=True)
+    flag_threshold_count = db.Column(db.Integer, default=5)
+    flag_threshold_rate = db.Column(db.Float, default=0.25)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    course = db.relationship('Course', backref=db.backref('slide_decks', lazy='dynamic'))
+    active_session = db.relationship('ActiveSession', backref=db.backref('session_slide_decks', lazy='dynamic'))
+    reactions = db.relationship('SlideReaction', backref='deck', lazy='dynamic', cascade='all, delete-orphan')
+    bookmarks = db.relationship('SlideBookmark', backref='deck', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_slide_urls(self):
+        if not self.slides_dir or self.slide_count == 0:
+            return []
+        return [f'/slides/{self.id}/{i}.png' for i in range(self.slide_count)]
+
+
+class SlideReaction(db.Model):
+    __tablename__ = 'slide_reactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('slide_decks.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    slide_index = db.Column(db.Integer, nullable=False)
+    reaction = db.Column(db.String(20), default='none')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('slide_reactions', lazy='dynamic'))
+    
+    __table_args__ = (db.UniqueConstraint('deck_id', 'user_id', 'slide_index', name='unique_slide_reaction'),)
+
+
+class SlideBookmark(db.Model):
+    __tablename__ = 'slide_bookmarks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    deck_id = db.Column(db.Integer, db.ForeignKey('slide_decks.id'), nullable=False, index=True)
+    slide_index = db.Column(db.Integer, nullable=False)
+    is_auto = db.Column(db.Boolean, default=False)
+    is_manual = db.Column(db.Boolean, default=False)
+    reason = db.Column(db.String(100), nullable=True)
+    memo = db.Column(db.Text, nullable=True)
+    supplement_url = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (db.UniqueConstraint('deck_id', 'slide_index', name='unique_slide_bookmark'),)
+
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
     

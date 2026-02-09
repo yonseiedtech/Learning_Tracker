@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}슬라이드 - {{ course.title }}{% endblock %}
+
+{% block head %}
+<style>
+.viewer-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem 0;
+}
+.viewer-slide-area {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+.viewer-slide-area img {
+    width: 100%;
+    display: block;
+}
+.slide-indicator {
+    text-align: center;
+    padding: 0.75rem;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+    border-top: 1px solid var(--app-border);
+    background: var(--app-input-bg);
+}
+.reaction-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+.reaction-btn {
+    flex: 1;
+    max-width: 220px;
+    padding: 0.875rem 1rem;
+    border-radius: 12px;
+    border: 2px solid var(--app-border);
+    background: var(--app-card-bg);
+    color: var(--app-text);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: center;
+}
+.reaction-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.reaction-btn .reaction-emoji {
+    font-size: 1.75rem;
+}
+.reaction-btn .reaction-text {
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+.reaction-btn.active-understood {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+}
+.reaction-btn.active-question {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+.reaction-btn.active-hard {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+.aggregate-display {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 1rem;
+}
+.aggregate-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--app-text-muted);
+}
+.aggregate-item .agg-emoji {
+    font-size: 1.2rem;
+}
+.aggregate-item .agg-count {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--app-text);
+}
+.sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+@media (max-width: 576px) {
+    .reaction-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    .reaction-btn {
+        max-width: 100%;
+        width: 100%;
+        flex-direction: row;
+        gap: 0.75rem;
+        text-align: left;
+    }
+    .reaction-btn .reaction-emoji {
+        font-size: 1.5rem;
+    }
+    .aggregate-display {
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="fw-bold mb-1">{{ course.title }}</h5>
+            <small class="text-muted">{{ deck.file_name }}</small>
+        </div>
+        <span class="sync-badge">
+            <i class="bi bi-broadcast"></i> 실시간 동기화
+        </span>
+    </div>
+
+    <div class="viewer-slide-area glass-card no-hover p-0">
+        <img src="{{ slides[0] if slides else '' }}" alt="현재 슬라이드" id="currentSlideImage">
+        <div class="slide-indicator" id="slideIndicator">
+            슬라이드 1 / {{ slides|length }}
+        </div>
+    </div>
+
+    <div class="reaction-buttons">
+        <button class="reaction-btn {% if my_reactions.get(0) == 'understood' %}active-understood{% endif %}"
+                id="btnUnderstood" onclick="setReaction('understood')">
+            <span class="reaction-emoji">👍</span>
+            <span class="reaction-text">잘 이해돼요</span>
+        </button>
+        <button class="reaction-btn {% if my_reactions.get(0) == 'question' %}active-question{% endif %}"
+                id="btnQuestion" onclick="setReaction('question')">
+            <span class="reaction-emoji">❓</span>
+            <span class="reaction-text">궁금한 부분이 있어요</span>
+        </button>
+        <button class="reaction-btn {% if my_reactions.get(0) == 'hard' %}active-hard{% endif %}"
+                id="btnHard" onclick="setReaction('hard')">
+            <span class="reaction-emoji">😵</span>
+            <span class="reaction-text">어려워요</span>
+        </button>
+    </div>
+
+    <div class="glass-card no-hover p-3">
+        <div class="aggregate-display" id="aggregateDisplay">
+            <div class="aggregate-item">
+                <span class="agg-emoji">👍</span>
+                <span class="agg-count" id="aggUnderstood">0</span>
+            </div>
+            <div class="aggregate-item">
+                <span class="agg-emoji">❓</span>
+                <span class="agg-count" id="aggQuestion">0</span>
+            </div>
+            <div class="aggregate-item">
+                <span class="agg-emoji">😵</span>
+                <span class="agg-count" id="aggHard">0</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const deckId = {{ deck.id }};
+const slides = {{ slides|tojson }};
+const totalSlides = slides.length;
+let currentIndex = 0;
+let myReactions = {{ my_reactions|tojson }};
+let currentReaction = myReactions[0] || null;
+
+const socket = io();
+
+socket.emit('join_slide_session', { deck_id: deckId });
+
+socket.on('slide_session_state', function(data) {
+    currentIndex = data.current_slide_index || 0;
+    updateSlideDisplay();
+    loadMyReaction();
+});
+
+socket.on('slide_changed', function(data) {
+    currentIndex = data.slide_index;
+    updateSlideDisplay();
+    loadMyReaction();
+});
+
+socket.on('slide_aggregate_updated', function(data) {
+    if (data.slide_index === currentIndex) {
+        updateAggregates(data.counts);
+    }
+});
+
+function updateSlideDisplay() {
+    if (currentIndex >= 0 && currentIndex < totalSlides) {
+        document.getElementById('currentSlideImage').src = slides[currentIndex];
+        document.getElementById('slideIndicator').textContent = '슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides;
+    }
+}
+
+function loadMyReaction() {
+    currentReaction = myReactions[currentIndex] || null;
+    updateReactionButtons();
+}
+
+function setReaction(reaction) {
+    if (currentReaction === reaction) {
+        currentReaction = null;
+        myReactions[currentIndex] = null;
+        socket.emit('set_slide_reaction', { deck_id: deckId, slide_index: currentIndex, reaction: 'none' });
+    } else {
+        currentReaction = reaction;
+        myReactions[currentIndex] = reaction;
+        socket.emit('set_slide_reaction', { deck_id: deckId, slide_index: currentIndex, reaction: reaction });
+    }
+    updateReactionButtons();
+}
+
+function updateReactionButtons() {
+    const btnU = document.getElementById('btnUnderstood');
+    const btnQ = document.getElementById('btnQuestion');
+    const btnH = document.getElementById('btnHard');
+
+    btnU.className = 'reaction-btn' + (currentReaction === 'understood' ? ' active-understood' : '');
+    btnQ.className = 'reaction-btn' + (currentReaction === 'question' ? ' active-question' : '');
+    btnH.className = 'reaction-btn' + (currentReaction === 'hard' ? ' active-hard' : '');
+}
+
+function updateAggregates(counts) {
+    document.getElementById('aggUnderstood').textContent = counts.understood || 0;
+    document.getElementById('aggQuestion').textContent = counts.question || 0;
+    document.getElementById('aggHard').textContent = counts.hard || 0;
+}
+
+updateSlideDisplay();
+</script>
+{% endblock %}

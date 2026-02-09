@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}슬라이드 리뷰 - {{ course.title }}{% endblock %}
+
+{% block head %}
+<style>
+.review-header {
+    margin-bottom: 1.5rem;
+}
+.summary-cards {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.summary-card {
+    flex: 1;
+    min-width: 180px;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+}
+.summary-card .sc-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--app-text);
+}
+.summary-card .sc-label {
+    font-size: 0.8rem;
+    color: var(--app-text-muted);
+}
+.filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.filter-btn {
+    padding: 0.5rem 1.25rem;
+    border-radius: 20px;
+    border: 1px solid var(--app-border);
+    background: var(--app-input-bg);
+    color: var(--app-text);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.filter-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+.filter-btn.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+}
+.review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+.review-slide-card {
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--app-card-bg);
+    border: 2px solid var(--app-border);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.review-slide-card:hover {
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+.review-slide-card.bookmark-auto {
+    border-color: #ef4444;
+}
+.review-slide-card.bookmark-manual {
+    border-color: #3b82f6;
+}
+.review-slide-card.bookmark-both {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+.review-slide-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
+    border-bottom: 1px solid var(--app-border);
+}
+.review-slide-info {
+    padding: 0.75rem 1rem;
+}
+.review-slide-number {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.review-agg {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+}
+.review-agg-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.bookmark-indicator {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+}
+.bookmark-indicator.auto {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+.bookmark-indicator.manual {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+.modal-slide-img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+.modal-agg-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.modal-agg-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+}
+.modal-agg-item .count {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+[data-theme="dark"] .review-slide-card {
+    background: var(--app-card-bg);
+}
+@media (max-width: 768px) {
+    .review-grid {
+        grid-template-columns: 1fr;
+    }
+    .summary-cards {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="review-header">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">대시보드</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('courses.view', course_id=course.id) }}">{{ course.title }}</a></li>
+            <li class="breadcrumb-item active">슬라이드 리뷰</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="bi bi-journal-text me-2 text-primary"></i>슬라이드 리뷰</h3>
+            <p class="text-muted mb-0">{{ deck.file_name }}</p>
+        </div>
+        <a href="{{ url_for('slides.presenter_view', deck_id=deck.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-easel me-1"></i>프레젠터로 돌아가기
+        </a>
+    </div>
+</div>
+
+{% set bookmark_count = bookmarks|length %}
+{% set most_problematic = namespace(index=0, score=0) %}
+{% for i in range(slides|length) %}
+    {% set agg = aggregates.get(i, {}) %}
+    {% set score = (agg.get('question', 0) + agg.get('hard', 0)) %}
+    {% if score > most_problematic.score %}
+        {% set most_problematic.score = score %}
+        {% set most_problematic.index = i %}
+    {% endif %}
+{% endfor %}
+
+<div class="summary-cards">
+    <div class="summary-card glass-card no-hover">
+        <div class="sc-value">{{ slides|length }}</div>
+        <div class="sc-label"><i class="bi bi-images me-1"></i>전체 슬라이드</div>
+    </div>
+    <div class="summary-card glass-card no-hover">
+        <div class="sc-value">{{ bookmark_count }}</div>
+        <div class="sc-label"><i class="bi bi-bookmark-fill me-1 text-danger"></i>북마크된 슬라이드</div>
+    </div>
+    <div class="summary-card glass-card no-hover">
+        <div class="sc-value">{{ most_problematic.index + 1 }}번</div>
+        <div class="sc-label"><i class="bi bi-exclamation-triangle me-1 text-warning"></i>가장 어려운 슬라이드</div>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <button class="filter-btn active" onclick="filterSlides('all', this)">전체</button>
+    <button class="filter-btn" onclick="filterSlides('bookmarked', this)">🔖 북마크된 슬라이드만</button>
+</div>
+
+<div class="review-grid" id="reviewGrid">
+    {% for url in slides %}
+    {% set idx = loop.index0 %}
+    {% set agg = aggregates.get(idx, {'understood': 0, 'question': 0, 'hard': 0}) %}
+    {% set bm = bookmarks.get(idx) %}
+    <div class="review-slide-card {% if bm %}{% if bm.is_auto and bm.is_manual %}bookmark-both{% elif bm.is_auto %}bookmark-auto{% elif bm.is_manual %}bookmark-manual{% endif %}{% endif %}"
+         data-index="{{ idx }}" data-bookmarked="{{ 'true' if bm else 'false' }}"
+         onclick="openSlideModal({{ idx }})">
+        <img src="{{ url }}" class="review-slide-thumb" alt="슬라이드 {{ loop.index }}">
+        <div class="review-slide-info">
+            <div class="review-slide-number">
+                <span>슬라이드 {{ loop.index }}</span>
+                {% if bm %}
+                    {% if bm.is_auto %}
+                    <span class="bookmark-indicator auto"><i class="bi bi-flag-fill"></i> 자동</span>
+                    {% endif %}
+                    {% if bm.is_manual %}
+                    <span class="bookmark-indicator manual"><i class="bi bi-bookmark-fill"></i> 수동</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="review-agg">
+                <span class="review-agg-item"><span>👍</span><strong>{{ agg.understood }}</strong></span>
+                <span class="review-agg-item"><span>❓</span><strong>{{ agg.question }}</strong></span>
+                <span class="review-agg-item"><span>😵</span><strong>{{ agg.hard }}</strong></span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="slideModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: 1px solid var(--app-border); background: var(--app-card-bg);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">슬라이드</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <img src="" class="modal-slide-img" id="modalSlideImage" alt="슬라이드">
+                <div class="modal-agg-row" id="modalAggRow">
+                    <div class="modal-agg-item">
+                        <span>👍 잘 이해돼요</span>
+                        <span class="count" id="modalUnderstood" style="color: #22c55e;">0</span>
+                    </div>
+                    <div class="modal-agg-item">
+                        <span>❓ 궁금한 부분이 있어요</span>
+                        <span class="count" id="modalQuestion" style="color: #f59e0b;">0</span>
+                    </div>
+                    <div class="modal-agg-item">
+                        <span>😵 어려워요</span>
+                        <span class="count" id="modalHard" style="color: #ef4444;">0</span>
+                    </div>
+                </div>
+                <hr style="border-color: var(--app-border);">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">📝 메모</label>
+                    <textarea class="form-control" id="modalMemo" rows="3" placeholder="이 슬라이드에 대한 메모를 작성하세요..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">🔗 보충 자료 URL</label>
+                    <input type="url" class="form-control" id="modalSupplementUrl" placeholder="https://...">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-primary" onclick="saveMemo()">
+                    <i class="bi bi-check-lg me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const deckId = {{ deck.id }};
+const slides = {{ slides|tojson }};
+const aggregates = {{ aggregates|tojson }};
+const bookmarksData = {};
+{% for idx, bm in bookmarks.items() %}
+bookmarksData[{{ idx }}] = {
+    memo: {{ (bm.memo or '')|tojson }},
+    supplement_url: {{ (bm.supplement_url or '')|tojson }},
+    is_auto: {{ 'true' if bm.is_auto else 'false' }},
+    is_manual: {{ 'true' if bm.is_manual else 'false' }}
+};
+{% endfor %}
+
+let currentModalIndex = null;
+
+function filterSlides(type, btnEl) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+
+    document.querySelectorAll('.review-slide-card').forEach(card => {
+        if (type === 'all') {
+            card.style.display = '';
+        } else {
+            card.style.display = card.dataset.bookmarked === 'true' ? '' : 'none';
+        }
+    });
+}
+
+function openSlideModal(index) {
+    currentModalIndex = index;
+    const agg = aggregates[index] || { understood: 0, question: 0, hard: 0 };
+    const bm = bookmarksData[index] || {};
+
+    document.getElementById('modalTitle').textContent = '슬라이드 ' + (index + 1);
+    document.getElementById('modalSlideImage').src = slides[index];
+    document.getElementById('modalUnderstood').textContent = agg.understood || 0;
+    document.getElementById('modalQuestion').textContent = agg.question || 0;
+    document.getElementById('modalHard').textContent = agg.hard || 0;
+    document.getElementById('modalMemo').value = bm.memo || '';
+    document.getElementById('modalSupplementUrl').value = bm.supplement_url || '';
+
+    const modal = new bootstrap.Modal(document.getElementById('slideModal'));
+    modal.show();
+}
+
+function saveMemo() {
+    const memo = document.getElementById('modalMemo').value;
+    const supplementUrl = document.getElementById('modalSupplementUrl').value;
+
+    fetch('/slides/review/' + deckId + '/save-memo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            slide_index: currentModalIndex,
+            memo: memo,
+            supplement_url: supplementUrl
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (!bookmarksData[currentModalIndex]) {
+                bookmarksData[currentModalIndex] = {};
+            }
+            bookmarksData[currentModalIndex].memo = memo;
+            bookmarksData[currentModalIndex].supplement_url = supplementUrl;
+
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification toast-success';
+            toast.innerHTML = '<div class="toast-icon"><i class="bi bi-check-circle-fill"></i></div><div class="toast-content"><div class="toast-title">완료</div><div class="toast-message">메모가 저장되었습니다.</div></div><button type="button" class="toast-close" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>';
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+
+            bootstrap.Modal.getInstance(document.getElementById('slideModal')).hide();
+        }
+    })
+    .catch(err => {
+        console.error('저장 실패:', err);
+    });
+}
+</script>
+{% endblock %}

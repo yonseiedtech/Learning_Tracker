@@ -36,6 +36,23 @@
     </div>
 </div>
 
+{% if active_deck %}
+<div class="glass-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <i class="bi bi-easel fs-4 text-info"></i>
+            <div>
+                <h6 class="fw-bold mb-0">PPT 슬라이드 방송</h6>
+                <small class="text-muted">{{ active_deck.file_name }} ({{ active_deck.slide_count }}슬라이드)</small>
+            </div>
+        </div>
+        <a href="{{ url_for('slides.viewer_view', deck_id=active_deck.id) }}" class="btn btn-info rounded-pill" target="_blank">
+            <i class="bi bi-play-circle me-1"></i>슬라이드 뷰어 열기
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="glass-card p-4">

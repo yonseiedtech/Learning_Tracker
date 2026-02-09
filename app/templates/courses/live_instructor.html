@@ -54,6 +54,83 @@
     </div>
 </div>
 
+<div class="glass-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-easel me-2 text-info"></i>PPT 슬라이드 방송</h5>
+        <div class="d-flex gap-2">
+            {% if active_deck %}
+            <a href="{{ url_for('slides.presenter_view', deck_id=active_deck.id) }}" class="btn btn-primary btn-sm rounded-pill" target="_blank">
+                <i class="bi bi-play-circle me-1"></i>프레젠터 모드 열기
+            </a>
+            <a href="{{ url_for('slides.review_view', deck_id=active_deck.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" target="_blank">
+                <i class="bi bi-journal-text me-1"></i>리뷰 페이지
+            </a>
+            {% endif %}
+            <button class="btn btn-outline-info btn-sm rounded-pill" data-bs-toggle="collapse" data-bs-target="#pptUploadSection">
+                <i class="bi bi-upload me-1"></i>PPT 업로드
+            </button>
+        </div>
+    </div>
+    
+    <div class="collapse {% if not active_deck %}show{% endif %}" id="pptUploadSection">
+        <div class="p-3 rounded-3 mb-3" style="background: rgba(13, 27, 62, 0.05);">
+            <form id="pptUploadForm" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="flex-grow-1">
+                        <input type="file" class="form-control" id="pptxFile" name="pptx_file" accept=".pptx,.ppt">
+                        <div class="form-text">PPT/PPTX 파일을 업로드하면 슬라이드 이미지로 변환됩니다.</div>
+                    </div>
+                    <button type="submit" class="btn btn-info rounded-pill" id="pptUploadBtn">
+                        <i class="bi bi-cloud-upload me-1"></i>변환 시작
+                    </button>
+                </div>
+            </form>
+            <div class="progress mt-2 d-none" id="pptConvertProgress" style="height: 6px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+    
+    {% if active_deck %}
+    <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: rgba(59, 130, 246, 0.08);">
+        <i class="bi bi-file-earmark-slides fs-4 text-info"></i>
+        <div class="flex-grow-1">
+            <strong>{{ active_deck.file_name }}</strong>
+            <br><small class="text-muted">{{ active_deck.slide_count }}개 슬라이드 | 현재: {{ active_deck.current_slide_index + 1 }}번 슬라이드</small>
+        </div>
+        <span class="badge bg-success">변환 완료</span>
+    </div>
+    {% endif %}
+    
+    {% if slide_decks %}
+    <div class="mt-3">
+        <small class="text-muted">업로드된 슬라이드 덱 목록:</small>
+        <div class="list-group list-group-flush mt-1">
+            {% for deck in slide_decks %}
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent">
+                <div>
+                    <i class="bi bi-file-earmark-slides text-info me-2"></i>
+                    {{ deck.file_name }} <small class="text-muted">({{ deck.slide_count }}슬라이드)</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('slides.presenter_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="bi bi-play-circle"></i>
+                    </a>
+                    <a href="{{ url_for('slides.review_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="bi bi-journal-text"></i>
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDeck({{ deck.id }})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="glass-card p-4 mb-4">
@@ -968,6 +1045,65 @@ document.getElementById('chatMessages').scrollTop = document.getElementById('cha
 function togglePostForm() {
     const container = document.getElementById('postFormContainer');
     container.classList.toggle('d-none');
+}
+
+const pptForm = document.getElementById('pptUploadForm');
+if (pptForm) {
+    pptForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('pptxFile');
+        if (!fileInput.files.length) {
+            showToast('PPT 파일을 선택해주세요.', 'warning');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('pptx_file', fileInput.files[0]);
+        formData.append('csrf_token', '{{ csrf_token() }}');
+        
+        document.getElementById('pptUploadBtn').disabled = true;
+        document.getElementById('pptUploadBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>변환 중...';
+        document.getElementById('pptConvertProgress').classList.remove('d-none');
+        
+        fetch('/slides/upload/{{ course.id }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.error || '변환 실패', 'danger');
+                document.getElementById('pptUploadBtn').disabled = false;
+                document.getElementById('pptUploadBtn').innerHTML = '<i class="bi bi-cloud-upload me-1"></i>변환 시작';
+                document.getElementById('pptConvertProgress').classList.add('d-none');
+            }
+        })
+        .catch(err => {
+            showToast('업로드 중 오류가 발생했습니다.', 'danger');
+            document.getElementById('pptUploadBtn').disabled = false;
+            document.getElementById('pptUploadBtn').innerHTML = '<i class="bi bi-cloud-upload me-1"></i>변환 시작';
+            document.getElementById('pptConvertProgress').classList.add('d-none');
+        });
+    });
+}
+
+function deleteDeck(deckId) {
+    if (!confirm('이 슬라이드 덱을 삭제하시겠습니까?')) return;
+    fetch('/slides/delete/' + deckId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('슬라이드 덱이 삭제되었습니다.', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || '삭제 실패', 'danger');
+        }
+    });
 }
 </script>
 {% endblock %}
