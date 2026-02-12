@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user
 from app import db
-from app.models import Course, Enrollment, ActiveSession, SlideDeck, SlideReaction, SlideBookmark, SubjectMember
+from app.models import Course, Enrollment, ActiveSession, SlideDeck, SlideReaction, SlideBookmark, SubjectMember, Checkpoint
 from app.services.slide_converter import convert_file_to_images, delete_deck_images, SLIDES_BASE_DIR, ensure_slides_dir, ALLOWED_EXTENSIONS
 from datetime import datetime
+import traceback
 import tempfile
 import os
 
@@ -280,4 +281,89 @@ def get_course_decks(course_id):
             'current_slide_index': d.current_slide_index,
             'created_at': d.created_at.strftime('%Y-%m-%d %H:%M')
         } for d in decks]
+    })
+
+
+@bp.route('/<int:deck_id>/ai-generate-checkpoints', methods=['POST'])
+@login_required
+def ai_generate_from_deck(deck_id):
+    deck = SlideDeck.query.get_or_404(deck_id)
+    course = Course.query.get(deck.course_id)
+    if not has_course_access(course, current_user):
+        return jsonify({'error': '권한이 없습니다.'}), 403
+
+    if deck.conversion_status != 'completed' or deck.slide_count == 0:
+        return jsonify({'error': '슬라이드 변환이 완료되지 않았습니다.'}), 400
+
+    try:
+        from app.services.ai_checkpoint import CheckpointGenerator
+
+        deck_dir = os.path.join(SLIDES_BASE_DIR, str(deck_id))
+        if not os.path.exists(deck_dir):
+            return jsonify({'error': '슬라이드 이미지를 찾을 수 없습니다.'}), 404
+
+        image_paths = []
+        for i in range(deck.slide_count):
+            img_path = os.path.join(deck_dir, f'{i}.png')
+            if os.path.exists(img_path):
+                image_paths.append(img_path)
+
+        if not image_paths:
+            return jsonify({'error': '슬라이드 이미지 파일이 없습니다.'}), 404
+
+        MAX_SLIDES_FOR_AI = 50
+        if len(image_paths) > MAX_SLIDES_FOR_AI:
+            step = len(image_paths) / MAX_SLIDES_FOR_AI
+            sampled = [image_paths[int(i * step)] for i in range(MAX_SLIDES_FOR_AI)]
+            image_paths = sampled
+
+        checkpoints = CheckpointGenerator.generate_checkpoints_from_slide_images(image_paths)
+
+        return jsonify({
+            'success': True,
+            'checkpoints': checkpoints,
+            'deck_name': deck.file_name,
+            'slide_count': deck.slide_count
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': f'AI 분석 중 오류가 발생했습니다: {str(e)}'}), 500
+
+
+@bp.route('/<int:deck_id>/ai-save-checkpoints', methods=['POST'])
+@login_required
+def ai_save_checkpoints(deck_id):
+    deck = SlideDeck.query.get_or_404(deck_id)
+    course = Course.query.get(deck.course_id)
+    if not has_course_access(course, current_user):
+        return jsonify({'error': '권한이 없습니다.'}), 403
+
+    data = request.get_json()
+    checkpoints_data = data.get('checkpoints', [])
+
+    if not checkpoints_data:
+        return jsonify({'error': '체크포인트가 없습니다.'}), 400
+
+    max_order = db.session.query(db.func.max(Checkpoint.order)).filter_by(course_id=course.id).scalar() or 0
+
+    created_count = 0
+    for cp_data in checkpoints_data:
+        max_order += 1
+        checkpoint = Checkpoint(
+            course_id=course.id,
+            title=cp_data.get('title', ''),
+            description=cp_data.get('description', ''),
+            estimated_minutes=cp_data.get('estimated_minutes', 5),
+            order=max_order
+        )
+        db.session.add(checkpoint)
+        created_count += 1
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'created_count': created_count,
+        'redirect_url': url_for('courses.view', course_id=course.id)
     })

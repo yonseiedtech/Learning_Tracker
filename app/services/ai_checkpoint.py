@@ -261,6 +261,63 @@ class CheckpointGenerator:
         return checkpoints, transcript
 
     @staticmethod
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        retry=retry_if_exception(is_rate_limit_error),
+        reraise=True
+    )
+    def analyze_slide_images(image_paths: List[str]) -> dict:
+        contents = [
+            """이 프레젠테이션 슬라이드 이미지들을 순서대로 분석하여 다음 정보를 JSON 형식으로 반환해주세요:
+{
+    "title": "강의 제목 (슬라이드 내용에서 추론)",
+    "summary": "전체 내용 요약 (200자 이내)",
+    "slides_content": "각 슬라이드의 주요 내용을 순서대로 설명",
+    "key_topics": ["주요 주제1", "주요 주제2", ...]
+}
+
+각 슬라이드의 텍스트, 다이어그램, 이미지 내용을 최대한 상세히 분석해주세요."""
+        ]
+
+        for img_path in image_paths:
+            with open(img_path, 'rb') as f:
+                img_data = f.read()
+            contents.append(
+                types.Part(
+                    inline_data=types.Blob(
+                        mime_type="image/png",
+                        data=img_data
+                    )
+                )
+            )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+
+        result_text = response.text or "{}"
+        try:
+            return json.loads(result_text)
+        except json.JSONDecodeError:
+            return {"summary": result_text, "title": "", "key_topics": []}
+
+    @staticmethod
+    def generate_checkpoints_from_slide_images(image_paths: List[str]) -> List[dict]:
+        analysis = CheckpointGenerator.analyze_slide_images(image_paths)
+        content = f"""
+강의 제목: {analysis.get('title', '')}
+요약: {analysis.get('summary', '')}
+슬라이드 내용: {analysis.get('slides_content', '')}
+주요 주제: {', '.join(analysis.get('key_topics', []))}
+"""
+        return CheckpointGenerator.generate_from_text(content)
+
+    @staticmethod
     def transcribe_audio(buffer: bytes, mime_type: str = "audio/mpeg") -> str:
         analysis = CheckpointGenerator.analyze_media(buffer, mime_type)
         return analysis.get('transcript', '')

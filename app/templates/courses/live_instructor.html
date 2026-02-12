@@ -261,6 +261,9 @@
                     {{ deck.file_name }} <small class="text-muted">({{ deck.slide_count }}슬라이드)</small>
                 </div>
                 <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-success" onclick="aiGenerateCheckpoints({{ deck.id }}, '{{ deck.file_name }}')" title="AI 체크포인트 생성">
+                        <i class="bi bi-robot"></i>
+                    </button>
                     <a href="{{ url_for('slides.presenter_view', deck_id=deck.id) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="전체화면 프레젠터">
                         <i class="bi bi-arrows-fullscreen"></i>
                     </a>
@@ -778,6 +781,64 @@
     text-decoration: line-through;
 }
 </style>
+
+
+<div class="modal fade" id="aiCheckpointModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0d1b3e, #1a3a5c); color: #fff; border: none;">
+                <h5 class="modal-title"><i class="bi bi-robot me-2"></i>AI 체크포인트 생성</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="aiCpLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">분석 중...</span>
+                    </div>
+                    <h5 class="fw-bold mb-2">슬라이드를 분석하고 있습니다...</h5>
+                    <p class="text-muted mb-3">AI가 슬라이드 내용을 읽고 체크포인트를 생성합니다</p>
+                    <div class="progress mx-auto" style="width: 60%; height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="aiCpProgressBar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6);"></div>
+                    </div>
+                    <p class="small text-muted mt-2" id="aiCpProgressText">슬라이드 이미지 분석 중...</p>
+                </div>
+                <div id="aiCpError" class="d-none text-center py-4">
+                    <i class="bi bi-exclamation-triangle fs-1 text-danger mb-3 d-block"></i>
+                    <h5 class="fw-bold mb-2">오류가 발생했습니다</h5>
+                    <p class="text-muted" id="aiCpErrorMsg"></p>
+                    <button class="btn btn-outline-primary mt-2" onclick="retryAiGenerate()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>다시 시도
+                    </button>
+                </div>
+                <div id="aiCpResult" class="d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="badge bg-primary" id="aiCpCount">0개 생성됨</span>
+                            <span class="badge bg-secondary ms-1" id="aiCpDeckName"></span>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="aiCpSelectAll()">
+                                <i class="bi bi-check-all me-1"></i>전체 선택
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="aiCpDeselectAll()">
+                                <i class="bi bi-x-lg me-1"></i>전체 해제
+                            </button>
+                        </div>
+                    </div>
+                    <div id="aiCpContainer" style="max-height: 400px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            <div class="modal-footer d-none" id="aiCpFooter">
+                <button class="btn btn-outline-secondary" onclick="retryAiGenerate()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>다시 생성
+                </button>
+                <button class="btn btn-success" id="aiCpSaveBtn" onclick="saveAiCheckpoints()">
+                    <i class="bi bi-save me-2"></i>선택한 체크포인트 저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -1868,5 +1929,178 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
 });
 {% endif %}
+
+let aiCurrentDeckId = null;
+let aiGeneratedCheckpoints = [];
+
+function aiGenerateCheckpoints(deckId, deckName) {
+    aiCurrentDeckId = deckId;
+    aiGeneratedCheckpoints = [];
+
+    document.getElementById('aiCpLoading').classList.remove('d-none');
+    document.getElementById('aiCpError').classList.add('d-none');
+    document.getElementById('aiCpResult').classList.add('d-none');
+    document.getElementById('aiCpFooter').classList.add('d-none');
+    document.getElementById('aiCpProgressBar').style.width = '0%';
+
+    const modal = new bootstrap.Modal(document.getElementById('aiCheckpointModal'));
+    modal.show();
+
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress = Math.min(progress + Math.random() * 8, 90);
+        document.getElementById('aiCpProgressBar').style.width = progress + '%';
+        if (progress > 30) document.getElementById('aiCpProgressText').textContent = 'AI가 내용을 분석하고 있습니다...';
+        if (progress > 60) document.getElementById('aiCpProgressText').textContent = '체크포인트를 생성하고 있습니다...';
+    }, 800);
+
+    fetch(`/slides/${deckId}/ai-generate-checkpoints`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        clearInterval(progressInterval);
+        document.getElementById('aiCpProgressBar').style.width = '100%';
+
+        if (data.success && data.checkpoints && data.checkpoints.length > 0) {
+            aiGeneratedCheckpoints = data.checkpoints;
+            document.getElementById('aiCpLoading').classList.add('d-none');
+            document.getElementById('aiCpResult').classList.remove('d-none');
+            document.getElementById('aiCpFooter').classList.remove('d-none');
+            document.getElementById('aiCpCount').textContent = data.checkpoints.length + '개 생성됨';
+            document.getElementById('aiCpDeckName').textContent = data.deck_name || deckName;
+            renderAiCheckpoints();
+        } else {
+            document.getElementById('aiCpLoading').classList.add('d-none');
+            document.getElementById('aiCpError').classList.remove('d-none');
+            document.getElementById('aiCpErrorMsg').textContent = data.error || '체크포인트를 생성하지 못했습니다.';
+        }
+    })
+    .catch(err => {
+        clearInterval(progressInterval);
+        document.getElementById('aiCpLoading').classList.add('d-none');
+        document.getElementById('aiCpError').classList.remove('d-none');
+        document.getElementById('aiCpErrorMsg').textContent = '네트워크 오류: ' + err.message;
+    });
+}
+
+function retryAiGenerate() {
+    if (aiCurrentDeckId) {
+        aiGenerateCheckpoints(aiCurrentDeckId, '');
+    }
+}
+
+function renderAiCheckpoints() {
+    const container = document.getElementById('aiCpContainer');
+    container.innerHTML = aiGeneratedCheckpoints.map((cp, i) => `
+        <div class="ai-cp-item selected" data-index="${i}" onclick="toggleAiCp(this)" style="background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s;">
+            <div class="d-flex align-items-start">
+                <div class="form-check me-3">
+                    <input class="form-check-input" type="checkbox" checked>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge bg-primary">${cp.order || i + 1}</span>
+                        <input type="text" class="form-control form-control-sm border-0 fw-bold p-0"
+                               value="${(cp.title || '').replace(/"/g, '&quot;')}"
+                               onchange="aiGeneratedCheckpoints[${i}].title = this.value"
+                               onclick="event.stopPropagation()"
+                               style="background: transparent;">
+                    </div>
+                    <textarea class="form-control form-control-sm border-0 text-muted p-0" rows="2"
+                              onchange="aiGeneratedCheckpoints[${i}].description = this.value"
+                              onclick="event.stopPropagation()"
+                              style="background: transparent; resize: none;">${cp.description || ''}</textarea>
+                    <div class="d-flex align-items-center mt-2">
+                        <i class="bi bi-clock text-primary me-1"></i>
+                        <input type="number" class="form-control form-control-sm border-0 p-0"
+                               value="${cp.estimated_minutes || 5}" min="1" max="60"
+                               onchange="aiGeneratedCheckpoints[${i}].estimated_minutes = parseInt(this.value)"
+                               onclick="event.stopPropagation()"
+                               style="width: 40px; background: transparent;">
+                        <span class="text-muted small">분</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleAiCp(el) {
+    const cb = el.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    el.classList.toggle('selected', cb.checked);
+    if (cb.checked) {
+        el.style.borderColor = 'var(--primary-color)';
+        el.style.background = 'rgba(13, 27, 62, 0.05)';
+    } else {
+        el.style.borderColor = 'rgba(0,0,0,0.08)';
+        el.style.background = 'rgba(255,255,255,0.7)';
+    }
+}
+
+function aiCpSelectAll() {
+    document.querySelectorAll('.ai-cp-item').forEach(el => {
+        el.classList.add('selected');
+        el.querySelector('input[type="checkbox"]').checked = true;
+        el.style.borderColor = 'var(--primary-color)';
+        el.style.background = 'rgba(13, 27, 62, 0.05)';
+    });
+}
+
+function aiCpDeselectAll() {
+    document.querySelectorAll('.ai-cp-item').forEach(el => {
+        el.classList.remove('selected');
+        el.querySelector('input[type="checkbox"]').checked = false;
+        el.style.borderColor = 'rgba(0,0,0,0.08)';
+        el.style.background = 'rgba(255,255,255,0.7)';
+    });
+}
+
+function saveAiCheckpoints() {
+    const selected = [];
+    document.querySelectorAll('.ai-cp-item').forEach((el, i) => {
+        if (el.querySelector('input[type="checkbox"]').checked) {
+            selected.push(aiGeneratedCheckpoints[i]);
+        }
+    });
+
+    if (selected.length === 0) {
+        showToast('저장할 체크포인트를 선택해주세요.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('aiCpSaveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>저장 중...';
+
+    fetch(`/slides/${aiCurrentDeckId}/ai-save-checkpoints`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ checkpoints: selected })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save me-2"></i>선택한 체크포인트 저장';
+
+        if (data.success) {
+            showToast(data.created_count + '개의 체크포인트가 저장되었습니다!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('aiCheckpointModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('오류: ' + (data.error || '알 수 없는 오류'), 'danger');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save me-2"></i>선택한 체크포인트 저장';
+        showToast('저장 중 오류가 발생했습니다: ' + err.message, 'danger');
+    });
+}
 </script>
 {% endblock %}
