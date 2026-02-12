@@ -162,9 +162,17 @@
                 {% endfor %}
             </div>
             <div class="flex-grow-1 d-flex flex-column min-width-0">
-                <div class="inline-slide-main">
+                <div class="inline-slide-main" style="position: relative;">
                     <img src="{{ active_slides[0] if active_slides else '' }}" id="inlineSlideImage" alt="현재 슬라이드">
+                    <img src="" alt="화면 공유" id="inlineScreenSharePreview" style="display:none; width:100%; height:100%; object-fit:contain;">
+                    <div class="d-none" id="inlinePipContainer" style="position:absolute;bottom:8px;right:8px;width:140px;border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.25);border:2px solid rgba(255,255,255,0.2);z-index:10;background:#000;cursor:move;">
+                        <span style="position:absolute;top:3px;left:3px;background:rgba(0,0,0,0.7);color:#fff;font-size:0.55rem;padding:1px 5px;border-radius:3px;">슬라이드</span>
+                        <button onclick="toggleInlinePip()" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.7);color:#fff;font-size:0.6rem;width:16px;height:16px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+                        <img src="{{ active_slides[0] if active_slides else '' }}" alt="PiP" id="inlinePipImage" style="width:100%;display:block;">
+                    </div>
                 </div>
+                <video id="inlineScreenShareVideo" style="display:none;" autoplay muted></video>
+                <canvas id="inlineScreenShareCanvas" style="display:none;"></canvas>
                 <div class="slide-jumpbar mt-1" id="slideJumpBar">
                     {% for url in active_slides %}
                     <div class="jumpbar-segment {% if loop.index0 == 0 %}active{% endif %}" data-index="{{ loop.index0 }}" onclick="goToSlide({{ loop.index0 }})" title="슬라이드 {{ loop.index }}">
@@ -226,6 +234,15 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
+                        <div class="position-relative">
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill" id="inlineScreenShareBtn" onclick="toggleScreenShare()">
+                                <i class="bi bi-display" id="inlineScreenShareIcon"></i>
+                                <span class="d-none d-md-inline" id="inlineScreenShareText">화면 공유</span>
+                            </button>
+                        </div>
+                        <span class="share-indicator d-none" id="inlineShareIndicator" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.15rem 0.5rem;border-radius:12px;background:rgba(239,68,68,0.1);color:#ef4444;font-size:0.7rem;font-weight:600;">
+                            <span style="width:6px;height:6px;border-radius:50%;background:#ef4444;animation:dotBlink 1.2s infinite;"></span>공유 중
+                        </span>
                         <button class="btn btn-sm btn-outline-secondary rounded-pill" id="bookmarkToggle" onclick="toggleBookmark()">
                             <i class="bi bi-bookmark" id="bookmarkIcon"></i>
                         </button>
@@ -653,6 +670,7 @@
     background: rgba(34,197,94,0.12) !important; border: 1px solid rgba(34,197,94,0.4) !important; color: #166534;
 }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dotBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 .lecture-timer-bar .time-over { color: #ef4444 !important; animation: pulse 1.5s infinite; }
 @media (max-width: 768px) {
     #inlinePresenter > .d-flex:last-child { flex-direction: column; height: auto !important; }
@@ -1928,6 +1946,136 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
     if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
 });
+
+let isInlineSharing = false;
+let inlineScreenStream = null;
+let inlineCaptureInterval = null;
+let inlinePipVisible = true;
+
+async function toggleScreenShare() {
+    if (isInlineSharing) {
+        stopInlineScreenShare();
+    } else {
+        await startInlineScreenShare();
+    }
+}
+
+async function startInlineScreenShare() {
+    try {
+        inlineScreenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { cursor: 'always' },
+            audio: false
+        });
+
+        var video = document.getElementById('inlineScreenShareVideo');
+        video.srcObject = inlineScreenStream;
+
+        inlineScreenStream.getVideoTracks()[0].onended = function() {
+            stopInlineScreenShare();
+        };
+
+        isInlineSharing = true;
+        updateInlineShareUI(true);
+        socket.emit('start_screen_share', { deck_id: deckId });
+        startInlineFrameCapture();
+    } catch (err) {
+        if (err.name !== 'NotAllowedError') {
+            console.error('화면 공유 오류:', err);
+        }
+    }
+}
+
+function stopInlineScreenShare() {
+    if (inlineScreenStream) {
+        inlineScreenStream.getTracks().forEach(function(t) { t.stop(); });
+        inlineScreenStream = null;
+    }
+    if (inlineCaptureInterval) {
+        clearInterval(inlineCaptureInterval);
+        inlineCaptureInterval = null;
+    }
+    isInlineSharing = false;
+    updateInlineShareUI(false);
+    socket.emit('stop_screen_share', { deck_id: deckId });
+
+    document.getElementById('inlineSlideImage').style.display = '';
+    document.getElementById('inlineScreenSharePreview').style.display = 'none';
+    document.getElementById('inlinePipContainer').classList.add('d-none');
+}
+
+function updateInlineShareUI(sharing) {
+    var btn = document.getElementById('inlineScreenShareBtn');
+    var icon = document.getElementById('inlineScreenShareIcon');
+    var text = document.getElementById('inlineScreenShareText');
+    var indicator = document.getElementById('inlineShareIndicator');
+
+    if (sharing) {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-danger');
+        icon.className = 'bi bi-display-fill';
+        if (text) text.textContent = '중지';
+        indicator.classList.remove('d-none');
+        document.getElementById('inlineSlideImage').style.display = 'none';
+        document.getElementById('inlineScreenSharePreview').style.display = '';
+        document.getElementById('inlinePipContainer').classList.remove('d-none');
+        document.getElementById('inlinePipImage').src = slideUrls[currentSlideIndex];
+    } else {
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-outline-secondary');
+        icon.className = 'bi bi-display';
+        if (text) text.textContent = '화면 공유';
+        indicator.classList.add('d-none');
+    }
+}
+
+function startInlineFrameCapture() {
+    if (inlineCaptureInterval) clearInterval(inlineCaptureInterval);
+    inlineCaptureInterval = setInterval(function() {
+        captureInlineFrame();
+    }, 333);
+}
+
+function captureInlineFrame() {
+    var video = document.getElementById('inlineScreenShareVideo');
+    var canvas = document.getElementById('inlineScreenShareCanvas');
+    if (!video || !canvas || video.readyState < 2) return;
+
+    var w = video.videoWidth;
+    var h = video.videoHeight;
+    var maxW = 1280, maxH = 720;
+
+    if (w > maxW || h > maxH) {
+        var scale = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+    }
+
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+
+    var dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+    document.getElementById('inlineScreenSharePreview').src = dataUrl;
+
+    socket.emit('screen_share_frame', {
+        deck_id: deckId,
+        frame: dataUrl
+    });
+}
+
+function toggleInlinePip() {
+    inlinePipVisible = !inlinePipVisible;
+    document.getElementById('inlinePipContainer').classList.toggle('d-none', !inlinePipVisible || !isInlineSharing);
+}
+
+var origGoToSlideInline = goToSlide;
+goToSlide = function(index) {
+    origGoToSlideInline(index);
+    if (isInlineSharing) {
+        document.getElementById('inlinePipImage').src = slideUrls[currentSlideIndex];
+    }
+};
 {% endif %}
 
 let aiCurrentDeckId = null;

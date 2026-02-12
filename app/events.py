@@ -4,6 +4,8 @@ from app import socketio, db
 from app.models import Progress, Course, Checkpoint, Enrollment, ActiveSession, ChatMessage, UnderstandingStatus, SlideDeck, SlideReaction, SlideBookmark
 from datetime import datetime
 
+screen_share_state = {}
+
 def user_has_course_access(user, course):
     if not course:
         return False
@@ -15,6 +17,19 @@ def user_has_course_access(user, course):
 def handle_connect():
     if current_user.is_authenticated:
         emit('connected', {'user_id': current_user.id, 'username': current_user.username})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    if not current_user.is_authenticated:
+        return
+    deck_ids_to_remove = []
+    for deck_id, state in screen_share_state.items():
+        if state.get('user_id') == current_user.id:
+            deck_ids_to_remove.append(deck_id)
+    for deck_id in deck_ids_to_remove:
+        screen_share_state.pop(deck_id, None)
+        room = f'slide_deck_{deck_id}'
+        emit('screen_share_stopped', {'deck_id': deck_id}, room=room)
 
 @socketio.on('join_course')
 def handle_join_course(data):
@@ -427,9 +442,12 @@ def handle_join_slide_session(data):
     room = f'slide_deck_{deck_id}'
     join_room(room)
     
+    share_active = screen_share_state.get(deck_id, {}).get('active', False)
+    
     emit('slide_session_state', {
         'current_slide_index': deck.current_slide_index,
-        'slide_count': deck.slide_count
+        'slide_count': deck.slide_count,
+        'screen_share_active': share_active
     })
 
 
@@ -647,3 +665,69 @@ def handle_toggle_slide_bookmark(data):
         'slide_index': slide_index,
         'is_bookmarked': is_bookmarked
     }, room=room)
+
+
+@socketio.on('start_screen_share')
+def handle_start_screen_share(data):
+    if not current_user.is_authenticated or not current_user.is_instructor():
+        return
+
+    deck_id = data.get('deck_id')
+    deck = SlideDeck.query.get(deck_id)
+    if not deck:
+        return
+
+    course = Course.query.get(deck.course_id)
+    if not course or course.instructor_id != current_user.id:
+        return
+
+    screen_share_state[deck_id] = {'active': True, 'user_id': current_user.id}
+
+    room = f'slide_deck_{deck_id}'
+    emit('screen_share_started', {
+        'deck_id': deck_id,
+        'instructor_name': current_user.nickname or current_user.username
+    }, room=room)
+
+
+@socketio.on('stop_screen_share')
+def handle_stop_screen_share(data):
+    if not current_user.is_authenticated or not current_user.is_instructor():
+        return
+
+    deck_id = data.get('deck_id')
+    deck = SlideDeck.query.get(deck_id)
+    if not deck:
+        return
+
+    course = Course.query.get(deck.course_id)
+    if not course or course.instructor_id != current_user.id:
+        return
+
+    screen_share_state.pop(deck_id, None)
+
+    room = f'slide_deck_{deck_id}'
+    emit('screen_share_stopped', {
+        'deck_id': deck_id
+    }, room=room)
+
+
+@socketio.on('screen_share_frame')
+def handle_screen_share_frame(data):
+    if not current_user.is_authenticated or not current_user.is_instructor():
+        return
+
+    deck_id = data.get('deck_id')
+    frame_data = data.get('frame')
+
+    if not deck_id or not frame_data:
+        return
+
+    state = screen_share_state.get(deck_id)
+    if not state or state.get('user_id') != current_user.id:
+        return
+
+    room = f'slide_deck_{deck_id}'
+    emit('screen_share_frame', {
+        'frame': frame_data
+    }, room=room, include_self=False)

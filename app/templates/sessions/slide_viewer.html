@@ -16,6 +16,7 @@
     overflow: hidden;
     margin-bottom: 1.5rem;
     box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    position: relative;
 }
 .viewer-slide-area img {
     width: 100%;
@@ -112,6 +113,93 @@
     background: rgba(59, 130, 246, 0.1);
     color: #3b82f6;
 }
+.share-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    animation: shareBadgePulse 2s infinite;
+}
+@keyframes shareBadgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+    50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+.share-badge .share-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #ef4444; animation: dotBlink 1.2s infinite;
+}
+@keyframes dotBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.screen-share-display {
+    display: none;
+    width: 100%;
+}
+.screen-share-display img {
+    width: 100%;
+    display: block;
+}
+.viewer-pip {
+    position: absolute;
+    bottom: 50px;
+    right: 8px;
+    width: 160px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    border: 2px solid rgba(255,255,255,0.2);
+    z-index: 10;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #000;
+}
+.viewer-pip:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: scale(1.05);
+}
+.viewer-pip img {
+    width: 100%;
+    display: block;
+}
+.viewer-pip .pip-label {
+    position: absolute;
+    top: 3px; left: 3px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+.share-toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1000;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    animation: toastSlideIn 0.4s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.share-toast.started {
+    background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(220,38,38,0.95));
+    color: #fff;
+}
+.share-toast.stopped {
+    background: linear-gradient(135deg, rgba(59,130,246,0.95), rgba(99,102,241,0.95));
+    color: #fff;
+}
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
 @media (max-width: 576px) {
     .reaction-buttons {
         flex-direction: column;
@@ -130,6 +218,7 @@
     .aggregate-display {
         gap: 1rem;
     }
+    .viewer-pip { width: 120px; }
 }
 </style>
 {% endblock %}
@@ -141,13 +230,25 @@
             <h5 class="fw-bold mb-1">{{ course.title }}</h5>
             <small class="text-muted">{{ deck.file_name }}</small>
         </div>
-        <span class="sync-badge">
-            <i class="bi bi-broadcast"></i> 실시간 동기화
-        </span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="share-badge d-none" id="shareBadge">
+                <span class="share-dot"></span>화면 공유 중
+            </span>
+            <span class="sync-badge" id="syncBadge">
+                <i class="bi bi-broadcast"></i> 실시간 동기화
+            </span>
+        </div>
     </div>
 
     <div class="viewer-slide-area glass-card no-hover p-0">
         <img src="{{ slides[0] if slides else '' }}" alt="현재 슬라이드" id="currentSlideImage">
+        <div class="screen-share-display" id="screenShareDisplay">
+            <img src="" alt="화면 공유" id="screenShareImage">
+        </div>
+        <div class="viewer-pip d-none" id="viewerPip" onclick="toggleViewerPipExpand()">
+            <span class="pip-label" id="pipLabel">슬라이드</span>
+            <img src="{{ slides[0] if slides else '' }}" alt="PiP" id="pipImage">
+        </div>
         <div class="slide-indicator" id="slideIndicator">
             슬라이드 1 / {{ slides|length }}
         </div>
@@ -198,6 +299,8 @@ const totalSlides = slides.length;
 let currentIndex = 0;
 let myReactions = {{ my_reactions|tojson }};
 let currentReaction = myReactions[0] || null;
+let isScreenSharing = false;
+let shareFrameTimeout = null;
 
 const socket = io();
 
@@ -207,12 +310,18 @@ socket.on('slide_session_state', function(data) {
     currentIndex = data.current_slide_index || 0;
     updateSlideDisplay();
     loadMyReaction();
+    if (data.screen_share_active) {
+        enterScreenShareMode();
+    }
 });
 
 socket.on('slide_changed', function(data) {
     currentIndex = data.slide_index;
     updateSlideDisplay();
     loadMyReaction();
+    if (isScreenSharing) {
+        document.getElementById('pipImage').src = slides[currentIndex];
+    }
 });
 
 socket.on('slide_aggregate_updated', function(data) {
@@ -221,10 +330,105 @@ socket.on('slide_aggregate_updated', function(data) {
     }
 });
 
+socket.on('screen_share_started', function(data) {
+    enterScreenShareMode();
+    showShareToast(true, data.instructor_name);
+});
+
+socket.on('screen_share_stopped', function(data) {
+    exitScreenShareMode();
+    showShareToast(false);
+});
+
+socket.on('screen_share_frame', function(data) {
+    if (!isScreenSharing) enterScreenShareMode();
+    document.getElementById('screenShareImage').src = data.frame;
+    resetShareFrameTimeout();
+});
+
+function enterScreenShareMode() {
+    isScreenSharing = true;
+    document.getElementById('currentSlideImage').style.display = 'none';
+    document.getElementById('screenShareDisplay').style.display = 'block';
+    document.getElementById('shareBadge').classList.remove('d-none');
+    document.getElementById('viewerPip').classList.remove('d-none');
+    document.getElementById('pipImage').src = slides[currentIndex];
+    document.getElementById('pipLabel').textContent = '슬라이드';
+    document.getElementById('slideIndicator').innerHTML =
+        '<i class="bi bi-display me-1"></i>강사 화면 공유 중 <span class="text-muted ms-2">슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides + '</span>';
+    resetShareFrameTimeout();
+}
+
+function resetShareFrameTimeout() {
+    if (shareFrameTimeout) clearTimeout(shareFrameTimeout);
+    shareFrameTimeout = setTimeout(function() {
+        if (isScreenSharing) {
+            exitScreenShareMode();
+        }
+    }, 8000);
+}
+
+function exitScreenShareMode() {
+    isScreenSharing = false;
+    if (shareFrameTimeout) { clearTimeout(shareFrameTimeout); shareFrameTimeout = null; }
+    document.getElementById('currentSlideImage').style.display = 'block';
+    document.getElementById('screenShareDisplay').style.display = 'none';
+    document.getElementById('shareBadge').classList.add('d-none');
+    document.getElementById('viewerPip').classList.add('d-none');
+    document.getElementById('currentSlideImage').src = slides[currentIndex];
+    document.getElementById('slideIndicator').textContent = '슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides;
+}
+
+function toggleViewerPipExpand() {
+    var slideImg = document.getElementById('currentSlideImage');
+    var shareDisplay = document.getElementById('screenShareDisplay');
+    var pipImg = document.getElementById('pipImage');
+    var pipLabel = document.getElementById('pipLabel');
+
+    if (pipLabel.textContent === '슬라이드') {
+        slideImg.style.display = 'block';
+        slideImg.src = slides[currentIndex];
+        shareDisplay.style.display = 'none';
+        pipImg.src = document.getElementById('screenShareImage').src;
+        pipLabel.textContent = '화면 공유';
+    } else {
+        slideImg.style.display = 'none';
+        shareDisplay.style.display = 'block';
+        pipImg.src = slides[currentIndex];
+        pipLabel.textContent = '슬라이드';
+    }
+}
+
+function showShareToast(started, instructorName) {
+    var existing = document.querySelector('.share-toast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.className = 'share-toast ' + (started ? 'started' : 'stopped');
+    if (started) {
+        toast.innerHTML = '<i class="bi bi-display-fill"></i>' +
+            (instructorName ? instructorName + ' 님이 ' : '') + '화면 공유를 시작했습니다';
+    } else {
+        toast.innerHTML = '<i class="bi bi-display"></i>화면 공유가 종료되었습니다';
+    }
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.4s';
+        setTimeout(function() { toast.remove(); }, 400);
+    }, 4000);
+}
+
 function updateSlideDisplay() {
     if (currentIndex >= 0 && currentIndex < totalSlides) {
-        document.getElementById('currentSlideImage').src = slides[currentIndex];
-        document.getElementById('slideIndicator').textContent = '슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides;
+        if (!isScreenSharing) {
+            document.getElementById('currentSlideImage').src = slides[currentIndex];
+            document.getElementById('slideIndicator').textContent = '슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides;
+        } else {
+            document.getElementById('pipImage').src = slides[currentIndex];
+            document.getElementById('slideIndicator').innerHTML =
+                '<i class="bi bi-display me-1"></i>강사 화면 공유 중 <span class="text-muted ms-2">슬라이드 ' + (currentIndex + 1) + ' / ' + totalSlides + '</span>';
+        }
     }
 }
 

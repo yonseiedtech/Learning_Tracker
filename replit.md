@@ -10,7 +10,7 @@
   - 세미나(Standalone Course): 과목에 속하지 않는 독립적인 1회성 강의
 - **라이브 세션 예약**: 즉시 시작 또는 특정 시간 예약 기능
 - **실시간 채팅 및 게시판**: 세션 중 실시간 소통 및 공지사항 관리
-- **PPT/PDF 실시간 슬라이드 방송**: PPTX/PDF 업로드→이미지 변환, 강사-학습자 슬라이드 동기화, 이해도 피드백(👍/❓/😵), 문제 슬라이드 자동 북마크, 강의 후 리뷰 페이지, 인라인 프레젠터/뷰어 통합
+- **PPT/PDF 실시간 슬라이드 방송**: PPTX/PDF 업로드→이미지 변환, 강사-학습자 슬라이드 동기화, 이해도 피드백(👍/❓/😵), 문제 슬라이드 자동 북마크, 강의 후 리뷰 페이지, 인라인 프레젠터/뷰어 통합, 실시간 화면 공유 (슬라이드 사이 전환 가능)
 - **실시간 Engagement Dashboard**: 반응 원형차트/막대 그래프 시각화, 추이 미니 라인차트, 해석 가이드, 임계값 기반 Smart Alert
 - **Smart Slide Navigator**: 슬라이드 점프 바(미니맵), 검색 기능, 키보드 네비게이션(화살표/PageUp/Down/Home/End)
 - **Lecture Progress & Time Manager**: 강의 타이머, 슬라이드별 소요 시간 추적, 예상 종료 시간 자동 계산, 시간 초과 알림
@@ -91,7 +91,8 @@ The application is built with a Flask factory pattern, using SQLAlchemy for ORM 
     - `SlideReaction` model: 슬라이드별 학습자 이해도 피드백 (understood/question/hard/none)
     - `SlideBookmark` model: 문제 슬라이드 자동/수동 북마크 (is_auto, is_manual, memo, supplement_url)
     - PPTX→PDF→PNG 변환 파이프라인 (LibreOffice headless + pdf2image)
-    - Socket.IO events: slide_changed, set_slide_reaction, slide_aggregate_updated, bookmark_updated
+    - Socket.IO events: slide_changed, set_slide_reaction, slide_aggregate_updated, bookmark_updated, start_screen_share, stop_screen_share, screen_share_frame
+    - 화면 공유: Canvas 프레임 캡처 → JPEG 압축 → Socket.IO 브로드캐스트, 품질 선택(저/중/고), PiP 슬라이드 미리보기, 학습자 알림 토스트
     - 프레젠터 뷰 (강사), 뷰어 (학습자), 리뷰 페이지
     - Routes: `/slides/` blueprint (upload, delete, presenter, viewer, review)
     - 파일 크기 제한: 50MB, 최대 슬라이드 수: 100장
