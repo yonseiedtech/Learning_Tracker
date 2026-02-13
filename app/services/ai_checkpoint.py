@@ -10,16 +10,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from google import genai
 from google.genai import types
 
-AI_INTEGRATIONS_GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
-AI_INTEGRATIONS_GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
-
-client = genai.Client(
-    api_key=AI_INTEGRATIONS_GEMINI_API_KEY,
-    http_options={
-        'api_version': '',
-        'base_url': AI_INTEGRATIONS_GEMINI_BASE_URL   
-    }
-)
+client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
 
 CHUNK_SIZE_BYTES = 8 * 1024 * 1024
 

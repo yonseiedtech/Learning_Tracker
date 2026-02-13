@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
-from flask_login import login_required, current_user
-from app import db
-from app.models import Course, Enrollment, ActiveSession, SlideDeck, SlideReaction, SlideBookmark, SubjectMember, Checkpoint
-from app.services.slide_converter import convert_file_to_images, delete_deck_images, SLIDES_BASE_DIR, ensure_slides_dir, ALLOWED_EXTENSIONS
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort
+from app.decorators import auth_required, get_current_user
+from app import firestore_dao as dao
+from app.services.slide_converter import convert_file_to_images, ALLOWED_EXTENSIONS
+from app.services.storage import get_slide_image_url, upload_slide_image, delete_slide_deck_images
 from datetime import datetime
 import traceback
 import tempfile
@@ -12,37 +12,48 @@ bp = Blueprint('slides', __name__, url_prefix='/slides')
 
 
 def has_course_access(course, user):
-    if course.instructor_id == user.id:
+    if course['instructor_id'] == user['uid']:
         return True
-    if course.subject_id:
-        member = SubjectMember.query.filter_by(subject_id=course.subject_id, user_id=user.id).first()
-        if member and member.role in ['instructor', 'assistant']:
+    if course.get('subject_id'):
+        member = dao.get_subject_member(course['subject_id'], user['uid'])
+        if member and member['role'] in ['instructor', 'assistant']:
             return True
     return False
 
 
-@bp.route('/<int:deck_id>/<path:filename>')
-@login_required
+@bp.route('/<deck_id>/<path:filename>')
+@auth_required
 def serve_slide_image(deck_id, filename):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
     if not course:
         abort(404)
-    is_enrolled = Enrollment.query.filter_by(course_id=course.id, user_id=current_user.id).first()
-    is_instructor = has_course_access(course, current_user)
-    if not is_enrolled and not is_instructor:
+    user = get_current_user()
+    enrolled = dao.is_enrolled(user['uid'], course['id'])
+    is_instructor = has_course_access(course, user)
+    if not enrolled and not is_instructor:
         abort(403)
-    deck_dir = os.path.join(SLIDES_BASE_DIR, str(deck_id))
-    if not os.path.exists(deck_dir):
+    # Extract slide index from filename (e.g., "3.png" -> 3)
+    try:
+        slide_index = int(os.path.splitext(filename)[0])
+    except (ValueError, IndexError):
         abort(404)
-    return send_from_directory(deck_dir, filename)
+    signed_url = get_slide_image_url(deck_id, slide_index)
+    if not signed_url:
+        abort(404)
+    return redirect(signed_url)
 
 
-@bp.route('/upload/<int:course_id>', methods=['POST'])
-@login_required
+@bp.route('/upload/<course_id>', methods=['POST'])
+@auth_required
 def upload_pptx(course_id):
-    course = Course.query.get_or_404(course_id)
-    if not has_course_access(course, current_user):
+    course = dao.get_course(course_id)
+    if not course:
+        abort(404)
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
     file = request.files.get('pptx_file') or request.files.get('slide_file')
@@ -60,79 +71,96 @@ def upload_pptx(course_id):
     if file_size > max_size:
         return jsonify({'error': f'파일 크기가 50MB를 초과합니다. ({file_size // (1024*1024)}MB)'}), 400
 
-    ensure_slides_dir()
-
-    active_session = ActiveSession.query.filter_by(course_id=course_id, ended_at=None).first()
+    active_session = dao.get_active_session_for_course(course_id)
 
     estimated_duration = request.form.get('estimated_duration_minutes', type=int)
 
-    deck = SlideDeck(
-        course_id=course_id,
-        session_id=active_session.id if active_session else None,
-        file_name=file.filename,
-        conversion_status='converting',
-        estimated_duration_minutes=estimated_duration if estimated_duration and estimated_duration > 0 else None
-    )
-    db.session.add(deck)
-    db.session.commit()
+    deck_data = {
+        'course_id': course_id,
+        'session_id': active_session['id'] if active_session else None,
+        'file_name': file.filename,
+        'conversion_status': 'converting',
+        'estimated_duration_minutes': estimated_duration if estimated_duration and estimated_duration > 0 else None,
+        'slide_count': 0,
+        'current_slide_index': 0,
+        'created_at': datetime.utcnow().isoformat()
+    }
+    deck_id = dao.create_slide_deck(deck_data)
 
     try:
         with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as tmp:
             file.save(tmp.name)
             tmp_path = tmp.name
 
-        slide_count, deck_dir = convert_file_to_images(tmp_path, deck.id)
+        slide_count, deck_dir = convert_file_to_images(tmp_path, deck_id)
 
-        deck.slide_count = slide_count
-        deck.slides_dir = deck_dir
-        deck.conversion_status = 'completed'
-        db.session.commit()
+        # Upload each slide image to Firebase Storage
+        for i in range(slide_count):
+            img_path = os.path.join(deck_dir, f'{i}.png')
+            if os.path.exists(img_path):
+                with open(img_path, 'rb') as img_file:
+                    image_data = img_file.read()
+                upload_slide_image(deck_id, i, image_data)
+
+        dao.update_slide_deck(deck_id, {
+            'slide_count': slide_count,
+            'conversion_status': 'completed'
+        })
 
         os.unlink(tmp_path)
 
+        slide_urls = [get_slide_image_url(deck_id, i) for i in range(slide_count)]
+
         return jsonify({
             'success': True,
-            'deck_id': deck.id,
+            'deck_id': deck_id,
             'slide_count': slide_count,
-            'slides': deck.get_slide_urls(),
+            'slides': slide_urls,
             'message': f'{slide_count}개의 슬라이드가 변환되었습니다.'
         })
 
     except Exception as e:
-        deck.conversion_status = 'failed'
-        deck.conversion_error = str(e)
-        db.session.commit()
+        dao.update_slide_deck(deck_id, {
+            'conversion_status': 'failed',
+            'conversion_error': str(e)
+        })
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.unlink(tmp_path)
         return jsonify({'error': f'변환 실패: {str(e)}'}), 500
 
 
-@bp.route('/delete/<int:deck_id>', methods=['POST'])
-@login_required
+@bp.route('/delete/<deck_id>', methods=['POST'])
+@auth_required
 def delete_deck(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
-    delete_deck_images(deck.slides_dir)
-    db.session.delete(deck)
-    db.session.commit()
+    delete_slide_deck_images(deck_id, deck['slide_count'])
+    dao.delete_slide_deck(deck_id)
 
     return jsonify({'success': True, 'message': '슬라이드 덱이 삭제되었습니다.'})
 
 
-@bp.route('/presenter/<int:deck_id>')
-@login_required
+@bp.route('/presenter/<deck_id>')
+@auth_required
 def presenter_view(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         flash('강사만 프레젠터 뷰를 사용할 수 있습니다.', 'danger')
-        return redirect(url_for('courses.view', course_id=course.id))
+        return redirect(url_for('courses.view', course_id=course['id']))
 
-    slides = deck.get_slide_urls()
-    bookmarks = {b.slide_index: b for b in SlideBookmark.query.filter_by(deck_id=deck_id).all()}
+    slides = [get_slide_image_url(deck_id, i) for i in range(deck['slide_count'])]
+    bookmarks_list = dao.get_bookmarks_by_deck(deck_id)
+    bookmarks = {b['slide_index']: b for b in bookmarks_list}
 
     return render_template('sessions/slide_presenter.html',
                          deck=deck,
@@ -141,28 +169,32 @@ def presenter_view(deck_id):
                          bookmarks=bookmarks)
 
 
-@bp.route('/viewer/<int:deck_id>')
-@login_required
+@bp.route('/viewer/<deck_id>')
+@auth_required
 def viewer_view(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
 
-    is_enrolled = Enrollment.query.filter_by(course_id=course.id, user_id=current_user.id).first()
-    is_instructor = has_course_access(course, current_user)
+    enrolled = dao.is_enrolled(user['uid'], course['id'])
+    is_instructor = has_course_access(course, user)
 
-    if not is_enrolled and not is_instructor:
+    if not enrolled and not is_instructor:
         flash('이 세션에 접근 권한이 없습니다.', 'danger')
         return redirect(url_for('main.dashboard'))
 
     if is_instructor:
         return redirect(url_for('slides.presenter_view', deck_id=deck_id))
 
-    slides = deck.get_slide_urls()
+    slides = [get_slide_image_url(deck_id, i) for i in range(deck['slide_count'])]
 
     my_reactions = {}
-    reactions = SlideReaction.query.filter_by(deck_id=deck_id, user_id=current_user.id).all()
+    reactions = dao.get_reactions_by_deck(deck_id)
     for r in reactions:
-        my_reactions[r.slide_index] = r.reaction
+        if r['user_id'] == user['uid']:
+            my_reactions[r['slide_index']] = r['reaction']
 
     return render_template('sessions/slide_viewer.html',
                          deck=deck,
@@ -171,25 +203,28 @@ def viewer_view(deck_id):
                          my_reactions=my_reactions)
 
 
-@bp.route('/review/<int:deck_id>')
-@login_required
+@bp.route('/review/<deck_id>')
+@auth_required
 def review_view(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         flash('강사만 리뷰 페이지에 접근할 수 있습니다.', 'danger')
-        return redirect(url_for('courses.view', course_id=course.id))
+        return redirect(url_for('courses.view', course_id=course['id']))
 
-    slides = deck.get_slide_urls()
-    bookmarks = {}
-    for b in SlideBookmark.query.filter_by(deck_id=deck_id).all():
-        bookmarks[b.slide_index] = b
+    slides = [get_slide_image_url(deck_id, i) for i in range(deck['slide_count'])]
+    bookmarks_list = dao.get_bookmarks_by_deck(deck_id)
+    bookmarks = {b['slide_index']: b for b in bookmarks_list}
 
     aggregates = {}
-    for i in range(deck.slide_count):
-        understood = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=i, reaction='understood').count()
-        question = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=i, reaction='question').count()
-        hard = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=i, reaction='hard').count()
+    for i in range(deck['slide_count']):
+        counts = dao.count_reactions(deck_id, i)
+        understood = counts.get('understood', 0) if isinstance(counts, dict) else 0
+        question = counts.get('question', 0) if isinstance(counts, dict) else 0
+        hard = counts.get('hard', 0) if isinstance(counts, dict) else 0
         total_reacted = understood + question + hard
         aggregates[i] = {
             'understood': understood,
@@ -206,12 +241,15 @@ def review_view(deck_id):
                          aggregates=aggregates)
 
 
-@bp.route('/review/<int:deck_id>/save-memo', methods=['POST'])
-@login_required
+@bp.route('/review/<deck_id>/save-memo', methods=['POST'])
+@auth_required
 def save_bookmark_memo(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
     data = request.get_json()
@@ -219,94 +257,99 @@ def save_bookmark_memo(deck_id):
     memo = data.get('memo', '')
     supplement_url = data.get('supplement_url', '')
 
-    bookmark = SlideBookmark.query.filter_by(deck_id=deck_id, slide_index=slide_index).first()
+    bookmark = dao.get_slide_bookmark(deck_id, slide_index)
     if not bookmark:
-        bookmark = SlideBookmark(
-            deck_id=deck_id,
-            slide_index=slide_index,
-            is_manual=True
-        )
-        db.session.add(bookmark)
-
-    bookmark.memo = memo
-    bookmark.supplement_url = supplement_url
-    db.session.commit()
+        dao.create_or_update_bookmark(deck_id, slide_index, {
+            'deck_id': deck_id,
+            'slide_index': slide_index,
+            'is_manual': True,
+            'memo': memo,
+            'supplement_url': supplement_url
+        })
+    else:
+        dao.create_or_update_bookmark(deck_id, slide_index, {
+            'memo': memo,
+            'supplement_url': supplement_url
+        })
 
     return jsonify({'success': True})
 
 
-@bp.route('/review/<int:deck_id>/toggle-bookmark', methods=['POST'])
-@login_required
+@bp.route('/review/<deck_id>/toggle-bookmark', methods=['POST'])
+@auth_required
 def toggle_manual_bookmark(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
     data = request.get_json()
     slide_index = data.get('slide_index')
 
-    bookmark = SlideBookmark.query.filter_by(deck_id=deck_id, slide_index=slide_index).first()
+    bookmark = dao.get_slide_bookmark(deck_id, slide_index)
     if bookmark:
-        if bookmark.is_auto and not bookmark.is_manual:
-            bookmark.is_manual = True
-        elif bookmark.is_manual and not bookmark.is_auto:
-            db.session.delete(bookmark)
+        if bookmark.get('is_auto') and not bookmark.get('is_manual'):
+            dao.create_or_update_bookmark(deck_id, slide_index, {'is_manual': True})
+        elif bookmark.get('is_manual') and not bookmark.get('is_auto'):
+            dao.delete_bookmark(deck_id, slide_index)
         else:
-            bookmark.is_manual = not bookmark.is_manual
+            dao.create_or_update_bookmark(deck_id, slide_index, {'is_manual': not bookmark.get('is_manual', False)})
     else:
-        bookmark = SlideBookmark(
-            deck_id=deck_id,
-            slide_index=slide_index,
-            is_manual=True
-        )
-        db.session.add(bookmark)
-
-    db.session.commit()
+        dao.create_or_update_bookmark(deck_id, slide_index, {
+            'deck_id': deck_id,
+            'slide_index': slide_index,
+            'is_manual': True
+        })
 
     return jsonify({'success': True})
 
 
-@bp.route('/deck/<int:course_id>')
-@login_required
+@bp.route('/deck/<course_id>')
+@auth_required
 def get_course_decks(course_id):
-    course = Course.query.get_or_404(course_id)
-    decks = SlideDeck.query.filter_by(course_id=course_id).order_by(SlideDeck.created_at.desc()).all()
+    course = dao.get_course(course_id)
+    if not course:
+        abort(404)
+    decks = dao.get_slide_decks_by_course(course_id)
     return jsonify({
         'decks': [{
-            'id': d.id,
-            'file_name': d.file_name,
-            'slide_count': d.slide_count,
-            'conversion_status': d.conversion_status,
-            'current_slide_index': d.current_slide_index,
-            'created_at': d.created_at.strftime('%Y-%m-%d %H:%M')
+            'id': d['id'],
+            'file_name': d['file_name'],
+            'slide_count': d.get('slide_count', 0),
+            'conversion_status': d.get('conversion_status', ''),
+            'current_slide_index': d.get('current_slide_index', 0),
+            'created_at': d['created_at'] if isinstance(d['created_at'], str) else d['created_at'].strftime('%Y-%m-%d %H:%M')
         } for d in decks]
     })
 
 
-@bp.route('/<int:deck_id>/ai-generate-checkpoints', methods=['POST'])
-@login_required
+@bp.route('/<deck_id>/ai-generate-checkpoints', methods=['POST'])
+@auth_required
 def ai_generate_from_deck(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
-    if deck.conversion_status != 'completed' or deck.slide_count == 0:
+    if deck['conversion_status'] != 'completed' or deck.get('slide_count', 0) == 0:
         return jsonify({'error': '슬라이드 변환이 완료되지 않았습니다.'}), 400
 
     try:
         from app.services.ai_checkpoint import CheckpointGenerator
 
-        deck_dir = os.path.join(SLIDES_BASE_DIR, str(deck_id))
-        if not os.path.exists(deck_dir):
-            return jsonify({'error': '슬라이드 이미지를 찾을 수 없습니다.'}), 404
-
+        # Download slide images to temp directory for AI analysis
         image_paths = []
-        for i in range(deck.slide_count):
-            img_path = os.path.join(deck_dir, f'{i}.png')
-            if os.path.exists(img_path):
-                image_paths.append(img_path)
+        tmp_dir = tempfile.mkdtemp()
+        for i in range(deck['slide_count']):
+            url = get_slide_image_url(deck_id, i)
+            if url:
+                image_paths.append(url)
 
         if not image_paths:
             return jsonify({'error': '슬라이드 이미지 파일이 없습니다.'}), 404
@@ -322,8 +365,8 @@ def ai_generate_from_deck(deck_id):
         return jsonify({
             'success': True,
             'checkpoints': checkpoints,
-            'deck_name': deck.file_name,
-            'slide_count': deck.slide_count
+            'deck_name': deck['file_name'],
+            'slide_count': deck['slide_count']
         })
 
     except Exception as e:
@@ -331,12 +374,15 @@ def ai_generate_from_deck(deck_id):
         return jsonify({'error': f'AI 분석 중 오류가 발생했습니다: {str(e)}'}), 500
 
 
-@bp.route('/<int:deck_id>/ai-save-checkpoints', methods=['POST'])
-@login_required
+@bp.route('/<deck_id>/ai-save-checkpoints', methods=['POST'])
+@auth_required
 def ai_save_checkpoints(deck_id):
-    deck = SlideDeck.query.get_or_404(deck_id)
-    course = Course.query.get(deck.course_id)
-    if not has_course_access(course, current_user):
+    deck = dao.get_slide_deck(deck_id)
+    if not deck:
+        abort(404)
+    course = dao.get_course(deck['course_id'])
+    user = get_current_user()
+    if not has_course_access(course, user):
         return jsonify({'error': '권한이 없습니다.'}), 403
 
     data = request.get_json()
@@ -345,25 +391,22 @@ def ai_save_checkpoints(deck_id):
     if not checkpoints_data:
         return jsonify({'error': '체크포인트가 없습니다.'}), 400
 
-    max_order = db.session.query(db.func.max(Checkpoint.order)).filter_by(course_id=course.id).scalar() or 0
+    max_order = dao.get_max_order(course['id']) or 0
 
     created_count = 0
     for cp_data in checkpoints_data:
         max_order += 1
-        checkpoint = Checkpoint(
-            course_id=course.id,
-            title=cp_data.get('title', ''),
-            description=cp_data.get('description', ''),
-            estimated_minutes=cp_data.get('estimated_minutes', 5),
-            order=max_order
-        )
-        db.session.add(checkpoint)
+        dao.create_checkpoint({
+            'course_id': course['id'],
+            'title': cp_data.get('title', ''),
+            'description': cp_data.get('description', ''),
+            'estimated_minutes': cp_data.get('estimated_minutes', 5),
+            'order': max_order
+        })
         created_count += 1
-
-    db.session.commit()
 
     return jsonify({
         'success': True,
         'created_count': created_count,
-        'redirect_url': url_for('courses.view', course_id=course.id)
+        'redirect_url': url_for('courses.view', course_id=course['id'])
     })

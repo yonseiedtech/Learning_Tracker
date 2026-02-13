@@ -1,340 +1,367 @@
+from flask import request
 from flask_socketio import emit, join_room, leave_room
-from flask_login import current_user
-from app import socketio, db
-from app.models import Progress, Course, Checkpoint, Enrollment, ActiveSession, ChatMessage, UnderstandingStatus, SlideDeck, SlideReaction, SlideBookmark
-from datetime import datetime
+from app import socketio
+from app.decorators import get_current_user
+from app import firestore_dao as dao
+from datetime import datetime, timezone
 
 screen_share_state = {}
 
-def user_has_course_access(user, course):
+
+def _get_socket_user():
+    """Get current user from the Flask session context in Socket.IO events."""
+    user = get_current_user()
+    if user and user.is_authenticated:
+        return user
+    return None
+
+
+def _user_has_course_access(user, course):
     if not course:
         return False
-    if user.is_instructor() and course.instructor_id == user.id:
+    if user.role == 'instructor' and course.get('instructor_id') == user.uid:
         return True
-    return Enrollment.query.filter_by(user_id=user.id, course_id=course.id).first() is not None
+    return dao.is_enrolled(user.uid, course['id'])
+
 
 @socketio.on('connect')
 def handle_connect():
-    if current_user.is_authenticated:
-        emit('connected', {'user_id': current_user.id, 'username': current_user.username})
+    user = _get_socket_user()
+    if user:
+        emit('connected', {'user_id': user.uid, 'username': user.full_name})
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
     deck_ids_to_remove = []
     for deck_id, state in screen_share_state.items():
-        if state.get('user_id') == current_user.id:
+        if state.get('user_id') == user.uid:
             deck_ids_to_remove.append(deck_id)
     for deck_id in deck_ids_to_remove:
         screen_share_state.pop(deck_id, None)
         room = f'slide_deck_{deck_id}'
         emit('screen_share_stopped', {'deck_id': deck_id}, room=room)
 
+
 @socketio.on('join_course')
 def handle_join_course(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     course_id = data.get('course_id')
     mode = data.get('mode', 'live')
-    
+
     if not course_id:
         return
-    
-    course = Course.query.get(course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(course_id)
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied to this course'})
         return
-    
+
     room = f'course_{course_id}'
     join_room(room)
     emit('student_joined', {
-        'user_id': current_user.id,
-        'username': current_user.username
+        'user_id': user.uid,
+        'username': user.full_name
     }, room=room)
-    
-    checkpoints = Checkpoint.query.filter_by(course_id=course_id, deleted_at=None).all()
-    students = course.get_enrolled_students()
-    
+
+    checkpoints = dao.get_checkpoints_by_course(course_id)
+    enrollments = dao.get_enrollments_by_course(course_id)
+    total_students = len(enrollments)
+
+    checkpoint_ids = [cp['id'] for cp in checkpoints]
+    completed_counts = dao.count_completed_progress(checkpoint_ids, mode=mode)
+
     stats = {}
     for cp in checkpoints:
-        completed = Progress.query.filter(
-            Progress.checkpoint_id == cp.id,
-            Progress.completed_at.isnot(None),
-            Progress.mode == mode
-        ).count()
-        stats[cp.id] = {
-            'completed': completed,
-            'total': len(students)
+        stats[cp['id']] = {
+            'completed': completed_counts.get(cp['id'], 0),
+            'total': total_students
         }
-    
+
     emit('session_stats', {'completion_rates': stats})
+
 
 @socketio.on('leave_course')
 def handle_leave_course(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         emit('error', {'message': 'Authentication required'})
         return
-    
+
     course_id = data.get('course_id')
     if not course_id:
         emit('error', {'message': 'Course ID required'})
         return
-    
-    course = Course.query.get(course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(course_id)
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied to this course'})
         return
-    
+
     room = f'course_{course_id}'
     leave_room(room)
     emit('student_left', {
-        'user_id': current_user.id,
-        'username': current_user.username
+        'user_id': user.uid,
+        'username': user.full_name
     }, room=room)
+
 
 @socketio.on('checkpoint_completed')
 def handle_checkpoint_completed(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     checkpoint_id = data.get('checkpoint_id')
     mode = data.get('mode', 'live')
-    
-    checkpoint = Checkpoint.query.get(checkpoint_id)
+
+    checkpoint = dao.get_checkpoint(checkpoint_id)
     if not checkpoint:
         return
-    
-    course = checkpoint.course
-    if not user_has_course_access(current_user, course):
+
+    course = dao.get_course(checkpoint['course_id'])
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied to this course'})
         return
-    
-    if current_user.is_instructor():
+
+    if user.role == 'instructor':
         emit('error', {'message': 'Instructors cannot mark checkpoints complete'})
         return
-    
-    room = f'course_{course.id}'
-    
-    progress = Progress.query.filter_by(
-        user_id=current_user.id,
-        checkpoint_id=checkpoint_id,
-        mode=mode
-    ).first()
-    
+
+    room = f'course_{course["id"]}'
+    now = datetime.now(timezone.utc)
+
+    progress = dao.get_progress(user.uid, checkpoint_id, mode)
+
     if not progress:
-        progress = Progress(
-            user_id=current_user.id,
-            checkpoint_id=checkpoint_id,
-            mode=mode,
-            started_at=datetime.utcnow(),
-            completed_at=datetime.utcnow()
-        )
-        db.session.add(progress)
+        dao.create_progress({
+            'user_id': user.uid,
+            'checkpoint_id': checkpoint_id,
+            'course_id': checkpoint['course_id'],
+            'mode': mode,
+            'started_at': now,
+            'completed_at': now,
+            'duration_seconds': 0
+        })
     else:
-        progress.completed_at = datetime.utcnow()
-    
-    progress.calculate_duration()
-    db.session.commit()
-    
+        update_data = {'completed_at': now}
+        if progress.get('started_at'):
+            delta = (now - progress['started_at']).total_seconds()
+            paused = progress.get('paused_duration', 0) or 0
+            update_data['duration_seconds'] = int(delta - paused)
+        dao.update_progress(progress['id'], update_data)
+
     emit('progress_update', {
-        'user_id': current_user.id,
-        'username': current_user.username,
+        'user_id': user.uid,
+        'username': user.full_name,
         'checkpoint_id': checkpoint_id,
         'status': 'completed'
     }, room=room)
-    
-    checkpoints = Checkpoint.query.filter_by(course_id=course.id, deleted_at=None).all()
-    students = course.get_enrolled_students()
-    
+
+    checkpoints = dao.get_checkpoints_by_course(course['id'])
+    enrollments = dao.get_enrollments_by_course(course['id'])
+    total_students = len(enrollments)
+
+    checkpoint_ids = [cp['id'] for cp in checkpoints]
+    completed_counts = dao.count_completed_progress(checkpoint_ids, mode=mode)
+
     stats = {}
     for cp in checkpoints:
-        completed = Progress.query.filter(
-            Progress.checkpoint_id == cp.id,
-            Progress.completed_at.isnot(None),
-            Progress.mode == mode
-        ).count()
-        stats[cp.id] = {
-            'completed': completed,
-            'total': len(students)
+        stats[cp['id']] = {
+            'completed': completed_counts.get(cp['id'], 0),
+            'total': total_students
         }
-    
+
     emit('session_stats', {'completion_rates': stats}, room=room)
+
 
 @socketio.on('request_stats')
 def handle_request_stats(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     course_id = data.get('course_id')
     mode = data.get('mode', 'live')
-    
-    course = Course.query.get(course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(course_id)
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied to this course'})
         return
-    
-    checkpoints = Checkpoint.query.filter_by(course_id=course_id, deleted_at=None).all()
-    students = course.get_enrolled_students()
-    
+
+    checkpoints = dao.get_checkpoints_by_course(course_id)
+    enrollments = dao.get_enrollments_by_course(course_id)
+    total_students = len(enrollments)
+
+    checkpoint_ids = [cp['id'] for cp in checkpoints]
+    completed_counts = dao.count_completed_progress(checkpoint_ids, mode=mode)
+
     stats = {}
     for cp in checkpoints:
-        completed = Progress.query.filter(
-            Progress.checkpoint_id == cp.id,
-            Progress.completed_at.isnot(None),
-            Progress.mode == mode
-        ).count()
-        stats[cp.id] = {
-            'completed': completed,
-            'total': len(students)
+        stats[cp['id']] = {
+            'completed': completed_counts.get(cp['id'], 0),
+            'total': total_students
         }
-    
+
     emit('session_stats', {'completion_rates': stats})
+
 
 @socketio.on('send_chat_message')
 def handle_send_chat_message(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     course_id = data.get('course_id')
     message_text = data.get('message', '').strip()
-    
+
     if not course_id or not message_text:
         return
-    
-    course = Course.query.get(course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(course_id)
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied to this course'})
         return
-    
-    chat_msg = ChatMessage(
-        course_id=course_id,
-        user_id=current_user.id,
-        message=message_text
-    )
-    db.session.add(chat_msg)
-    db.session.commit()
-    
+
+    now = datetime.now(timezone.utc)
+    msg_id = dao.create_chat_message({
+        'course_id': course_id,
+        'user_id': user.uid,
+        'user_name': user.full_name,
+        'message': message_text,
+        'created_at': now
+    })
+
     room = f'course_{course_id}'
     emit('new_chat_message', {
-        'id': chat_msg.id,
-        'user_id': current_user.id,
-        'username': current_user.username,
-        'role': current_user.role,
+        'id': msg_id,
+        'user_id': user.uid,
+        'username': user.full_name,
+        'role': user.role,
         'message': message_text,
-        'created_at': chat_msg.created_at.strftime('%H:%M')
+        'created_at': now.strftime('%H:%M')
     }, room=room)
+
 
 @socketio.on('edit_chat_message')
 def handle_edit_chat_message(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     course_id = data.get('course_id')
     message_id = data.get('message_id')
     new_message = data.get('new_message', '').strip()
-    
+
     if not message_id or not new_message:
         return
-    
-    chat_msg = ChatMessage.query.get(message_id)
+
+    chat_msg = dao.get_chat_message(message_id)
     if not chat_msg:
         return
-    
-    if chat_msg.course_id != course_id:
+
+    if chat_msg.get('course_id') != course_id:
         emit('error', {'message': 'Invalid course'})
         return
-    
-    course = Course.query.get(chat_msg.course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(chat_msg['course_id'])
+    if not course or not _user_has_course_access(user, course):
         return
-    
-    if chat_msg.user_id != current_user.id and not (current_user.is_instructor() and course.instructor_id == current_user.id):
+
+    if chat_msg['user_id'] != user.uid and not (user.role == 'instructor' and course.get('instructor_id') == user.uid):
         emit('error', {'message': 'Permission denied'})
         return
-    
-    chat_msg.message = new_message
-    db.session.commit()
-    
-    room = f'course_{chat_msg.course_id}'
+
+    dao.update_chat_message(message_id, {'message': new_message})
+
+    room = f'course_{chat_msg["course_id"]}'
     emit('chat_message_edited', {
         'message_id': message_id,
         'new_message': new_message
     }, room=room)
 
+
 @socketio.on('delete_chat_message')
 def handle_delete_chat_message(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     course_id = data.get('course_id')
     message_id = data.get('message_id')
-    
+
     if not message_id:
         return
-    
-    chat_msg = ChatMessage.query.get(message_id)
+
+    chat_msg = dao.get_chat_message(message_id)
     if not chat_msg:
         return
-    
-    if chat_msg.course_id != course_id:
+
+    if chat_msg.get('course_id') != course_id:
         emit('error', {'message': 'Invalid course'})
         return
-    
-    course = Course.query.get(chat_msg.course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(chat_msg['course_id'])
+    if not course or not _user_has_course_access(user, course):
         return
-    
-    if chat_msg.user_id != current_user.id and not (current_user.is_instructor() and course.instructor_id == current_user.id):
+
+    if chat_msg['user_id'] != user.uid and not (user.role == 'instructor' and course.get('instructor_id') == user.uid):
         emit('error', {'message': 'Permission denied'})
         return
-    
-    db.session.delete(chat_msg)
-    db.session.commit()
-    
-    room = f'course_{chat_msg.course_id}'
+
+    dao.delete_chat_message(message_id)
+
+    room = f'course_{chat_msg["course_id"]}'
     emit('chat_message_deleted', {
         'message_id': message_id
     }, room=room)
 
+
 @socketio.on('set_current_checkpoint')
 def handle_set_current_checkpoint(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
-    
+
     course_id = data.get('course_id')
     checkpoint_id = data.get('checkpoint_id')
-    
-    course = Course.query.get(course_id)
-    if not course or course.instructor_id != current_user.id:
+
+    course = dao.get_course(course_id)
+    if not course or course.get('instructor_id') != user.uid:
         emit('error', {'message': 'Access denied'})
         return
-    
-    session = ActiveSession.query.filter_by(course_id=course_id, ended_at=None).first()
+
+    session = dao.get_active_session_for_course(course_id)
     if session:
-        session.current_checkpoint_id = checkpoint_id
-        db.session.commit()
-    
+        dao.update_active_session(session['id'], {'current_checkpoint_id': checkpoint_id})
+
     room = f'course_{course_id}'
     emit('current_checkpoint_changed', {
         'checkpoint_id': checkpoint_id
     }, room=room)
 
+
 @socketio.on('checkpoint_timer_action')
 def handle_checkpoint_timer_action(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
-    
+
     course_id = data.get('course_id')
     checkpoint_id = data.get('checkpoint_id')
     action = data.get('action')
     elapsed_seconds = data.get('elapsed_seconds', 0)
-    
-    course = Course.query.get(course_id)
-    if not course or course.instructor_id != current_user.id:
+
+    course = dao.get_course(course_id)
+    if not course or course.get('instructor_id') != user.uid:
         return
-    
+
     room = f'course_{course_id}'
     emit('timer_sync', {
         'checkpoint_id': checkpoint_id,
@@ -343,20 +370,22 @@ def handle_checkpoint_timer_action(data):
         'is_running': action in ['start', 'resume']
     }, room=room)
 
+
 @socketio.on('instructor_checkpoint_complete')
 def handle_instructor_checkpoint_complete(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
-    
+
     course_id = data.get('course_id')
     checkpoint_id = data.get('checkpoint_id')
     completed = data.get('completed', False)
     elapsed_seconds = data.get('elapsed_seconds', 0)
-    
-    course = Course.query.get(course_id)
-    if not course or course.instructor_id != current_user.id:
+
+    course = dao.get_course(course_id)
+    if not course or course.get('instructor_id') != user.uid:
         return
-    
+
     room = f'course_{course_id}'
     emit('instructor_checkpoint_status', {
         'checkpoint_id': checkpoint_id,
@@ -364,96 +393,78 @@ def handle_instructor_checkpoint_complete(data):
         'elapsed_seconds': elapsed_seconds
     }, room=room)
 
+
 @socketio.on('submit_understanding')
 def handle_submit_understanding(data):
-    if not current_user.is_authenticated or current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role == 'instructor':
         return
-    
+
     course_id = data.get('course_id')
     checkpoint_id = data.get('checkpoint_id')
     status = data.get('status')
-    
+
     if status not in ['understood', 'confused']:
         return
-    
-    course = Course.query.get(course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(course_id)
+    if not course or not _user_has_course_access(user, course):
         emit('error', {'message': 'Access denied'})
         return
-    
-    session = ActiveSession.query.filter_by(course_id=course_id, ended_at=None).first()
+
+    session = dao.get_active_session_for_course(course_id)
     if not session:
         return
-    
-    existing = UnderstandingStatus.query.filter_by(
-        user_id=current_user.id,
-        checkpoint_id=checkpoint_id,
-        session_id=session.id
-    ).first()
-    
-    if existing:
-        existing.status = status
-        existing.created_at = datetime.utcnow()
-    else:
-        understanding = UnderstandingStatus(
-            user_id=current_user.id,
-            checkpoint_id=checkpoint_id,
-            session_id=session.id,
-            status=status
-        )
-        db.session.add(understanding)
-    
-    db.session.commit()
-    
-    understood_count = UnderstandingStatus.query.filter_by(
-        checkpoint_id=checkpoint_id,
-        session_id=session.id,
-        status='understood'
-    ).count()
-    
-    confused_count = UnderstandingStatus.query.filter_by(
-        checkpoint_id=checkpoint_id,
-        session_id=session.id,
-        status='confused'
-    ).count()
-    
+
+    dao.set_understanding({
+        'user_id': user.uid,
+        'checkpoint_id': checkpoint_id,
+        'session_id': session['id'],
+        'status': status,
+        'created_at': datetime.now(timezone.utc)
+    })
+
+    counts = dao.count_understanding(checkpoint_id, session['id'])
+
     room = f'course_{course_id}'
     emit('understanding_updated', {
         'checkpoint_id': checkpoint_id,
-        'understood': understood_count,
-        'confused': confused_count
+        'understood': counts.get('understood', 0),
+        'confused': counts.get('confused', 0)
     }, room=room)
 
 
 @socketio.on('join_slide_session')
 def handle_join_slide_session(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     deck_id = data.get('deck_id')
-    deck = SlideDeck.query.get(deck_id)
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
-    
-    course = Course.query.get(deck.course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(deck['course_id'])
+    if not course or not _user_has_course_access(user, course):
         return
-    
+
     room = f'slide_deck_{deck_id}'
     join_room(room)
-    
+
     share_active = screen_share_state.get(deck_id, {}).get('active', False)
-    
+
     emit('slide_session_state', {
-        'current_slide_index': deck.current_slide_index,
-        'slide_count': deck.slide_count,
+        'current_slide_index': deck.get('current_slide_index', 0),
+        'slide_count': deck.get('slide_count', 0),
         'screen_share_active': share_active
     })
 
 
 @socketio.on('leave_slide_session')
 def handle_leave_slide_session(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
     deck_id = data.get('deck_id')
     room = f'slide_deck_{deck_id}'
@@ -462,26 +473,26 @@ def handle_leave_slide_session(data):
 
 @socketio.on('change_slide')
 def handle_change_slide(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
-    
+
     deck_id = data.get('deck_id')
     slide_index = data.get('slide_index')
-    
-    deck = SlideDeck.query.get(deck_id)
+
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
-    
-    course = Course.query.get(deck.course_id)
-    if not course or course.instructor_id != current_user.id:
+
+    course = dao.get_course(deck['course_id'])
+    if not course or course.get('instructor_id') != user.uid:
         return
-    
-    if slide_index < 0 or slide_index >= deck.slide_count:
+
+    if slide_index < 0 or slide_index >= deck.get('slide_count', 0):
         return
-    
-    deck.current_slide_index = slide_index
-    db.session.commit()
-    
+
+    dao.update_slide_deck(deck_id, {'current_slide_index': slide_index})
+
     room = f'slide_deck_{deck_id}'
     emit('slide_changed', {
         'slide_index': slide_index
@@ -489,9 +500,10 @@ def handle_change_slide(data):
 
 
 def get_slide_aggregate(deck_id, slide_index):
-    understood = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=slide_index, reaction='understood').count()
-    question = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=slide_index, reaction='question').count()
-    hard = SlideReaction.query.filter_by(deck_id=deck_id, slide_index=slide_index, reaction='hard').count()
+    counts = dao.count_reactions(deck_id, slide_index)
+    understood = counts.get('understood', 0)
+    question = counts.get('question', 0)
+    hard = counts.get('hard', 0)
     return {
         'understood': understood,
         'question': question,
@@ -503,86 +515,75 @@ def get_slide_aggregate(deck_id, slide_index):
 def check_and_update_flag(deck, slide_index, counts):
     problem_count = counts['question'] + counts['hard']
     total = counts['total_reacted']
-    
+
     flagged = False
     reason = ''
-    
-    if problem_count >= deck.flag_threshold_count:
+
+    threshold_count = deck.get('flag_threshold_count', 3)
+    threshold_rate = deck.get('flag_threshold_rate', 0.5)
+
+    if problem_count >= threshold_count:
         flagged = True
-        reason = f'어려움+질문 {problem_count}명 (기준: {deck.flag_threshold_count}명)'
-    elif total > 0 and (problem_count / total) >= deck.flag_threshold_rate:
+        reason = f'어려움+질문 {problem_count}명 (기준: {threshold_count}명)'
+    elif total > 0 and (problem_count / total) >= threshold_rate:
         flagged = True
-        reason = f'어려움+질문 비율 {int(problem_count/total*100)}% (기준: {int(deck.flag_threshold_rate*100)}%)'
-    
+        reason = f'어려움+질문 비율 {int(problem_count/total*100)}% (기준: {int(threshold_rate*100)}%)'
+
     if flagged:
-        bookmark = SlideBookmark.query.filter_by(deck_id=deck.id, slide_index=slide_index).first()
+        bookmark = dao.get_slide_bookmark(deck['id'], slide_index)
         if not bookmark:
-            bookmark = SlideBookmark(deck_id=deck.id, slide_index=slide_index, is_auto=True, reason=reason)
-            db.session.add(bookmark)
+            dao.create_or_update_bookmark(deck['id'], slide_index, {
+                'is_auto': True,
+                'is_manual': False,
+                'reason': reason
+            })
         else:
-            bookmark.is_auto = True
-            bookmark.reason = reason
-        db.session.commit()
+            dao.create_or_update_bookmark(deck['id'], slide_index, {
+                'is_auto': True,
+                'reason': reason
+            })
     else:
-        bookmark = SlideBookmark.query.filter_by(deck_id=deck.id, slide_index=slide_index).first()
-        if bookmark and bookmark.is_auto and not bookmark.is_manual:
-            db.session.delete(bookmark)
-            db.session.commit()
-        elif bookmark and bookmark.is_auto:
-            bookmark.is_auto = False
-            bookmark.reason = None
-            db.session.commit()
-    
+        bookmark = dao.get_slide_bookmark(deck['id'], slide_index)
+        if bookmark and bookmark.get('is_auto') and not bookmark.get('is_manual'):
+            dao.delete_bookmark(deck['id'], slide_index)
+        elif bookmark and bookmark.get('is_auto'):
+            dao.create_or_update_bookmark(deck['id'], slide_index, {
+                'is_auto': False,
+                'reason': None
+            })
+
     return flagged, reason
 
 
 @socketio.on('set_slide_reaction')
 def handle_set_slide_reaction(data):
-    if not current_user.is_authenticated or current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role == 'instructor':
         return
-    
+
     deck_id = data.get('deck_id')
     slide_index = data.get('slide_index')
     reaction = data.get('reaction', 'none')
-    
+
     if reaction not in ['understood', 'question', 'hard', 'none']:
         return
-    
-    deck = SlideDeck.query.get(deck_id)
+
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
-    
-    course = Course.query.get(deck.course_id)
-    if not course or not user_has_course_access(current_user, course):
+
+    course = dao.get_course(deck['course_id'])
+    if not course or not _user_has_course_access(user, course):
         return
-    
-    existing = SlideReaction.query.filter_by(
-        deck_id=deck_id,
-        user_id=current_user.id,
-        slide_index=slide_index
-    ).first()
-    
+
     if reaction == 'none':
-        if existing:
-            db.session.delete(existing)
-            db.session.commit()
+        dao.delete_slide_reaction(deck_id, user.uid, slide_index)
     else:
-        if existing:
-            existing.reaction = reaction
-            existing.updated_at = datetime.utcnow()
-        else:
-            new_reaction = SlideReaction(
-                deck_id=deck_id,
-                user_id=current_user.id,
-                slide_index=slide_index,
-                reaction=reaction
-            )
-            db.session.add(new_reaction)
-        db.session.commit()
-    
+        dao.set_slide_reaction(deck_id, user.uid, slide_index, reaction)
+
     counts = get_slide_aggregate(deck_id, slide_index)
     flagged, reason = check_and_update_flag(deck, slide_index, counts)
-    
+
     room = f'slide_deck_{deck_id}'
     emit('slide_aggregate_updated', {
         'slide_index': slide_index,
@@ -594,30 +595,31 @@ def handle_set_slide_reaction(data):
 
 @socketio.on('request_slide_aggregates')
 def handle_request_slide_aggregates(data):
-    if not current_user.is_authenticated:
+    user = _get_socket_user()
+    if not user:
         return
-    
+
     deck_id = data.get('deck_id')
-    deck = SlideDeck.query.get(deck_id)
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
-    
+
     all_aggregates = {}
     flagged_slides = []
-    
-    for i in range(deck.slide_count):
+
+    for i in range(deck.get('slide_count', 0)):
         counts = get_slide_aggregate(deck_id, i)
         all_aggregates[i] = counts
-        
-        bookmark = SlideBookmark.query.filter_by(deck_id=deck_id, slide_index=i).first()
+
+        bookmark = dao.get_slide_bookmark(deck_id, i)
         if bookmark:
             flagged_slides.append({
                 'slide_index': i,
-                'is_auto': bookmark.is_auto,
-                'is_manual': bookmark.is_manual,
-                'reason': bookmark.reason
+                'is_auto': bookmark.get('is_auto', False),
+                'is_manual': bookmark.get('is_manual', False),
+                'reason': bookmark.get('reason')
             })
-    
+
     emit('all_slide_aggregates', {
         'aggregates': all_aggregates,
         'flagged_slides': flagged_slides
@@ -626,40 +628,39 @@ def handle_request_slide_aggregates(data):
 
 @socketio.on('toggle_slide_bookmark')
 def handle_toggle_slide_bookmark(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
-    
+
     deck_id = data.get('deck_id')
     slide_index = data.get('slide_index')
-    
-    deck = SlideDeck.query.get(deck_id)
+
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
-    
-    course = Course.query.get(deck.course_id)
-    if not course or course.instructor_id != current_user.id:
+
+    course = dao.get_course(deck['course_id'])
+    if not course or course.get('instructor_id') != user.uid:
         return
-    
-    bookmark = SlideBookmark.query.filter_by(deck_id=deck_id, slide_index=slide_index).first()
+
+    bookmark = dao.get_slide_bookmark(deck_id, slide_index)
     is_bookmarked = False
-    
+
     if bookmark:
-        if bookmark.is_auto and not bookmark.is_manual:
-            bookmark.is_manual = True
+        if bookmark.get('is_auto') and not bookmark.get('is_manual'):
+            dao.create_or_update_bookmark(deck_id, slide_index, {'is_manual': True})
             is_bookmarked = True
-        elif bookmark.is_manual and not bookmark.is_auto:
-            db.session.delete(bookmark)
+        elif bookmark.get('is_manual') and not bookmark.get('is_auto'):
+            dao.delete_bookmark(deck_id, slide_index)
             is_bookmarked = False
         else:
-            bookmark.is_manual = not bookmark.is_manual
-            is_bookmarked = bookmark.is_manual or bookmark.is_auto
+            new_manual = not bookmark.get('is_manual', False)
+            dao.create_or_update_bookmark(deck_id, slide_index, {'is_manual': new_manual})
+            is_bookmarked = new_manual or bookmark.get('is_auto', False)
     else:
-        bookmark = SlideBookmark(deck_id=deck_id, slide_index=slide_index, is_manual=True)
-        db.session.add(bookmark)
+        dao.create_or_update_bookmark(deck_id, slide_index, {'is_manual': True, 'is_auto': False})
         is_bookmarked = True
-    
-    db.session.commit()
-    
+
     room = f'slide_deck_{deck_id}'
     emit('bookmark_updated', {
         'slide_index': slide_index,
@@ -669,39 +670,41 @@ def handle_toggle_slide_bookmark(data):
 
 @socketio.on('start_screen_share')
 def handle_start_screen_share(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
 
     deck_id = data.get('deck_id')
-    deck = SlideDeck.query.get(deck_id)
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
 
-    course = Course.query.get(deck.course_id)
-    if not course or course.instructor_id != current_user.id:
+    course = dao.get_course(deck['course_id'])
+    if not course or course.get('instructor_id') != user.uid:
         return
 
-    screen_share_state[deck_id] = {'active': True, 'user_id': current_user.id}
+    screen_share_state[deck_id] = {'active': True, 'user_id': user.uid}
 
     room = f'slide_deck_{deck_id}'
     emit('screen_share_started', {
         'deck_id': deck_id,
-        'instructor_name': current_user.nickname or current_user.username
+        'instructor_name': user.nickname or user.full_name
     }, room=room)
 
 
 @socketio.on('stop_screen_share')
 def handle_stop_screen_share(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
 
     deck_id = data.get('deck_id')
-    deck = SlideDeck.query.get(deck_id)
+    deck = dao.get_slide_deck(deck_id)
     if not deck:
         return
 
-    course = Course.query.get(deck.course_id)
-    if not course or course.instructor_id != current_user.id:
+    course = dao.get_course(deck['course_id'])
+    if not course or course.get('instructor_id') != user.uid:
         return
 
     screen_share_state.pop(deck_id, None)
@@ -714,7 +717,8 @@ def handle_stop_screen_share(data):
 
 @socketio.on('screen_share_frame')
 def handle_screen_share_frame(data):
-    if not current_user.is_authenticated or not current_user.is_instructor():
+    user = _get_socket_user()
+    if not user or user.role != 'instructor':
         return
 
     deck_id = data.get('deck_id')
@@ -724,7 +728,7 @@ def handle_screen_share_frame(data):
         return
 
     state = screen_share_state.get(deck_id)
-    if not state or state.get('user_id') != current_user.id:
+    if not state or state.get('user_id') != user.uid:
         return
 
     room = f'slide_deck_{deck_id}'
