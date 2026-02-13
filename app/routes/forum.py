@@ -26,6 +26,11 @@ def list_posts(course_id):
         return redirect(url_for('main.dashboard'))
 
     posts = dao.get_forum_posts_by_course(course_id)
+    # Enrich posts with comment_count
+    for post in posts:
+        post['comment_count'] = len(dao.get_forum_comments(post['id']))
+    # Enrich posts with user data for templates
+    dao.enrich_with_user(posts)
     return render_template('forum/list.html', course=course, posts=posts)
 
 
@@ -82,6 +87,9 @@ def view_post(post_id):
         return redirect(url_for('main.dashboard'))
 
     comments = dao.get_forum_comments(post_id)
+    # Enrich post and comments with user data for templates
+    dao.enrich_with_user([post])
+    dao.enrich_with_user(comments)
     return render_template('forum/view.html', post=post, course=course, comments=comments)
 
 

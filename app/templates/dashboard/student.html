@@ -119,9 +119,9 @@
         <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: rgba(255, 193, 7, 0.1);">
                 <div>
-                    <strong>{{ enrollment.subject.title }}</strong>
+                    <strong>{{ enrollment.subject_title }}</strong>
                     <span class="badge bg-secondary ms-1">{{ '조교' if enrollment.role == 'ta' else ('청강생' if enrollment.role == 'auditor' else '학습자') }}</span>
-                    <p class="mb-0 small text-muted">{{ enrollment.subject.instructor.display_name }} 강사님</p>
+                    <p class="mb-0 small text-muted">{{ enrollment.instructor_name }} 강사님</p>
                 </div>
                 <div class="d-flex gap-2">
                     <form action="{{ url_for('subjects.approve_enrollment', subject_id=enrollment.subject_id) }}" method="POST" style="display:inline;">
@@ -166,7 +166,7 @@
                     <i class="bi bi-book-half text-white fs-5"></i>
                 </div>
                 <h6 class="fw-bold mb-1 text-dark">{{ subject.title[:20] }}{{ '...' if subject.title|length > 20 else '' }}</h6>
-                <small class="text-muted">{{ subject.instructor.display_name }}</small>
+                <small class="text-muted">{{ subject.instructor_name }}</small>
             </div>
         </a>
     </div>
@@ -214,12 +214,14 @@
                     <div class="d-flex align-items-center gap-2">
                         <strong>{{ course.title }}</strong>
                         {% if course.subject %}
-                        <span class="badge bg-light text-dark small">{{ course.subject.title[:15] }}{{ '...' if course.subject.title|length > 15 else '' }}</span>
+                        {% if course.subject_title %}
+                        <span class="badge bg-light text-dark small">{{ course.subject_title[:15] }}{{ '...' if course.subject_title|length > 15 else '' }}</span>
+                        {% endif %}
                         {% endif %}
                     </div>
                     <div class="d-flex align-items-center gap-3 mt-1">
-                        <small class="text-muted"><i class="bi bi-person me-1"></i>{{ course.instructor.display_name }}</small>
-                        {% set cp_count = course.checkpoints.filter_by(deleted_at=None).count() %}
+                        <small class="text-muted"><i class="bi bi-person me-1"></i>{{ course.instructor_name }}</small>
+                        {% set cp_count = course.checkpoint_count %}
                         {% if cp_count > 0 %}
                         <small class="text-muted"><i class="bi bi-flag me-1"></i>{{ cp_count }} 체크포인트</small>
                         {% endif %}
@@ -262,7 +264,7 @@
                         <select class="form-select" name="subject_id" id="subject_id" required>
                             <option value="">과목을 선택하세요</option>
                             {% for subject in available_subjects %}
-                            <option value="{{ subject.id }}">{{ subject.title }} ({{ subject.instructor.display_name }})</option>
+                            <option value="{{ subject.id }}">{{ subject.title }} ({{ subject.instructor_name }})</option>
                             {% endfor %}
                         </select>
                     </div>

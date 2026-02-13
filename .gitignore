@@ -20,6 +20,7 @@ wheels/
 *.egg
 
 .env
+firebase-service-account.json
 .venv
 env/
 venv/

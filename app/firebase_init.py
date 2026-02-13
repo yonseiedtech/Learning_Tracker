@@ -26,11 +26,11 @@ def init_firebase(app_config=None):
     if not bucket_name:
         bucket_name = os.environ.get('FIREBASE_STORAGE_BUCKET', '')
 
-    init_kwargs = {'credential': cred}
+    options = {}
     if bucket_name:
-        init_kwargs['storageBucket'] = bucket_name
+        options['storageBucket'] = bucket_name
 
-    _app = firebase_admin.initialize_app(**init_kwargs)
+    _app = firebase_admin.initialize_app(cred, options=options if options else None)
     _db = firestore.client()
 
     if bucket_name:

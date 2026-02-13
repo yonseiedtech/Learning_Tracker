@@ -15,6 +15,14 @@ def index():
     qna_posts = dao.get_qna_posts(limit=10)
     study_groups = [g for g in dao.get_study_groups(limit=20) if g.get('status') == 'recruiting'][:10]
 
+    # Enrich qna posts with answer_count
+    for post in qna_posts:
+        post['answer_count'] = len(dao.get_qna_answers(post['id']))
+
+    # Enrich reviews and qna_posts with user data for templates
+    dao.enrich_with_user(reviews)
+    dao.enrich_with_user(qna_posts)
+
     return render_template('community/index.html',
                           tab=tab,
                           reviews=reviews,
@@ -25,6 +33,8 @@ def index():
 @bp.route('/reviews')
 def reviews_list():
     reviews = dao.get_learning_reviews(limit=100)
+    # Enrich reviews with user data for templates
+    dao.enrich_with_user(reviews)
     return render_template('community/reviews_list.html', reviews=reviews)
 
 
@@ -70,6 +80,10 @@ def review_detail(review_id):
 
     comment_form = CommentForm()
     comments = dao.get_review_comments(review_id)
+
+    # Enrich review and comments with user data for templates
+    dao.enrich_with_user([review])
+    dao.enrich_with_user(comments)
 
     return render_template('community/review_detail.html',
                           review=review,
@@ -124,6 +138,13 @@ def qna_list():
     elif filter_type == 'unresolved':
         qna_posts = [p for p in qna_posts if not p.get('is_resolved')]
 
+    # Enrich qna posts with answer_count
+    for post in qna_posts:
+        post['answer_count'] = len(dao.get_qna_answers(post['id']))
+
+    # Enrich qna posts with user data for templates
+    dao.enrich_with_user(qna_posts)
+
     return render_template('community/qna_list.html', qna_posts=qna_posts, filter_type=filter_type)
 
 
@@ -173,6 +194,10 @@ def qna_detail(post_id):
     answers = dao.get_qna_answers(post_id)
     # Sort: accepted first, then by likes_count descending
     answers.sort(key=lambda a: (-int(a.get('is_accepted', False)), -a.get('likes_count', 0)))
+
+    # Enrich post and answers with user data for templates
+    dao.enrich_with_user([post])
+    dao.enrich_with_user(answers)
 
     return render_template('community/qna_detail.html',
                           post=post,
@@ -325,6 +350,11 @@ def study_group_detail(group_id):
                 is_member = True
             elif membership.get('status') == 'pending':
                 pending_request = membership
+
+    # Enrich group with creator and members with user data for templates
+    dao.enrich_with_user([group], 'creator_id', 'creator')
+    dao.enrich_with_user(members)
+    dao.enrich_with_user(pending_members)
 
     return render_template('community/study_group_detail.html',
                           group=group,

@@ -155,7 +155,7 @@
                     </div>
                     <div class="flex-grow-1 overflow-hidden">
                         <h6 class="fw-bold mb-1 text-dark text-truncate">{{ subject.title }}</h6>
-                        <small class="text-muted">{{ subject.courses.count() }}개 세션 · {{ subject.subject_enrollment_list|length }}명 등록</small>
+                        <small class="text-muted">{{ subject.course_count }}개 세션 · {{ subject.enrollment_count }}명 등록</small>
                     </div>
                 </div>
                 {% if not subject.is_visible %}
@@ -190,14 +190,14 @@
                     <div class="course-icon">
                         <i class="bi bi-book"></i>
                     </div>
-                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollments.count() }} 명</span>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ course.enrollment_count }} 명</span>
                 </div>
                 <h5 class="fw-bold mb-2">{{ course.title }}</h5>
                 <p class="text-muted small mb-3">{{ course.description[:60] if course.description else '설명이 없습니다' }}{{ '...' if course.description and course.description|length > 60 else '' }}</p>
                 
                 <div class="d-flex gap-2 mb-3">
                     <span class="badge bg-light text-dark">
-                        <i class="bi bi-flag me-1"></i>{{ course.checkpoints.filter_by(deleted_at=None).count() }} 체크포인트
+                        <i class="bi bi-flag me-1"></i>{{ course.checkpoint_count }} 체크포인트
                     </span>
                 </div>
                 

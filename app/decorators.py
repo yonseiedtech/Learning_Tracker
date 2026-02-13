@@ -39,6 +39,15 @@ class CurrentUser:
             raise AttributeError(name)
         return self._data.get(name)
 
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
     @property
     def is_authenticated(self):
         return bool(self._data)

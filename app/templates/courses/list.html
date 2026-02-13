@@ -60,7 +60,7 @@
                         <h5 class="fw-bold mb-0 mt-2">{{ course.title }}</h5>
                     </div>
                     <span class="badge bg-primary bg-opacity-10 text-primary">
-                        {{ course.enrollments.count() }}명
+                        {{ course.enrollment_count }}명
                     </span>
                 </div>
                 {% if course.description %}
@@ -124,7 +124,7 @@
                         <h5 class="fw-bold mb-0 mt-2">{{ course.title }}</h5>
                     </div>
                     <span class="badge bg-primary bg-opacity-10 text-primary">
-                        {{ course.enrollments.count() }}명 등록
+                        {{ course.enrollment_count }}명 등록
                     </span>
                 </div>
                 {% if course.description %}

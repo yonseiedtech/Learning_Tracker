@@ -113,6 +113,17 @@ def list_courses():
         public_courses = []
         my_courses = []
 
+    # Enrich courses with enrollment_count
+    for c in my_courses:
+        c['enrollment_count'] = len(dao.get_enrollments_by_course(c['id']))
+    for c in public_courses:
+        c['enrollment_count'] = len(dao.get_enrollments_by_course(c['id']))
+
+    # Enrich courses with instructor/subject data for templates
+    dao.enrich_courses(my_courses)
+    dao.enrich_courses(enrolled_courses)
+    dao.enrich_courses(public_courses)
+
     return render_template('courses/list.html',
                            my_courses=my_courses,
                            enrolled_courses=enrolled_courses,
@@ -172,8 +183,11 @@ def view(course_id):
             return redirect(url_for('main.dashboard'))
         students = _get_enrolled_students(course_id)
         checkpoints = dao.get_checkpoints_by_course(course_id)
+        active_session = dao.get_active_session_for_course(course_id)
+        dao.enrich_course(course)
         return render_template('courses/view_instructor.html',
-                               course=course, students=students, checkpoints=checkpoints)
+                               course=course, students=students, checkpoints=checkpoints,
+                               active_session=active_session)
     else:
         if not dao.is_enrolled(user.uid, course_id):
             flash('이 세미나에 등록되어 있지 않습니다.', 'danger')
@@ -206,6 +220,7 @@ def view(course_id):
 
         active_session = dao.get_active_session_for_course(course_id)
 
+        dao.enrich_course(course)
         return render_template('courses/view_student.html',
                                course=course,
                                checkpoints=checkpoints,
@@ -424,6 +439,8 @@ def live_mode(course_id):
             bookmarks = dao.get_bookmarks_by_deck(active_deck['id'])
             for b in bookmarks:
                 active_bookmarks[b.get('slide_index')] = b
+        dao.enrich_course(course)
+        dao.enrich_with_user(recent_messages)
         return render_template('courses/live_instructor.html',
                                course=course, checkpoints=checkpoints,
                                students=students, session=session,
@@ -458,6 +475,8 @@ def live_mode(course_id):
             for r in reactions:
                 if r.get('user_id') == user.uid:
                     my_reactions[r.get('slide_index')] = r.get('reaction')
+        dao.enrich_course(course)
+        dao.enrich_with_user(recent_messages)
         return render_template('courses/live_student.html',
                                course=course, checkpoints=checkpoints,
                                progress=progress_dict, session=session,
@@ -559,6 +578,7 @@ def settings(course_id):
     other_courses = [c for c in all_instructor_courses
                      if c['id'] != course_id and not c.get('deleted_at')]
 
+    dao.enrich_course(course)
     return render_template('courses/settings.html', course=course, other_courses=other_courses)
 
 
@@ -584,6 +604,7 @@ def self_study_progress(course_id):
             p = dao.get_progress(student_id, cp['id'], 'self_paced')
             progress_data[student_id][cp['id']] = p
 
+    dao.enrich_course(course)
     return render_template('courses/self_study_progress.html',
                            course=course,
                            students=students,
@@ -687,6 +708,7 @@ def members(course_id):
             else:
                 enrollment_data['approved'].append(item)
 
+    dao.enrich_course(course)
     return render_template('courses/members.html', course=course, enrollment_data=enrollment_data)
 
 

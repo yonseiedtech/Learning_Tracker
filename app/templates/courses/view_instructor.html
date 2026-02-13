@@ -14,7 +14,6 @@
     <div>
         <h2 class="fw-bold mb-2">{{ course.title }}</h2>
         <p class="text-muted mb-0">{{ course.description or '설명이 없습니다' }}</p>
-        {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
         {% if active_session %}
         <div class="mt-2">
             {% if active_session.live_status == 'live' %}

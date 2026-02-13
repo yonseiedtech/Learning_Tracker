@@ -94,14 +94,14 @@
                 <div class="col-3">
                     <div class="p-2">
                         <i class="bi bi-mortarboard text-danger fs-4"></i>
-                        <div class="fw-bold fs-5">{{ subject.members.filter_by(role='instructor').count() }}</div>
+                        <div class="fw-bold fs-5">{{ subject.instructor_count }}</div>
                         <small class="text-muted">강사</small>
                     </div>
                 </div>
                 <div class="col-3">
                     <div class="p-2">
                         <i class="bi bi-person-badge text-warning fs-4"></i>
-                        <div class="fw-bold fs-5">{{ subject.members.filter_by(role='assistant').count() }}</div>
+                        <div class="fw-bold fs-5">{{ subject.assistant_count }}</div>
                         <small class="text-muted">조교</small>
                     </div>
                 </div>
@@ -180,11 +180,11 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span class="badge bg-secondary">{{ course.checkpoints.filter_by(deleted_at=None).count() }}개</span>
+                        <span class="badge bg-secondary">{{ course.checkpoint_count }}개</span>
                     </td>
                     <td>
                         {% if course.session_type == 'live_session' %}
-                            {% set active_session = course.active_sessions.filter_by(ended_at=None).first() %}
+                            {% set active_session = course.active_session %}
                             {% if active_session %}
                                 {% if active_session.live_status == 'live' %}
                                 <span class="badge bg-danger"><i class="bi bi-broadcast me-1"></i>라이브 중</span>

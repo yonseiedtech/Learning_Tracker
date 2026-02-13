@@ -61,6 +61,18 @@ def list_subjects():
             and s.get('is_visible', True)
         ]
 
+    # Enrich subjects with course_count
+    for s in enrolled_subjects:
+        s['course_count'] = len(dao.get_courses_by_subject(s['id']))
+    for s in all_subjects:
+        s['course_count'] = len(dao.get_courses_by_subject(s['id']))
+
+    # Enrich subjects with instructor data for templates
+    for s in enrolled_subjects:
+        dao.enrich_subject(s)
+    for s in all_subjects:
+        dao.enrich_subject(s)
+
     return render_template('subjects/list.html',
                           enrolled_subjects=enrolled_subjects,
                           all_subjects=all_subjects,
@@ -131,6 +143,21 @@ def view(subject_id):
     enrolled_count = len(approved_enrollments)
     pending_enrollments = dao.get_subject_enrollments_by_subject(subject_id, status='pending')
     pending_count = len(pending_enrollments)
+
+    # Enrich subject with member counts
+    members = dao.get_subject_members(subject_id)
+    subject['instructor_count'] = len([m for m in members if m.get('role') == 'instructor'])
+    subject['assistant_count'] = len([m for m in members if m.get('role') == 'assistant'])
+
+    # Enrich courses with checkpoint_count and active_session
+    for course in courses:
+        checkpoints = dao.get_checkpoints_by_course(course['id'])
+        course['checkpoint_count'] = len([cp for cp in checkpoints if not cp.get('deleted_at')])
+        course['active_session'] = dao.get_active_session_for_course(course['id'])
+
+    # Enrich subject with instructor and courses with instructor/subject data
+    dao.enrich_subject(subject)
+    dao.enrich_courses(courses)
 
     return render_template('subjects/view.html', subject=subject, courses=courses,
                           is_enrolled=is_enrolled, enrolled_count=enrolled_count,

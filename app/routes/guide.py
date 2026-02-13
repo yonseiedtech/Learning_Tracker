@@ -28,6 +28,12 @@ def index():
         category = 'notice'
 
     posts = dao.get_guide_posts(category=category)
+    # Enrich posts with comment_count
+    for post in posts:
+        post['comment_count'] = len(dao.get_guide_comments(post['id']))
+
+    # Enrich posts with author data for templates
+    dao.enrich_with_user(posts, 'author_id', 'author')
 
     return render_template('guide/index.html',
                            posts=posts,
@@ -49,6 +55,10 @@ def view_post(post_id):
     post['view_count'] = view_count
 
     comments = dao.get_guide_comments(post_id)
+
+    # Enrich post and comments with author data for templates
+    dao.enrich_with_user([post], 'author_id', 'author')
+    dao.enrich_with_user(comments, 'author_id', 'author')
 
     return render_template('guide/view.html',
                            post=post,

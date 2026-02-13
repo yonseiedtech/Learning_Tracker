@@ -39,12 +39,21 @@ def dashboard():
         all_subjects = dao.get_subjects_by_instructor(user.id)
         subjects = [s for s in all_subjects if not s.get('deleted_at')]
 
+        # Enrich subjects with computed counts for templates
+        for subject in subjects:
+            sc = dao.get_courses_by_subject(subject['id'])
+            subject['course_count'] = len([c for c in sc if not c.get('deleted_at')])
+            se = dao.get_subject_enrollments_by_subject(subject['id'], status='approved')
+            subject['enrollment_count'] = len(se)
+            subject['is_visible'] = subject.get('visibility') in (True, 'public')
+
         # Total unique students across standalone courses and subjects
         student_ids = set()
 
         # Students from standalone course enrollments
         for course in courses:
             enrollments = dao.get_enrollments_by_course(course['id'])
+            course['enrollment_count'] = len(enrollments)
             for e in enrollments:
                 student_ids.add(e['user_id'])
 
@@ -62,6 +71,7 @@ def dashboard():
         # Include standalone courses
         for course in courses:
             cps = dao.get_checkpoints_by_course(course['id'])
+            course['checkpoint_count'] = len(cps)
             total_checkpoints += len(cps)
             all_course_ids.append(course['id'])
         # Include subject courses
@@ -114,6 +124,9 @@ def dashboard():
         recent_progress.sort(key=lambda p: p.get('completed_at', datetime.min), reverse=True)
         recent_progress = recent_progress[:10]
 
+        # Enrich recent_progress with user data for templates
+        dao.enrich_with_user(recent_progress)
+
         return render_template('dashboard/instructor.html',
             courses=courses,
             subjects=subjects,
@@ -142,8 +155,34 @@ def dashboard():
             if subject and not subject.get('deleted_at'):
                 subjects.append(subject)
 
+        # Enrich subjects with instructor name for templates
+        for subject in subjects:
+            instructor = dao.get_user(subject.get('instructor_id', ''))
+            subject['instructor_name'] = instructor.get('full_name', '') if instructor else ''
+
+        # Enrich courses with computed fields for templates
+        for course in courses:
+            cps = dao.get_checkpoints_by_course(course['id'])
+            course['checkpoint_count'] = len(cps)
+            instructor = dao.get_user(course.get('instructor_id', ''))
+            course['instructor_name'] = instructor.get('full_name', '') if instructor else ''
+            if course.get('subject_id'):
+                subj = dao.get_subject(course['subject_id'])
+                course['subject_title'] = subj.get('title', '') if subj else ''
+            else:
+                course['subject_title'] = ''
+
         # Pending subject enrollments
         pending_subject_enrollments = dao.get_subject_enrollments_by_user(user.id, status='pending')
+        # Enrich pending enrollments with subject info
+        for pe in pending_subject_enrollments:
+            subj = dao.get_subject(pe.get('subject_id', ''))
+            pe['subject_title'] = subj.get('title', '') if subj else ''
+            if subj:
+                instructor = dao.get_user(subj.get('instructor_id', ''))
+                pe['instructor_name'] = instructor.get('full_name', '') if instructor else ''
+            else:
+                pe['instructor_name'] = ''
 
         # Progress stats
         all_progress = dao.get_progress_by_user(user.id)
@@ -218,6 +257,10 @@ def dashboard():
         excluded_ids = enrolled_subject_ids | pending_subject_ids
         all_visible_subjects = dao.get_visible_subjects()
         available_subjects = [s for s in all_visible_subjects if s['id'] not in excluded_ids]
+        for s in available_subjects:
+            if 'instructor_name' not in s:
+                instructor = dao.get_user(s.get('instructor_id', ''))
+                s['instructor_name'] = instructor.get('full_name', '') if instructor else ''
 
         return render_template('dashboard/student.html',
             courses=courses,

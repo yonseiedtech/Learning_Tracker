@@ -60,6 +60,7 @@ def video_session(course_id):
 
     page_time = dao.get_page_time_log(course_id, user.uid)
 
+    dao.enrich_course(course)
     return render_template('sessions/video.html',
                          course=course,
                          watch_log=watch_log,
@@ -161,6 +162,7 @@ def material_session(course_id):
 
     page_time = dao.get_page_time_log(course_id, user.uid)
 
+    dao.enrich_course(course)
     return render_template('sessions/material.html',
                          course=course,
                          completion=completion,
@@ -220,6 +222,9 @@ def assignment_session(course_id):
 
     page_time = dao.get_page_time_log(course_id, user.uid)
 
+    dao.enrich_course(course)
+    if all_submissions:
+        dao.enrich_with_user(all_submissions)
     return render_template('sessions/assignment.html',
                          course=course,
                          completion=completion,
@@ -293,6 +298,9 @@ def quiz_session(course_id):
     if is_instructor:
         all_attempts = dao.get_quiz_attempts_by_course(course_id)
 
+    dao.enrich_course(course)
+    if all_attempts:
+        dao.enrich_with_user(all_attempts)
     return render_template('sessions/quiz.html',
                          course=course,
                          completion=completion,
@@ -463,6 +471,7 @@ def quiz_result(course_id, attempt_id):
         else:
             comment = "학습 자료를 처음부터 다시 꼼꼼하게 살펴보세요. 필요하다면 관련 보충 자료도 함께 학습해보세요."
 
+    dao.enrich_course(course)
     return render_template('sessions/quiz_result.html',
                          course=course,
                          attempt=attempt,

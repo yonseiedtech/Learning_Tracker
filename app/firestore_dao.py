@@ -38,6 +38,70 @@ def _now():
     return datetime.now(timezone.utc)
 
 
+# ---------------------------------------------------------------------------
+# Enrichment helpers  (attach related objects as nested dicts for templates)
+# ---------------------------------------------------------------------------
+
+_user_cache = {}
+
+def _get_user_cached(uid):
+    """Get user with simple in-request cache."""
+    if not uid:
+        return {'display_name': '', 'full_name': '', 'email': '', 'username': '', 'nickname': ''}
+    if uid not in _user_cache:
+        u = get_user(uid)
+        if u:
+            u.setdefault('display_name', u.get('nickname') or u.get('full_name') or u.get('username', ''))
+        _user_cache[uid] = u or {'display_name': '', 'full_name': '', 'email': '', 'username': '', 'nickname': ''}
+    return _user_cache[uid]
+
+
+def clear_user_cache():
+    """Clear user cache (call at start of request if needed)."""
+    _user_cache.clear()
+
+
+def enrich_with_user(items, user_id_field='user_id', key='user'):
+    """Attach user dict to each item for template access like item.user.display_name."""
+    for item in items:
+        uid = item.get(user_id_field)
+        item[key] = _get_user_cached(uid)
+    return items
+
+
+def enrich_with_instructor(items):
+    """Attach instructor dict for template access like item.instructor.display_name."""
+    return enrich_with_user(items, user_id_field='instructor_id', key='instructor')
+
+
+def enrich_course(course):
+    """Enrich a single course dict with instructor, subject, checkpoint_count, enrollment_count."""
+    if not course:
+        return course
+    course['instructor'] = _get_user_cached(course.get('instructor_id'))
+    if course.get('subject_id'):
+        course['subject'] = get_subject(course['subject_id']) or {'title': ''}
+    else:
+        course['subject'] = None
+    return course
+
+
+def enrich_courses(courses):
+    """Enrich a list of course dicts."""
+    for c in courses:
+        enrich_course(c)
+    return courses
+
+
+def enrich_subject(subject):
+    """Enrich a subject dict with instructor and visibility helpers."""
+    if not subject:
+        return subject
+    subject['instructor'] = _get_user_cached(subject.get('instructor_id'))
+    subject['is_visible'] = subject.get('visibility') in (True, 'public')
+    return subject
+
+
 # ========================================================================
 # Users  (collection: users)
 # ========================================================================
@@ -166,20 +230,22 @@ def update_subject(subject_id, data):
 
 def get_subjects_by_instructor(instructor_id):
     """Get all subjects created by a given instructor."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('subjects')
         .where(filter=FieldFilter('instructor_id', '==', instructor_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 def get_visible_subjects():
     """Get all subjects that are visible (visibility == True or 'public')."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('subjects')
         .where(filter=FieldFilter('visibility', '==', True))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 def generate_invite_code(collection='subjects'):
@@ -235,11 +301,12 @@ def update_course(course_id, data):
 
 def get_courses_by_subject(subject_id):
     """Get all courses belonging to a subject."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('courses')
         .where(filter=FieldFilter('subject_id', '==', subject_id))
-        .order_by('order')
     )
+    results.sort(key=lambda x: x.get('order', 0))
+    return results
 
 
 def get_courses_by_instructor(instructor_id, standalone_only=False):
@@ -250,7 +317,9 @@ def get_courses_by_instructor(instructor_id, standalone_only=False):
     )
     if standalone_only:
         q = q.where(filter=FieldFilter('subject_id', '==', None))
-    return _query_to_list(q.order_by('created_at'))
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=False)
+    return results
 
 
 # ========================================================================
@@ -449,22 +518,20 @@ def get_checkpoints_by_course(course_id, include_deleted=False):
     )
     if not include_deleted:
         q = q.where(filter=FieldFilter('is_deleted', '==', False))
-    return _query_to_list(q.order_by('order'))
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('order', 0))
+    return results
 
 
 def get_max_order(course_id):
     """Get the maximum order value among checkpoints in a course."""
-    docs = (
+    docs = _query_to_list(
         get_db().collection('checkpoints')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('order', direction='DESCENDING')
-        .limit(1)
-        .stream()
     )
-    for doc in docs:
-        d = doc.to_dict()
-        return d.get('order', 0)
-    return 0
+    if not docs:
+        return 0
+    return max(d.get('order', 0) for d in docs)
 
 
 # ========================================================================
@@ -579,11 +646,12 @@ def update_active_session(session_id, data):
 
 def get_sessions_by_course(course_id):
     """Get all sessions for a course, ordered by created_at descending."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('active_sessions')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('created_at', direction='DESCENDING')
     )
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results
 
 
 # ========================================================================
@@ -599,12 +667,12 @@ def create_chat_message(data):
 
 def get_chat_messages(course_id, limit=50):
     """Get recent chat messages for a course, ordered by created_at."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('chat_messages')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('created_at', direction='DESCENDING')
-        .limit(limit)
     )
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results[:limit]
 
 
 def get_chat_message(message_id):
@@ -658,11 +726,12 @@ def delete_forum_post(post_id):
 
 def get_forum_posts_by_course(course_id):
     """Get all forum posts for a course, newest first."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('forum_posts')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('created_at', direction='DESCENDING')
     )
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results
 
 
 # ========================================================================
@@ -671,11 +740,12 @@ def get_forum_posts_by_course(course_id):
 
 def get_forum_comments(post_id):
     """Get all comments for a forum post, oldest first."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('forum_comments')
         .where(filter=FieldFilter('post_id', '==', post_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 def create_forum_comment(data):
@@ -703,11 +773,12 @@ def create_live_session_post(data):
 
 def get_live_session_posts(session_id):
     """Get all posts for a live session, ordered by created_at."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('live_session_posts')
         .where(filter=FieldFilter('session_id', '==', session_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 # ========================================================================
@@ -761,12 +832,12 @@ def create_notification(data):
 
 def get_notifications(user_id, limit=50):
     """Get notifications for a user, newest first."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('notifications')
         .where(filter=FieldFilter('user_id', '==', user_id))
-        .order_by('created_at', direction='DESCENDING')
-        .limit(limit)
     )
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results[:limit]
 
 
 def mark_notification_read(notification_id):
@@ -903,11 +974,12 @@ def create_or_update_page_time_log(course_id, user_id, data):
 
 def get_quiz_questions(course_id):
     """Get all quiz questions for a course, ordered by 'order'."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('quiz_questions')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('order')
     )
+    results.sort(key=lambda x: x.get('order', 0))
+    return results
 
 
 def create_quiz_question(data):
@@ -930,10 +1002,11 @@ def get_quiz_attempt(course_id, user_id, completed=None):
     )
     if completed is not None:
         q = q.where(filter=FieldFilter('completed', '==', completed))
-    q = q.order_by('created_at', direction='DESCENDING').limit(1)
-    for doc in q.stream():
-        return _doc_to_dict(doc)
-    return None
+    results = _query_to_list(q)
+    if not results:
+        return None
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results[0]
 
 
 def create_quiz_attempt(data):
@@ -951,11 +1024,12 @@ def update_quiz_attempt(attempt_id, data):
 
 def get_quiz_attempts_by_course(course_id):
     """Get all quiz attempts for a course."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('quiz_attempts')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('created_at', direction='DESCENDING')
     )
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    return results
 
 
 # ========================================================================
@@ -1023,11 +1097,12 @@ def delete_slide_deck(deck_id):
 
 def get_slide_decks_by_course(course_id):
     """Get all slide decks for a course."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('slide_decks')
         .where(filter=FieldFilter('course_id', '==', course_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 # ========================================================================
@@ -1219,13 +1294,13 @@ def get_learning_reviews(course_id=None, user_id=None, limit=20, start_after=Non
         q = q.where(filter=FieldFilter('course_id', '==', course_id))
     if user_id:
         q = q.where(filter=FieldFilter('user_id', '==', user_id))
-    q = q.order_by('created_at', direction='DESCENDING')
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
     if start_after:
-        doc = get_db().collection('learning_reviews').document(start_after).get()
-        if doc.exists:
-            q = q.start_after(doc)
-    q = q.limit(limit)
-    return _query_to_list(q)
+        idx = next((i for i, r in enumerate(results) if r['id'] == start_after), -1)
+        if idx >= 0:
+            results = results[idx + 1:]
+    return results[:limit]
 
 
 # ========================================================================
@@ -1252,11 +1327,12 @@ def delete_review_comment(comment_id):
 
 def get_review_comments(review_id):
     """Get all comments for a learning review."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('review_comments')
         .where(filter=FieldFilter('review_id', '==', review_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 # ========================================================================
@@ -1303,13 +1379,13 @@ def get_qna_posts(course_id=None, user_id=None, limit=20, start_after=None):
         q = q.where(filter=FieldFilter('course_id', '==', course_id))
     if user_id:
         q = q.where(filter=FieldFilter('user_id', '==', user_id))
-    q = q.order_by('created_at', direction='DESCENDING')
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
     if start_after:
-        doc = get_db().collection('qna_posts').document(start_after).get()
-        if doc.exists:
-            q = q.start_after(doc)
-    q = q.limit(limit)
-    return _query_to_list(q)
+        idx = next((i for i, r in enumerate(results) if r['id'] == start_after), -1)
+        if idx >= 0:
+            results = results[idx + 1:]
+    return results[:limit]
 
 
 # ========================================================================
@@ -1342,11 +1418,12 @@ def delete_qna_answer(answer_id):
 
 def get_qna_answers(post_id):
     """Get all answers for a QnA post."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('qna_answers')
         .where(filter=FieldFilter('post_id', '==', post_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 # ========================================================================
@@ -1391,13 +1468,13 @@ def get_study_groups(course_id=None, limit=20, start_after=None):
     q = get_db().collection('study_groups')
     if course_id:
         q = q.where(filter=FieldFilter('course_id', '==', course_id))
-    q = q.order_by('created_at', direction='DESCENDING')
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
     if start_after:
-        doc = get_db().collection('study_groups').document(start_after).get()
-        if doc.exists:
-            q = q.start_after(doc)
-    q = q.limit(limit)
-    return _query_to_list(q)
+        idx = next((i for i, r in enumerate(results) if r['id'] == start_after), -1)
+        if idx >= 0:
+            results = results[idx + 1:]
+    return results[:limit]
 
 
 # ========================================================================
@@ -1493,13 +1570,13 @@ def get_guide_posts(course_id=None, category=None, limit=20, start_after=None):
         q = q.where(filter=FieldFilter('course_id', '==', course_id))
     if category:
         q = q.where(filter=FieldFilter('category', '==', category))
-    q = q.order_by('created_at', direction='DESCENDING')
+    results = _query_to_list(q)
+    results.sort(key=lambda x: x.get('created_at') or '', reverse=True)
     if start_after:
-        doc = get_db().collection('guide_posts').document(start_after).get()
-        if doc.exists:
-            q = q.start_after(doc)
-    q = q.limit(limit)
-    return _query_to_list(q)
+        idx = next((i for i, r in enumerate(results) if r['id'] == start_after), -1)
+        if idx >= 0:
+            results = results[idx + 1:]
+    return results[:limit]
 
 
 # ========================================================================
@@ -1532,11 +1609,12 @@ def delete_guide_comment(comment_id):
 
 def get_guide_comments(post_id):
     """Get all comments for a guide post."""
-    return _query_to_list(
+    results = _query_to_list(
         get_db().collection('guide_comments')
         .where(filter=FieldFilter('post_id', '==', post_id))
-        .order_by('created_at')
     )
+    results.sort(key=lambda x: x.get('created_at') or '')
+    return results
 
 
 # ========================================================================
